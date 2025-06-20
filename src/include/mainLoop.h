@@ -9,12 +9,11 @@ typedef enum {
     STATE_EXIT
 } GameState;
 
-#include <SDL2/SDL.h>
+#include "ecs.h"
 #include <SDL2/SDL_ttf.h>
-#include <stdlib.h>
 
 // initialises SDL lib, the game window, the renderer
-void initGame(SDL_Window **wdw, SDL_Renderer **rdr);
+void initGame(SDL_Window **wdw, SDL_Renderer **rdr, ECS *ecs);
 
 // main menu loop
 void mainMenu(SDL_Renderer *rdr, GameState *currState, SDL_Event *event);

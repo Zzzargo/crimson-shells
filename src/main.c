@@ -1,11 +1,11 @@
-#include <stdio.h>
 #include "include/mainLoop.h"
 
 int main(int argc, char* argv[]) {
     SDL_Window *window = NULL;
     SDL_Renderer *renderer = NULL;
+    ECS ecs = NULL;
 
-    initGame(&window, &renderer);
+    initGame(&window, &renderer, &ecs);
     // start on the main menu
     GameState currState = STATE_MAIN_MENU;
 

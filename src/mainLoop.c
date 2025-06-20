@@ -1,6 +1,6 @@
 #include "include/mainLoop.h"
 
-void initGame(SDL_Window **wdw, SDL_Renderer **rdr) {
+void initGame(SDL_Window **wdw, SDL_Renderer **rdr, ECS *ecs) {
     // Initialize SDL
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
@@ -13,6 +13,9 @@ void initGame(SDL_Window **wdw, SDL_Renderer **rdr) {
         SDL_Quit();
         exit(EXIT_FAILURE);
     }
+
+    // Initialize ECS
+    initECS(ecs);
 
     // Create a window
     (*wdw) = SDL_CreateWindow(
