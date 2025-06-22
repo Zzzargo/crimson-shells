@@ -166,7 +166,7 @@ void updateMenuUI(UIECS uiEcs, SDL_Renderer *rdr) {
     }
 }
 
-void handleMainMenuEvents(GameState *currState, SDL_Event *event, UIECS uiEcs, SDL_Renderer *rdr) {
+void handleMainMenuEvents(GameState *currState, SDL_Event *event, UIECS uiEcs, GameECS gEcs, SDL_Renderer *rdr) {
     // Handle input
     if (event->type == SDL_KEYDOWN) {
         switch (event->key.keysym.sym) {
@@ -223,11 +223,11 @@ void handleMainMenuEvents(GameState *currState, SDL_Event *event, UIECS uiEcs, S
                 for (Uint64 i = 0; i < uiEcs->entityCount; i++) {
                     TextComponent *curr = &uiEcs->textComponents[i];
                     if (curr->selected) {
-                        if (i == 1) {
+                        if (strcmp(curr->text, "Play") == 0) {
                             *currState = STATE_PLAYING;  // Start the game
                             onExitMainMenu(uiEcs, rdr);  // Clear the main menu UI
-                            // onEnterPlayState(GameECS gEcs, rdr);
-                        } else if (i == 2) {
+                            onEnterPlayState(gEcs, rdr);
+                        } else if (strcmp(curr->text, "Exit") == 0) {
                             *currState = STATE_EXIT;  // Exit the game
                         }
                     }
@@ -253,51 +253,102 @@ void renderMainMenu(SDL_Renderer *rdr, UIECS uiEcs) {
     SDL_RenderPresent(rdr);  // render current frame
 }
 
-void play(SDL_Renderer *rdr, GameState *currState, GameECS *ecs) {
-    // // Clear the screen
-    // SDL_SetRenderDrawColor(rdr, 100, 50, 0, 200);  // background color - brownish
-    // SDL_RenderClear(rdr);
+void onEnterPlayState(GameECS ecs, SDL_Renderer *rdr) {
+    // Add the initial game entities to the ECS
+    HealthComponent health = {1, 100, 100};  // Active, max health, current health
+    SpeedComponent speed = {1, 0.0, 10.0};
 
-    // // Dot
-    // int VSpeed = 5, HSpeed = 5;
+    SDL_Rect *dotRect = malloc(sizeof(SDL_Rect));
+    if (!dotRect) {
+        printf("Failed to allocate memory for dot rectangle\n");
+        exit(EXIT_FAILURE);
+    }
+    // Initial position and size of the dot
+    dotRect->x = 800 - 16;  // Centered horizontally
+    dotRect->y = 450 - 16;  // Centered vertically
+    dotRect->w = 32;  // Width of the dot
+    dotRect->h = 32;  // Height of the dot
 
-    // // Keyboard state
-    // const Uint8* keys = SDL_GetKeyboardState(NULL);
-    // if (keys[SDL_SCANCODE_ESCAPE]) {
-    //     *currState = STATE_MAIN_MENU;  // Go back to main menu
-    // }
-    // if (keys[SDL_SCANCODE_W]) {
-    //     if (keys[SDL_SCANCODE_A] || keys[SDL_SCANCODE_D]) {
-    //         // Diagonal movement
-    //         dot->y -= VSpeed / 1.414; // 1/sqrt(2) - normalisation of speed vector
-    //     } else {
-    //         dot->y -= VSpeed;
-    //     }
-    // }
-    // if (keys[SDL_SCANCODE_S]) {
-    //     if (keys[SDL_SCANCODE_A] || keys[SDL_SCANCODE_D]) {
-    //         dot->y += VSpeed / 1.414;
-    //     } else {
-    //         dot->y += VSpeed;
-    //     }
-    // }
-    // if (keys[SDL_SCANCODE_A]) {
-    //     if (keys[SDL_SCANCODE_S] || keys[SDL_SCANCODE_W]) {
-    //         dot->x -= HSpeed / 1.414;
-    //     } else {
-    //         dot->x -= HSpeed;
-    //     }
-    // }
-    // if (keys[SDL_SCANCODE_D]) {
-    //     if (keys[SDL_SCANCODE_S] || keys[SDL_SCANCODE_W]) {
-    //         dot->x += HSpeed / 1.414;
-    //     } else {
-    //         dot->x += HSpeed;
-    //     }
-    // }
+    SDL_Texture *dotTexture = SDL_CreateTexture(
+        rdr,
+        SDL_PIXELFORMAT_RGBA8888,
+        SDL_TEXTUREACCESS_TARGET,
+        dotRect->w,
+        dotRect->h
+    );
+    if (!dotTexture) {
+        printf("Failed to create dot texture: %s\n", SDL_GetError());
+        exit(EXIT_FAILURE);
+    }
+    SDL_SetRenderTarget(rdr, dotTexture);  // draw only to the dot texture
+    SDL_SetRenderDrawColor(rdr, 255, 255, 255, 255);  // White color for the dot
+    SDL_RenderFillRect(rdr, NULL);  // Fill the rectangle with white color
+    SDL_SetRenderTarget(rdr, NULL);  // Reset the render target
 
-    //  // Draw the dot (white)
-    // SDL_SetRenderDrawColor(rdr, 255, 255, 255, 255);
-    // SDL_RenderFillRect(rdr, dot);
-    // SDL_RenderPresent(rdr);  // render the current frame
+    RenderComponent render = {1, 0, dotTexture, dotRect};  // Active, not selected, texture, destination rectangle
+
+    // put the created entity into the ECS
+    spawnGameEntity(ecs, health, speed, render);
+}
+
+void renderPlayState(SDL_Renderer *rdr, GameState *currState, GameECS ecs, UIECS uiEcs, FontManager fonts) {
+    // Clear the screen
+    SDL_SetRenderDrawColor(rdr, 100, 50, 0, 200);  // background color - brownish
+    SDL_RenderClear(rdr);
+
+    // Keyboard state
+    const Uint8* keys = SDL_GetKeyboardState(NULL);
+    if (keys[SDL_SCANCODE_ESCAPE]) {
+        *currState = STATE_MAIN_MENU;  // Go back to main menu
+        onEnterMainMenu(uiEcs, rdr, fonts);
+    }
+    if (keys[SDL_SCANCODE_W]) {
+        SpeedComponent *dotSpeed = &ecs->speedComponents[0];
+        if (keys[SDL_SCANCODE_A] || keys[SDL_SCANCODE_D]) {
+            // Diagonal movement Speed / 1.414
+            dotSpeed->velocity = dotSpeed->maxSpeed / 1.414;  // 1 / sqrt(2) - normalization
+        } else {
+            dotSpeed->velocity = dotSpeed->maxSpeed;  // Normal speed
+        }
+        ecs->renderComponents[0].destRect->y -= dotSpeed->velocity;  // Move up
+    }
+    if (keys[SDL_SCANCODE_S]) {
+        SpeedComponent *dotSpeed = &ecs->speedComponents[0];
+        if (keys[SDL_SCANCODE_A] || keys[SDL_SCANCODE_D]) {
+            // Diagonal movement Speed / 1.414
+            dotSpeed->velocity = dotSpeed->maxSpeed / 1.414;
+        } else {
+            dotSpeed->velocity = dotSpeed->maxSpeed;
+        }
+        ecs->renderComponents[0].destRect->y += dotSpeed->velocity;  // Move down
+    }
+    if (keys[SDL_SCANCODE_A]) {
+        SpeedComponent *dotSpeed = &ecs->speedComponents[0];
+        if (keys[SDL_SCANCODE_S] || keys[SDL_SCANCODE_W]) {
+            dotSpeed->velocity = dotSpeed->maxSpeed / 1.414;
+        } else {
+            dotSpeed->velocity = dotSpeed->maxSpeed;
+        }
+        ecs->renderComponents[0].destRect->x -= dotSpeed->velocity;  // Move left
+    }
+    if (keys[SDL_SCANCODE_D]) {
+        SpeedComponent *dotSpeed = &ecs->speedComponents[0];
+        if (keys[SDL_SCANCODE_S] || keys[SDL_SCANCODE_W]) {
+            dotSpeed->velocity = dotSpeed->maxSpeed / 1.414;
+        } else {
+            dotSpeed->velocity = dotSpeed->maxSpeed;
+        }
+        ecs->renderComponents[0].destRect->x += dotSpeed->velocity;  // Move right
+    }
+
+    // Render game entities
+    // printf("Rendering %lu entities\n", ecs->entityCount);
+    for (Uint64 i = 0; i < ecs->entityCount; i++) {
+        RenderComponent *render = &ecs->renderComponents[i];
+        if (render->active) {
+            SDL_RenderCopy(rdr, render->texture, NULL, render->destRect);
+        }
+    }
+
+    SDL_RenderPresent(rdr);  // render the current frame
 }

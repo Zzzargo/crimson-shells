@@ -25,7 +25,7 @@ int main(int argc, char* argv[]) {
             }
             switch (currState) {
                 case STATE_MAIN_MENU: {
-                    handleMainMenuEvents(&currState, &event, uiEcs, renderer);
+                    handleMainMenuEvents(&currState, &event, uiEcs, ecs, renderer);
                     break;
                 }
                 case STATE_PAUSED: {
@@ -62,7 +62,7 @@ int main(int argc, char* argv[]) {
                 break;
             }
             case STATE_PLAYING: {
-                play(renderer, &currState, &ecs);
+                renderPlayState(renderer, &currState, ecs, uiEcs, fonts);
                 break;
             }
         }

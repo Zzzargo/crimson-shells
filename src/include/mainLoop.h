@@ -29,12 +29,15 @@ void onExitMainMenu(UIECS uiEcs, SDL_Renderer *rdr);
 void updateMenuUI(UIECS uiEcs, SDL_Renderer *rdr);
 
 // takes care of the events in the main menu
-void handleMainMenuEvents(GameState *currState, SDL_Event *event, UIECS uiEcs, SDL_Renderer *rdr);
+void handleMainMenuEvents(GameState *currState, SDL_Event *event, UIECS uiEcs, GameECS gEcs, SDL_Renderer *rdr);
 
 // takes care of the rendering part in the main menu
 void renderMainMenu(SDL_Renderer *rdr, UIECS uiEcs);
 
+// loads the initial game entities into the ECS when entering the play state
+void onEnterPlayState(GameECS ecs, SDL_Renderer *rdr);
+
 // game loop
-void play(SDL_Renderer *rdr, GameState *currState, GameECS *ecs);
+void renderPlayState(SDL_Renderer *rdr, GameState *currState, GameECS ecs, UIECS uiEcs, FontManager fonts);
 
 #endif // MAINLOOP_H

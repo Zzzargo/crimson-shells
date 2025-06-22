@@ -115,6 +115,29 @@ void deleteUiTextEntity(UIECS uiEcs, Uint64 index) {
     uiEcs->entityCount--;  // Decrease the entity count
 }
 
+void spawnGameEntity(GameECS ecs, HealthComponent health, SpeedComponent speed, RenderComponent render) {
+    if (ecs->entityCount >= ecs->capacity) {
+        // resize array if needed
+        ecs->capacity *= 2;
+        HealthComponent *tmpHealth = realloc(ecs->healthComponents, ecs->capacity * sizeof(HealthComponent));
+        SpeedComponent *tmpSpeed = realloc(ecs->speedComponents, ecs->capacity * sizeof(SpeedComponent));
+        RenderComponent *tmpRender = realloc(ecs->renderComponents, ecs->capacity * sizeof(RenderComponent));
+        if (!tmpHealth || !tmpSpeed || !tmpRender) {
+            fprintf(stderr, "Failed to reallocate memory for game components\n");
+            exit(EXIT_FAILURE);
+        }
+        ecs->healthComponents = tmpHealth;
+        ecs->speedComponents = tmpSpeed;
+        ecs->renderComponents = tmpRender;
+    }
+
+    // Add the new entity
+    ecs->healthComponents[ecs->entityCount] = health;
+    ecs->speedComponents[ecs->entityCount] = speed;
+    ecs->renderComponents[ecs->entityCount] = render;
+    ecs->entityCount++;
+}
+
 void freeGECS(GameECS ecs) {
     if (ecs) {
         free(ecs->healthComponents);

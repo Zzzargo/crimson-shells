@@ -66,6 +66,9 @@ void addUiTextEntity(UIECS uiEcs, TTF_Font *font, char *text, SDL_Texture *textu
 // removes a text entity from the UI ECS
 void deleteUiTextEntity(UIECS uiEcs, Uint64 index);
 
+// adds a game entity to the game ECS
+void spawnGameEntity(GameECS ecs, HealthComponent health, SpeedComponent speed, RenderComponent render);
+
 // frees the game ECS memory
 void freeGECS(GameECS ecs);
 
