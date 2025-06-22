@@ -5,6 +5,7 @@ project(MindBlowingGame C)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 
 set(CMAKE_C_STANDARD 99)
+set(CMAKE_BUILD_TYPE Debug)
 
 # Source and include directories
 file(GLOB SOURCES "src/*.c")
