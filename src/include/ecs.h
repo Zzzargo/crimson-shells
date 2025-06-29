@@ -31,10 +31,12 @@ typedef struct {
 } RenderComponent;
 
 typedef struct {
+    GameState state;  // indicates which state the text corresponds to
     Uint8 active;  // indicates if the text component is active
     Uint8 selected;  // for UI components
     TTF_Font *font;  // font to use for rendering text
     char *text;
+    SDL_Color color;  // color of the text
     SDL_Texture *texture;  // texture for the text
     SDL_Rect *destRect;  // where to render the text
 } TextComponent;
@@ -61,7 +63,7 @@ void initGECS(GameECS *ecs);
 void initUIECS(UIECS *uiEcs);
 
 // adds a text entity to the UI ECS
-void addUiTextEntity(UIECS uiEcs, TTF_Font *font, char *text, SDL_Texture *texture, SDL_Rect *destRect);
+void addUiTextEntity(UIECS uiEcs, TTF_Font *font, char *text, SDL_Color color, SDL_Texture *texture, SDL_Rect *destRect);
 
 // removes a text entity from the UI ECS
 void deleteUiTextEntity(UIECS uiEcs, Uint64 index);

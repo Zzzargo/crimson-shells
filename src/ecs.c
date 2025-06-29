@@ -67,7 +67,7 @@ void initUIECS(UIECS *uiEcs) {
     }
 }
 
-void addUiTextEntity(UIECS uiEcs, TTF_Font *font, char *text, SDL_Texture *texture, SDL_Rect *destRect) {
+void addUiTextEntity(UIECS uiEcs, TTF_Font *font, char *text, SDL_Color color, SDL_Texture *texture, SDL_Rect *destRect) {
     if (uiEcs->entityCount >= uiEcs->capacity) {
         // resize array if needed
         uiEcs->capacity *= 2;
@@ -77,6 +77,27 @@ void addUiTextEntity(UIECS uiEcs, TTF_Font *font, char *text, SDL_Texture *textu
             exit(EXIT_FAILURE);
         }
         uiEcs->textComponents = tmp;
+
+        // reallocate the new text strings
+        for (Uint64 i = uiEcs->entityCount; i < uiEcs->capacity; i++) {
+            uiEcs->textComponents[i].text = calloc(256, sizeof(char));
+            if (!uiEcs->textComponents[i].text) {
+                fprintf(stderr, "Failed to allocate memory for text in UI ECS\n");
+                freeUIECS(uiEcs);
+                exit(EXIT_FAILURE);
+            }
+            uiEcs->textComponents[i].active = 0;  // mark as inactive
+        }
+    }
+
+    // make sure the text buffer is valid (sometimes it can be freed earlier)
+    if (!uiEcs->textComponents[uiEcs->entityCount].text) {
+        uiEcs->textComponents[uiEcs->entityCount].text = calloc(256, sizeof(char));
+        if (!uiEcs->textComponents[uiEcs->entityCount].text) {
+            fprintf(stderr, "Failed to allocate memory for text in UI ECS\n");
+            freeUIECS(uiEcs);
+            exit(EXIT_FAILURE);
+        }
     }
 
     uiEcs->textComponents[uiEcs->entityCount].active = 1;  // mark as active
@@ -84,6 +105,7 @@ void addUiTextEntity(UIECS uiEcs, TTF_Font *font, char *text, SDL_Texture *textu
     uiEcs->textComponents[uiEcs->entityCount].font = font;  // store the surface
     strcpy(uiEcs->textComponents[uiEcs->entityCount].text, text);  // copy the text
     uiEcs->textComponents[uiEcs->entityCount].texture = texture;
+    uiEcs->textComponents[uiEcs->entityCount].color = color;  // store the color
 
     // make a copy of the destination rectangle
     SDL_Rect *rectCopy = calloc(1, sizeof(SDL_Rect));
@@ -102,13 +124,23 @@ void deleteUiTextEntity(UIECS uiEcs, Uint64 index) {
         return;
     }
 
-    // Free the texture and rectangle(we made a copy of it)
-    SDL_DestroyTexture(uiEcs->textComponents[index].texture);
-    free(uiEcs->textComponents[index].destRect);
-    free(uiEcs->textComponents[index].text);
+    // Free the resources of the text component
+    if (uiEcs->textComponents[index].texture) {
+        SDL_DestroyTexture(uiEcs->textComponents[index].texture);
+        uiEcs->textComponents[index].texture = NULL;  // avoid dangling pointer
+    }
+    if (uiEcs->textComponents[index].destRect) {
+        free(uiEcs->textComponents[index].destRect);
+        uiEcs->textComponents[index].destRect = NULL;  // avoid dangling pointer
+    }
+    if (uiEcs->textComponents[index].text) {
+        free(uiEcs->textComponents[index].text);
+        uiEcs->textComponents[index].text = NULL;  // avoid dangling pointer
+    }
+    uiEcs->textComponents[index].active = 0;
 
     // superduper optimisation alert: swap the last element with the one deleted
-    if (index != uiEcs->entityCount - 1) {
+    if (index < uiEcs->entityCount) {
         uiEcs->textComponents[index] = uiEcs->textComponents[uiEcs->entityCount - 1];
     }
 
@@ -140,7 +172,10 @@ void spawnGameEntity(GameECS ecs, HealthComponent health, SpeedComponent speed, 
 
 void freeGECS(GameECS ecs) {
     if (ecs) {
-        free(ecs->healthComponents);
+        if (ecs->healthComponents) {
+            free(ecs->healthComponents);
+            ecs->healthComponents = NULL;
+        }
         free(ecs->speedComponents);
         free(ecs->renderComponents);
         free(ecs);
@@ -149,6 +184,23 @@ void freeGECS(GameECS ecs) {
 
 void freeUIECS(UIECS uiEcs) {
     if (uiEcs) {
+        // free each active text component's resources
+        for (Uint64 i = 0; i < uiEcs->capacity; i++) {
+            if (uiEcs->textComponents[i].active) {
+                if (uiEcs->textComponents[i].texture) {
+                    SDL_DestroyTexture(uiEcs->textComponents[i].texture);
+                    uiEcs->textComponents[i].texture = NULL;
+                }
+                if (uiEcs->textComponents[i].destRect) {
+                    free(uiEcs->textComponents[i].destRect);
+                    uiEcs->textComponents[i].destRect = NULL;
+                }
+            }
+            if (uiEcs->textComponents[i].text) {
+                free(uiEcs->textComponents[i].text);
+                uiEcs->textComponents[i].text = NULL;
+            }
+        }
         free(uiEcs->textComponents);
         free(uiEcs);
     }

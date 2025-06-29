@@ -70,11 +70,11 @@ int main(int argc, char* argv[]) {
     }
 
     // Cleanup
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
     freeGECS(ecs);
     freeUIECS(uiEcs);
-    TTF_Quit();
+    freeFonts(&fonts);
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
     SDL_Quit();
 
     return 0;

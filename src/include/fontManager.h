@@ -11,4 +11,9 @@ typedef struct fontmng {
     TTF_Font *gameFont;   // In-game text, smaller than menu font
 } *FontManager;
 
+// initializes TTF and loads the predefined fonts
+void initFonts(FontManager *fonts);
+
+void freeFonts(FontManager *fonts);
+
 #endif
