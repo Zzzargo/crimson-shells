@@ -5,6 +5,6 @@
 #include "tanki.h"
 
 // game loop
-void renderPlayState(SDL_Renderer *rdr, GameState *currState, GameECS ecs, UIECS uiEcs, FontManager fonts);
+// void renderPlayState(SDL_Renderer *rdr, GameState *currState, GameECS ecs, UIECS uiEcs, FontManager fonts);
 
 #endif // PLAYSTATE_H

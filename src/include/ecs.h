@@ -1,30 +1,47 @@
 #ifndef ECS_H
 #define ECS_H
 
-#include <stdlib.h>
-#include <SDL2/SDL.h>
-#include "fontManager.h"
-
-#define INIT_CAPACITY 10  // initial capacity for the ECS
-
 // ECS (Entity Component System) header file
 // Little game - big ideas
+// Using sparse sets with pagination for efficiency
 
-// Health Component
+#include "tanki.h"
+#include "fontManager.h"
+#include <stdlib.h>
+#include <SDL2/SDL.h>
+
+typedef Uint64 Entity;  // in an ECS, an entity is just an ID
+typedef Uint8 bitset;  // a bitset to indicate which components an entity has
+
+#define PAGE_SIZE 64  // size of a page of a component's sparse array
 typedef struct {
-    Uint8 active;  // indicates if the health component is active
+    void ***sparse;  // sparse set - array of pointers to pages  sparse[page][index] = (void *)component
+    void **dense;  // dense set - dense[index] = (void *)component
+    Uint64 pageCount;  // number of pages allocated for this component
+    size_t componentSize;  // size of one contained component
+} Component;  // base component type
+
+typedef enum {
+    HEALTH_COMPONENT,
+    VELOCITY_COMPONENT,
+    TEXT_COMPONENT,  // from here more UI-based components
+    RENDER_COMPONENT,
+    COMPONENT_COUNT  // automatically counts
+} ComponentType;
+
+typedef struct {
+    Uint8 active;  // indicates if the component is active
     Uint32 maxHealth; // maximum health of the entity
     Uint32 currentHealth; // current health of the entity
 } HealthComponent;
 
 typedef struct {
-    Uint8 active;  // indicates if the speed component is active
-    double_t velocity;  // speed of the entity
-    double_t maxSpeed;  // maximum speed of the entity
-} SpeedComponent;
+    double_t currVelocity;  // speed of the entity
+    double_t maxVelocity;  // maximum speed of the entity
+} VelocityComponent;
 
 typedef struct {
-    Uint8 active;  // indicates if the render component is active
+    Uint8 active;
     Uint8 selected;  // for UI components
     SDL_Texture *texture;  // texture to render
     SDL_Rect *destRect;  // where to render the texture
@@ -41,40 +58,33 @@ typedef struct {
     SDL_Rect *destRect;  // where to render the text
 } TextComponent;
 
-// Entity Component System (ECS) structure
-typedef struct gameecs {
-    Uint64 entityCount; // Number of entities currently in the ECS
+#define INIT_CAPACITY 10  // capacity with which the ECS is initialised
+typedef struct EeSiEs {
+    Entity nextEntityID;  // next available entity ID
+    Uint64 entityCount;  // number of entities currently in the ECS
     Uint64 capacity;  // current capacity of the ECS
-    HealthComponent *healthComponents;  // array to hold health components of each entity
-    SpeedComponent *speedComponents;  // array to hold speed components of each entity
-    RenderComponent *renderComponents;  // array to hold render components of each entity
-} *GameECS;
-
-typedef struct uiecs {
-    Uint64 entityCount; // Number of entities currently in the ECS
-    Uint64 capacity;  // current capacity of the ECS
-    TextComponent *textComponents;  // array to hold text components of each entity
-} *UIECS;
+    bitset *componentsFlags;  // an array of bitsets, one for each entity
+    Component *components;  // array of components, each component is a sparse set
+} *ECS;
 
 // initialises the game ECS
-void initGECS(GameECS *ecs);
+void initGECS(ECS *gEcs);
 
 // initialises the UI ECS
-void initUIECS(UIECS *uiEcs);
+void initUIECS(ECS *uiEcs);
+
+Entity createEntity(ECS ecs);  // creates a new entity in the ECS (gives a new entity ID)
 
 // adds a text entity to the UI ECS
-void addUiTextEntity(UIECS uiEcs, TTF_Font *font, char *text, SDL_Color color, SDL_Texture *texture, SDL_Rect *destRect);
+// void addUiTextEntity(UIECS uiEcs, TTF_Font *font, char *text, SDL_Color color, SDL_Texture *texture, SDL_Rect *destRect);
 
 // removes a text entity from the UI ECS
-void deleteUiTextEntity(UIECS uiEcs, Uint64 index);
+// void deleteUiTextEntity(UIECS uiEcs, Uint64 index);
 
 // adds a game entity to the game ECS
-void spawnGameEntity(GameECS ecs, HealthComponent health, SpeedComponent speed, RenderComponent render);
+// void spawnGameEntity(GameECS ecs, HealthComponent health, SpeedComponent speed, RenderComponent render);
 
-// frees the game ECS memory
-void freeGECS(GameECS ecs);
-
-// frees the UI ECS memory
-void freeUIECS(UIECS uiEcs);
+// frees the ECS memory
+void freeECS(ECS ecs);
 
 #endif // ECS_H
