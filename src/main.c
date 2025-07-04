@@ -7,11 +7,11 @@ int main(int argc, char* argv[]) {
     ECS gEcs = NULL;
     ECS uiEcs = NULL;
 
-    // initGame(&window, &renderer, &ecs, &uiEcs, &fonts);
+    initGame(&window, &renderer, &gEcs, &uiEcs, &fonts);
     // start on the main menu
     GameState currState = STATE_MAIN_MENU;
     // prepare the main menu UI components
-    // onEnterMainMenu(uiEcs, renderer, fonts);
+    onEnterMainMenu(uiEcs, renderer, fonts);
 
     // Main loop
     Uint8 running = 1;  // could have used bool, but it takes 8 bits anyway
@@ -46,7 +46,7 @@ int main(int argc, char* argv[]) {
         // here just render
         switch (currState) {
             case STATE_MAIN_MENU: {
-                // renderMainMenu(renderer, uiEcs);
+                renderMainMenu(renderer, uiEcs);
                 break;
             }
             case STATE_PAUSED: {
@@ -73,9 +73,9 @@ int main(int argc, char* argv[]) {
     freeECS(gEcs);
     freeECS(uiEcs);
     freeFonts(&fonts);
+
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
-
     return 0;
 }

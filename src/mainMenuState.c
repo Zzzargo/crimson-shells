@@ -100,17 +100,26 @@
 //     }
 // }
 
-// void renderMainMenu(SDL_Renderer *rdr, UIECS uiEcs) {
-//     // Clear the screen
-//     SDL_SetRenderDrawColor(rdr, 100, 50, 0, 200);  // background color - brownish
-//     SDL_RenderClear(rdr);
+void renderMainMenu(SDL_Renderer *rdr, ECS uiEcs) {
+    // Clear the screen
+    SDL_SetRenderDrawColor(rdr, 100, 50, 0, 200);  // background color - brownish
+    SDL_RenderClear(rdr);
 
-//     for (Uint64 i = 0; i < uiEcs->entityCount; i++) {
-//         TextComponent *curr = &uiEcs->textComponents[i];
-//         if (curr->active) {
-//             SDL_RenderCopy(rdr, curr->texture, NULL, curr->destRect);
-//         }
-//     }
+    bitset targetMask = 1 << TEXT_COMPONENT;
 
-//     SDL_RenderPresent(rdr);  // render current frame
-// }
+    for (Uint64 i = 0; i < uiEcs->entityCount; i++) {
+        // printf("Component %ld's flag: %d\nTarget flag: %d\n", i, uiEcs->componentsFlags[i], targetMask);
+        // printf("uiEcs->componentsFlags[i] (%d) & targetMask (%d) == targetMask (%d): %d\n", uiEcs->componentsFlags[i], targetMask, targetMask, (uiEcs->componentsFlags[i] & targetMask) == targetMask);
+        if ((uiEcs->componentsFlags[i] & targetMask) == targetMask) {
+            // if the entity has the text component
+            SDL_RenderCopy(
+                rdr,
+                (*(TextComponent *)(uiEcs->components[TEXT_COMPONENT].dense[i])).texture,
+                NULL,
+                (*(TextComponent *)(uiEcs->components[TEXT_COMPONENT].dense[i])).destRect
+            );
+        }
+    }
+
+    SDL_RenderPresent(rdr);  // render current frame
+}

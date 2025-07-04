@@ -13,14 +13,6 @@
 typedef Uint64 Entity;  // in an ECS, an entity is just an ID
 typedef Uint8 bitset;  // a bitset to indicate which components an entity has
 
-#define PAGE_SIZE 64  // size of a page of a component's sparse array
-typedef struct {
-    void ***sparse;  // sparse set - array of pointers to pages  sparse[page][index] = (void *)component
-    void **dense;  // dense set - dense[index] = (void *)component
-    Uint64 pageCount;  // number of pages allocated for this component
-    size_t componentSize;  // size of one contained component
-} Component;  // base component type
-
 typedef enum {
     HEALTH_COMPONENT,
     VELOCITY_COMPONENT,
@@ -28,6 +20,15 @@ typedef enum {
     RENDER_COMPONENT,
     COMPONENT_COUNT  // automatically counts
 } ComponentType;
+
+#define PAGE_SIZE 64  // size of a page of a component's sparse array
+typedef struct {
+    Uint64 **sparse;  // sparse set - array of arrays  sparse[page][offset] = denseIndex
+    void **dense;  // dense set - dense[index] = (void *)component
+    Uint64 denseSize;  // current size of the dense array
+    Uint64 pageCount;  // number of pages allocated for this component
+    ComponentType type;  // the type of the component, needed for further info on each component
+} Component;  // base component type
 
 typedef struct {
     Uint8 active;  // indicates if the component is active
@@ -65,6 +66,10 @@ typedef struct EeSiEs {
     Uint64 capacity;  // current capacity of the ECS
     bitset *componentsFlags;  // an array of bitsets, one for each entity
     Component *components;  // array of components, each component is a sparse set
+
+    Entity *freeEntities;  // array of free entities, used for recycling IDs
+    Uint64 freeEntityCount;  // number of free entities available for reuse
+    Uint64 freeEntityCapacity;  // capacity of the free entities array
 } *ECS;
 
 // initialises the game ECS
@@ -73,7 +78,11 @@ void initGECS(ECS *gEcs);
 // initialises the UI ECS
 void initUIECS(ECS *uiEcs);
 
-Entity createEntity(ECS ecs);  // creates a new entity in the ECS (gives a new entity ID)
+// creates a new entity in the ECS (gives a new entity ID)
+Entity createEntity(ECS ecs);
+
+// adds a component to an entity in the ECS
+void addComponent(ECS ecs, Entity id, ComponentType compType, void *component);
 
 // adds a text entity to the UI ECS
 // void addUiTextEntity(UIECS uiEcs, TTF_Font *font, char *text, SDL_Color color, SDL_Texture *texture, SDL_Rect *destRect);

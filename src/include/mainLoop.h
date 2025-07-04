@@ -4,10 +4,10 @@
 #include "ecs.h"
 
 // initialises SDL lib, the game window, the renderer
-// void initGame(SDL_Window **wdw, SDL_Renderer **rdr, GameECS *ecs, UIECS *uiEcs, FontManager *fonts);
+void initGame(SDL_Window **wdw, SDL_Renderer **rdr, ECS *gEcs, ECS *uiEcs, FontManager *fonts);
 
 // loads the main menu UI components into the ECS
-// void onEnterMainMenu(UIECS uiEcs, SDL_Renderer *rdr, FontManager fonts);
+void onEnterMainMenu(ECS uiEcs, SDL_Renderer *rdr, FontManager fonts);
 
 // clears the main menu UI components from the ECS
 // void onExitMainMenu(UIECS uiEcs, SDL_Renderer *rdr);

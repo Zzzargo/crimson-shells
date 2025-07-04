@@ -11,6 +11,6 @@
 // void handleMainMenuEvents(GameState *currState, SDL_Event *event, UIECS uiEcs, GameECS gEcs, SDL_Renderer *rdr);
 
 // takes care of the rendering part in the main menu
-// void renderMainMenu(SDL_Renderer *rdr, UIECS uiEcs);
+void renderMainMenu(SDL_Renderer *rdr, ECS uiEcs);
 
 #endif // MAINMENUSTATE_H

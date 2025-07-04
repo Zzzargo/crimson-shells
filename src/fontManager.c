@@ -27,10 +27,13 @@ void initFonts(FontManager *fonts) {
 }
 
 void freeFonts(FontManager *fonts) {
-    TTF_CloseFont((*fonts)->titleFont);
-    TTF_CloseFont((*fonts)->menuFont);
-    TTF_CloseFont((*fonts)->gameFont);
+    if (*fonts) {
+        if ((*fonts)->titleFont) TTF_CloseFont((*fonts)->titleFont);
+        if ((*fonts)->menuFont) TTF_CloseFont((*fonts)->menuFont);
+        if ((*fonts)->gameFont) TTF_CloseFont((*fonts)->gameFont);
 
-    free(*fonts);
+        free(*fonts);
+        *fonts = NULL;
+    }
     TTF_Quit();
 }
