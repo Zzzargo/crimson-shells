@@ -19,53 +19,14 @@ int main(int argc, char* argv[]) {
 
     while (running) {
         while (SDL_PollEvent(&event)) {
-            // here handle the events
-            if (event.type == SDL_QUIT) {
+            running = handleEvents(&event, &currState, renderer, uiEcs, gEcs);
+
+            if (event.type == SDL_QUIT || currState == STATE_EXIT) {
                 running = 0;  // quitting via the window close button
-            }
-            switch (currState) {
-                case STATE_MAIN_MENU: {
-                    // handleMainMenuEvents(&currState, &event, uiEcs, ecs, renderer);
-                    break;
-                }
-                case STATE_PAUSED: {
-                    // todo
-                    break;
-                }
-                case STATE_GAME_OVER: {
-                    // todo
-                    break;
-                }
-                case STATE_EXIT: {
-                    running = 0;
-                    break;
-                }
             }
         }
 
-        // here just render
-        switch (currState) {
-            case STATE_MAIN_MENU: {
-                renderMainMenu(renderer, uiEcs);
-                break;
-            }
-            case STATE_PAUSED: {
-                // todo
-                break;
-            }
-            case STATE_GAME_OVER: {
-                // todo
-                break;
-            }
-            case STATE_EXIT: {
-                running = 0;
-                break;
-            }
-            case STATE_PLAYING: {
-                // renderPlayState(renderer, &currState, ecs, uiEcs, fonts);
-                break;
-            }
-        }
+        renderFrame(&currState, renderer, uiEcs, gEcs);
         SDL_Delay(16); // ~60 FPS cap
     }
 

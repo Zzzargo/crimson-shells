@@ -84,15 +84,6 @@ Entity createEntity(ECS ecs);
 // adds a component to an entity in the ECS
 void addComponent(ECS ecs, Entity id, ComponentType compType, void *component);
 
-// adds a text entity to the UI ECS
-// void addUiTextEntity(UIECS uiEcs, TTF_Font *font, char *text, SDL_Color color, SDL_Texture *texture, SDL_Rect *destRect);
-
-// removes a text entity from the UI ECS
-// void deleteUiTextEntity(UIECS uiEcs, Uint64 index);
-
-// adds a game entity to the game ECS
-// void spawnGameEntity(GameECS ecs, HealthComponent health, SpeedComponent speed, RenderComponent render);
-
 // frees the ECS memory
 void freeECS(ECS ecs);
 

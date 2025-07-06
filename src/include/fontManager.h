@@ -14,6 +14,7 @@ typedef struct fontmng {
 // initializes TTF and loads the predefined fonts
 void initFonts(FontManager *fonts);
 
+// frees the memory allocated for the fonts
 void freeFonts(FontManager *fonts);
 
 #endif

@@ -38,6 +38,55 @@ void initGame(SDL_Window **wdw, SDL_Renderer **rdr, ECS *gEcs, ECS *uiEcs, FontM
     }
 }
 
+Uint8 handleEvents(SDL_Event *e, GameState *currState, SDL_Renderer *rdr, ECS uiEcs, ECS gEcs) {
+    switch (*currState) {
+        case STATE_MAIN_MENU: {
+            handleMainMenuEvents(e, currState, rdr, uiEcs, gEcs);
+            return (*currState == STATE_EXIT ? 0 : 1);
+        }
+        case STATE_PLAYING: {
+            // todo
+            printf("Handling playing state events\n");
+            // return (*currState == STATE_EXIT ? 0 : 1);
+            return 0;
+        }
+        case STATE_PAUSED: {
+            // todo
+            return (*currState == STATE_EXIT ? 0 : 1);
+        }
+        case STATE_GAME_OVER: {
+            // todo
+            return (*currState == STATE_EXIT ? 0 : 1);
+        }
+        case STATE_EXIT: {
+            return 0;  // game stops
+            break;
+        }
+    }
+}
+
+void renderFrame(GameState *currState, SDL_Renderer *rdr, ECS uiEcs, ECS gEcs) {
+    switch (*currState) {
+        case STATE_MAIN_MENU: {
+            renderMainMenu(rdr, uiEcs);
+            break;
+        }
+        case STATE_PAUSED: {
+            // todo
+            break;
+        }
+        case STATE_GAME_OVER: {
+            // todo
+            break;
+        }
+        case STATE_PLAYING: {
+            printf("Rendering play state\n");
+            // renderPlayState(renderer, &currState, ecs, uiEcs, fonts);
+            break;
+        }
+    }
+}
+
 void onEnterMainMenu(ECS uiEcs, SDL_Renderer *rdr, FontManager fonts) {
     // add the entities(text) with render components to the UI ECS
 
@@ -173,7 +222,7 @@ void onEnterMainMenu(ECS uiEcs, SDL_Renderer *rdr, FontManager fonts) {
     instructions->selected = 0;  // not selectable
     instructions->font = fonts->menuFont;
     instructions->text = strdup("Use W/S or Arrow Keys to navigate, Enter/Space to select");
-    instructions->color = COLOR_WHITE;  // normal color
+    instructions->color = COLOR_WHITE_TRANSPARENT;
 
     SDL_Surface *instrSurface = TTF_RenderText_Solid(instructions->font, instructions->text, instructions->color);
     if (!instrSurface) {
@@ -202,18 +251,12 @@ void onEnterMainMenu(ECS uiEcs, SDL_Renderer *rdr, FontManager fonts) {
     addComponent(uiEcs, id, TEXT_COMPONENT, (void *)instructions);
 }
 
-// void onExitMainMenu(UIECS uiEcs, SDL_Renderer *rdr) {
-//     // Clear the main menu UI components from the ECS
-//     for (int64_t i = (int64_t)uiEcs->entityCount - 1; i >= 0; i--) {
-//         TextComponent *curr = &uiEcs->textComponents[i];
-//         if (curr->active) {
-//             deleteUiTextEntity(uiEcs, i);
-//         }
-//     }
-//     SDL_SetRenderDrawColor(rdr, 0, 0, 0, 255);  // Clear the renderer with black
-//     SDL_RenderClear(rdr);
-//     SDL_RenderPresent(rdr);  // Present the cleared renderer
-// }
+void onExitMainMenu(ECS uiEcs, SDL_Renderer *rdr) {
+    // TODO
+    printf("Supposedly onExitMainMenu, disabling %ld entities\n", uiEcs->entityCount);
+    // freeECS(uiEcs);
+    SDL_SetRenderDrawColor(rdr, 0, 0, 0, 0);
+}
 
 // void onEnterPlayState(GameECS ecs, SDL_Renderer *rdr) {
 //     // Add the initial game entities to the ECS
