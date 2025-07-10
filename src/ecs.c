@@ -9,6 +9,8 @@ void initGECS(ECS *gEcs) {
         exit(EXIT_FAILURE);
     }
 
+    (*gEcs)->name = strdup("Game ECS");
+
     (*gEcs)->nextEntityID = 0;
     (*gEcs)->entityCount = 0;
     (*gEcs)->capacity = INIT_CAPACITY;
@@ -49,6 +51,10 @@ void initGECS(ECS *gEcs) {
                 (*gEcs)->components[i].type = HEALTH_COMPONENT;
                 break;
             }
+            case POSITION_COMPONENT: {
+                (*gEcs)->components[i].type = POSITION_COMPONENT;
+                break;
+            }
             case VELOCITY_COMPONENT: {
                 (*gEcs)->components[i].type = VELOCITY_COMPONENT;
                 break;
@@ -79,6 +85,7 @@ void initUIECS(ECS *uiEcs) {
         exit(EXIT_FAILURE);
     }
 
+    (*uiEcs)->name = strdup("UI ECS");
     (*uiEcs)->nextEntityID = 0;
     (*uiEcs)->entityCount = 0;
     (*uiEcs)->capacity = INIT_CAPACITY;
@@ -173,7 +180,7 @@ Entity createEntity(ECS ecs) {
 
     ecs->componentsFlags[entitty] = 00000000;  // the new entity has no components
     ecs->entityCount++;
-    printf("Created entity with ID %ld\n", entitty);
+    printf("Created entity with ID %ld in %s\n", entitty, ecs->name);
     return entitty;
 }
 
@@ -211,7 +218,8 @@ void addComponent(ECS ecs, Entity id, ComponentType compType, void *component) {
         printf("Allocating memory for the dense array of the component %d\n", compType);
         // initially, it will have INIT_CAPACITY memory allocated
         ecs->components[compType].dense = calloc(ecs->capacity, sizeof(void *));
-        if (!ecs->components[compType].dense) {
+        ecs->components[compType].denseToEntity = calloc(ecs->capacity, sizeof(Entity));
+        if (!ecs->components[compType].dense || !ecs->components[compType].denseToEntity) {
             fprintf(stderr, "Failed to allocate memory for ECS dense set\n");
             exit(EXIT_FAILURE);
         }
@@ -223,25 +231,133 @@ void addComponent(ECS ecs, Entity id, ComponentType compType, void *component) {
         // Resize the dense array if needed
         ecs->capacity *= 2;
         void **tmpDense = realloc(ecs->components[compType].dense, ecs->capacity * sizeof(void *));
-        if (!tmpDense) {
+        Entity *tmpDenseToEntity = realloc(ecs->components[compType].denseToEntity, ecs->capacity * sizeof(Entity));
+        if (!tmpDense || !tmpDenseToEntity) {
             fprintf(stderr, "Failed to reallocate memory for ECS dense set\n");
             exit(EXIT_FAILURE);
         }
         ecs->components[compType].dense = tmpDense;
+        ecs->components[compType].denseToEntity = tmpDenseToEntity;
     }
 
     // Allocations done, now add the component
-    ecs->components[compType].sparse[page][index] = ecs->components[compType].denseSize;
-    ecs->components[compType].dense[ ecs->components[compType].denseSize ] = component;
+    Uint64 denseIdx = ecs->components[compType].denseSize;
+    ecs->components[compType].sparse[page][index] = denseIdx;
+    ecs->components[compType].dense[denseIdx] = component;
+    ecs->components[compType].denseToEntity[denseIdx] = id;  // map the component to its entity ID
     ecs->components[compType].denseSize++;
 
     // and set the corresponding bitmask
     ecs->componentsFlags[id] |= (1 << compType);
-    printf("Added component %d to entity %ld\n", compType, id);
+    printf("Added component %d to entity %ld from %s\n", compType, id, ecs->name);
+}
+
+void deleteEntity(ECS ecs, Entity id) {
+    if (id >= ecs->capacity || id < 0) {
+        printf("Warning: Attempting to delete entity %ld which is out of bounds\n", id);
+        return;
+    }
+
+    if (ecs->componentsFlags[id] == 00000000) {
+        // entity has no compponents, just free the ID
+        ecs->freeEntities[ecs->freeEntityCount++] = id;
+        ecs->entityCount--;
+        return;
+    }
+    
+    // Free all components associated with this entity
+    for (Uint64 i = 0; i < COMPONENT_COUNT; i++) {
+        bitset componentFlag = 1 << i;
+        
+        // Check if entity has this component
+        if ((ecs->componentsFlags[id] & componentFlag) == componentFlag) {
+            // Find the component in the sparse set
+            Uint64 page = id / PAGE_SIZE;
+            Uint64 index = id % PAGE_SIZE;
+            
+            if (
+                ecs->components[i].sparse && 
+                page < ecs->components[i].pageCount &&
+                ecs->components[i].dense
+            ) {
+                Uint64 denseIndex = ecs->components[i].sparse[page][index];
+                void *component = ecs->components[i].dense[denseIndex];
+                
+                // Free the component data based on its type
+                if (component) {
+                    switch (i) {
+                        case TEXT_COMPONENT: {
+                            TextComponent *textComp = (TextComponent*)component;
+                            if (textComp->texture) SDL_DestroyTexture(textComp->texture);
+                            if (textComp->text) free(textComp->text);
+                            if (textComp->destRect) free(textComp->destRect);
+                            break;
+                        }
+                        case RENDER_COMPONENT: {
+                            RenderComponent *render = (RenderComponent*)component;
+                            if (render->texture) SDL_DestroyTexture(render->texture);
+                            if (render->destRect) free(render->destRect);
+                            break;
+                        }
+                    }
+                    free(component);
+                    
+                    // Remove from dense array by swapping with the last element
+                    Uint64 lastDenseIndex = ecs->components[i].denseSize - 1;
+                    if (denseIndex != lastDenseIndex) {
+                        // Move the last element to the position of the removed element
+                        ecs->components[i].dense[denseIndex] = ecs->components[i].dense[lastDenseIndex];
+                        
+                        // Use the reverse mapping
+                        Entity lastEntity = ecs->components[i].denseToEntity[lastDenseIndex];
+                        
+                        // Update the sparse pointer for the moved entity
+                        Uint64 lastPage = lastEntity / PAGE_SIZE;
+                        Uint64 lastIndex = lastEntity % PAGE_SIZE;
+                        ecs->components[i].sparse[lastPage][lastIndex] = denseIndex;
+
+                        // update the denseToEntity mapping
+                        ecs->components[i].denseToEntity[denseIndex] = lastEntity;
+                    }
+                    
+                    // Decrease the size of the dense array
+                    ecs->components[i].denseSize--;
+                    ecs->components[i].dense[lastDenseIndex] = NULL;  // avoid dangling pointer
+                }
+            }
+        }
+    }
+    
+    // Reset the components flags for this entity
+    ecs->componentsFlags[id] = 0;
+    
+    // Add the entity ID to the free list for reuse
+    if (ecs->freeEntityCount >= ecs->freeEntityCapacity) {
+        // Resize the free entities array if needed
+        ecs->freeEntityCapacity *= 2;
+        Entity *newFreeEntities = realloc(
+            ecs->freeEntities,
+            ecs->freeEntityCapacity * sizeof(Entity)
+        );
+        if (!newFreeEntities) {
+            fprintf(stderr, "Failed to resize free entities array\n");
+            return;
+        }
+        ecs->freeEntities = newFreeEntities;
+    }
+    
+    // Add this entity to the free list
+    ecs->freeEntities[ecs->freeEntityCount++] = id;
+    ecs->entityCount--;
+    
+    printf("Deleted entity with ID %ld from %s\n", id, ecs->name);
 }
 
 void freeECS(ECS ecs) {
     if (ecs) {
+        if (ecs->name) {
+            free(ecs->name);
+        }
         if (ecs->componentsFlags) {
             free(ecs->componentsFlags);
         }
@@ -250,26 +366,29 @@ void freeECS(ECS ecs) {
                 if (ecs->components[i].dense) {
                     for (Uint64 j = 0; j < ecs->components[i].denseSize; j++) {
                         void *curr = ecs->components[i].dense[j];
-                        switch (ecs->components[i].type) {
-                            case RENDER_COMPONENT: {
-                                if ((*(RenderComponent *)(curr)).texture) SDL_DestroyTexture((*(RenderComponent *)(curr)).texture);
-                                if ((*(RenderComponent *)(curr)).destRect) free((*(RenderComponent *)(curr)).destRect);
-                                break;
+                        if (curr) {
+                            switch (ecs->components[i].type) {
+                                case TEXT_COMPONENT: {
+                                    if ((*(TextComponent *)(curr)).texture) SDL_DestroyTexture((*(TextComponent *)(curr)).texture);
+                                    if ((*(TextComponent *)(curr)).text) free((*(TextComponent *)(curr)).text);
+                                    if ((*(TextComponent *)(curr)).destRect) free((*(TextComponent *)(curr)).destRect);
+                                    break;
+                                }
+                                case RENDER_COMPONENT: {
+                                    if ((*(RenderComponent *)(curr)).texture) SDL_DestroyTexture((*(RenderComponent *)(curr)).texture);
+                                    if ((*(RenderComponent *)(curr)).destRect) free((*(RenderComponent *)(curr)).destRect);
+                                    break;
+                                }
                             }
-                            case TEXT_COMPONENT: {
-                                if ((*(TextComponent *)(curr)).texture) SDL_DestroyTexture((*(TextComponent *)(curr)).texture);
-                                if ((*(TextComponent *)(curr)).text) free((*(TextComponent *)(curr)).text);
-                                if ((*(TextComponent *)(curr)).destRect) free((*(TextComponent *)(curr)).destRect);
-                                break;
-                            }
+                            free(ecs->components[i].dense[j]);
                         }
-                        free(ecs->components[i].dense[j]);
                     }
                     free(ecs->components[i].dense);
+                    free(ecs->components[i].denseToEntity);
                 }
                 if (ecs->components[i].sparse) {
                     for (Uint64 j = 0; j < ecs->components[i].pageCount; j++) {
-                        free(ecs->components[i].sparse[j]);
+                        if (ecs->components[i].sparse[j]) free(ecs->components[i].sparse[j]);
                     }
                     free(ecs->components[i].sparse);
                 }

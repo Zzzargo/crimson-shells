@@ -1,42 +1,49 @@
 #include "include/mainLoop.h"
 
-int main(int argc, char* argv[]) {
-    SDL_Window *window = NULL;
-    SDL_Renderer *renderer = NULL;
-    FontManager fonts = NULL;
-    ECS gEcs = NULL;
-    ECS uiEcs = NULL;
+Entity PLAYER_ID = 0;  // will be set when the player is created
 
-    initGame(&window, &renderer, &gEcs, &uiEcs, &fonts);
-    // start on the main menu
-    GameState currState = STATE_MAIN_MENU;
+int main(int argc, char* argv[]) {
+    ZENg zEngine = initGame();
+
     // prepare the main menu UI components
-    onEnterMainMenu(uiEcs, renderer, fonts);
+    onEnterMainMenu(zEngine);
+
+    // time for some delta time (no pun intended)
+    Uint64 lastFrameTime = SDL_GetTicks64();
+    double_t deltaTime = 0.0;
+    const double_t targetFrameTime = 1000.0 / 60.0; // capping at 60 fps
 
     // Main loop
     Uint8 running = 1;  // could have used bool, but it takes 8 bits anyway
     SDL_Event event;  // this will be used to poll events
 
     while (running) {
-        while (SDL_PollEvent(&event)) {
-            running = handleEvents(&event, &currState, renderer, uiEcs, gEcs);
+        Uint64 frameStart = SDL_GetTicks64();
+        deltaTime = (frameStart - lastFrameTime) / 1000.0;  // ms to s
+        lastFrameTime = frameStart;
 
-            if (event.type == SDL_QUIT || currState == STATE_EXIT) {
+        // Cap delta time to prevent spikes after lags
+        if (deltaTime > 0.1) deltaTime = 0.1;  // max 100 ms per frame
+
+        while (SDL_PollEvent(&event)) {
+            running = handleEvents(&event, zEngine);
+
+            if (event.type == SDL_QUIT || zEngine->state == STATE_EXIT) {
                 running = 0;  // quitting via the window close button
             }
         }
 
-        renderFrame(&currState, renderer, uiEcs, gEcs);
-        SDL_Delay(16); // ~60 FPS cap
+        updateGameLogic(zEngine, deltaTime);
+        renderFrame(zEngine);
+        
+        Uint64 frameTime = SDL_GetTicks64() - frameStart;
+        if (frameTime < targetFrameTime) {
+            // if the frame was loaded faster than the target FPS - wait a little
+            SDL_Delay(targetFrameTime - frameTime);
+        }
     }
 
     // Cleanup
-    freeECS(gEcs);
-    freeECS(uiEcs);
-    freeFonts(&fonts);
-
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
-    SDL_Quit();
+    destroyEngine(&zEngine);
     return 0;
 }

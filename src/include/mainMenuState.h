@@ -1,16 +1,17 @@
 #ifndef MAINMENUSTATE_H
 #define MAINMENUSTATE_H
 
-#include "ecs.h"
 #include "tanki.h"
+#include "engine.h"
+#include "mainLoop.h"
 
 // updates the components in the UI ECS
-void updateMenuUI(ECS uiEcs, SDL_Renderer *rdr);
+void updateMenuUI(ZENg zEngine);
 
 // takes care of the events in the main menu
-void handleMainMenuEvents(SDL_Event *event, GameState *currState, SDL_Renderer *rdr, ECS uiEcs, ECS gEcs);
+void handleMainMenuEvents(SDL_Event *event, ZENg zEngine);
 
 // takes care of the rendering part in the main menu
-void renderMainMenu(SDL_Renderer *rdr, ECS uiEcs);
+void renderMainMenu(ZENg zEngine);
 
 #endif // MAINMENUSTATE_H

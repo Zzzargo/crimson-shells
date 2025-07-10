@@ -1,17 +1,17 @@
 #include "include/mainMenuState.h"
 
-void updateMenuUI(ECS uiEcs, SDL_Renderer *rdr) {
+void updateMenuUI(ZENg zEngine) {
     // Rerender the UI based on the entities' current components' states
 
-    SDL_SetRenderDrawColor(rdr, 100, 50, 0, 200);  // background color - brownish
-    SDL_RenderClear(rdr);  // clear the renderer
+    SDL_SetRenderDrawColor(zEngine->renderer, 100, 50, 0, 200);  // background color - brownish
+    SDL_RenderClear(zEngine->renderer);  // clear the renderer
 
-    for (Uint64 i = 0; i < uiEcs->entityCount; i++) {
+    for (Uint64 i = 0; i < zEngine->uiEcs->entityCount; i++) {
         bitset targetFlags = 1 << TEXT_COMPONENT;
-        bitset currentFlags = uiEcs->componentsFlags[i];
+        bitset currentFlags = zEngine->uiEcs->componentsFlags[i];
 
         if ((currentFlags & targetFlags) == targetFlags) {
-            TextComponent *curr = (TextComponent *)(uiEcs->components[TEXT_COMPONENT].dense[i]);
+            TextComponent *curr = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[i]);
 
             // if the entity has selectable color
             if (
@@ -27,8 +27,8 @@ void updateMenuUI(ECS uiEcs, SDL_Renderer *rdr) {
                         curr->text,
                         curr->selected ? COLOR_YELLOW : COLOR_WHITE
                     );
-                    curr->texture = SDL_CreateTextureFromSurface(rdr, surface);
-                    SDL_RenderCopy(rdr, curr->texture, NULL, curr->destRect);
+                    curr->texture = SDL_CreateTextureFromSurface(zEngine->renderer, surface);
+                    SDL_RenderCopy(zEngine->renderer, curr->texture, NULL, curr->destRect);
                     SDL_FreeSurface(surface);
                     printf("Updated entity %ld's texture\n", i);
                 }
@@ -38,24 +38,25 @@ void updateMenuUI(ECS uiEcs, SDL_Renderer *rdr) {
     printf("\n");
 }
 
-void handleMainMenuEvents(SDL_Event *event, GameState *currState, SDL_Renderer *rdr, ECS uiEcs, ECS gEcs) {
+void handleMainMenuEvents(SDL_Event *event, ZENg zEngine) {
     // Key press handling
     if (event->type == SDL_KEYDOWN) {
         switch (event->key.keysym.sym) {
             case SDLK_UP:
             case SDLK_w: {
-                for (Uint64 i = 0; i < uiEcs->entityCount; i++) {
+                for (Uint64 i = 0; i < zEngine->uiEcs->nextEntityID; i++) {
                     bitset targetFlags = 1 << TEXT_COMPONENT;
-                    bitset currEntityFlags = uiEcs->componentsFlags[i];
+                    bitset currEntityFlags = zEngine->uiEcs->componentsFlags[i];
 
                     if ((targetFlags & currEntityFlags) == targetFlags) {
-                        TextComponent *curr = (TextComponent *)(uiEcs->components[TEXT_COMPONENT].dense[i]);
+                        TextComponent *curr = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[i]);
                         if (curr->selected) {
                             curr->selected = 0;
                             if (strcmp(curr->text, "Play") == 0) {
                                 // wrap around to `Exit`
-                                for (Uint64 j = i; j < uiEcs->entityCount; j++) {
-                                    TextComponent *fetch = (TextComponent *)(uiEcs->components[TEXT_COMPONENT].dense[j]);
+                                // starting at 0 because the ids can be reused
+                                for (Uint64 j = 0; j < zEngine->uiEcs->nextEntityID; j++) {
+                                    TextComponent *fetch = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[j]);
                                     if (strcmp(fetch->text, "Exit") == 0) {
                                         fetch->selected = 1;  // select "Exit"
                                         break;
@@ -63,9 +64,16 @@ void handleMainMenuEvents(SDL_Event *event, GameState *currState, SDL_Renderer *
                                 }
                             } else {
                                 // select the previous option
-                                (*(TextComponent *)(uiEcs->components[TEXT_COMPONENT].dense[i-1])).selected = 1;
+                                for (Uint64 j = 0; j < zEngine->uiEcs->nextEntityID; j++) {
+                                    TextComponent *fetch = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[j]);
+                                    // find the previous item
+                                    if (fetch->orderIdx == curr->orderIdx - 1) {
+                                        fetch->selected = 1;
+                                        break;
+                                    }
+                                }
                             }
-                            updateMenuUI(uiEcs, rdr);
+                            updateMenuUI(zEngine);
                             break;
                         }
                     }
@@ -74,18 +82,18 @@ void handleMainMenuEvents(SDL_Event *event, GameState *currState, SDL_Renderer *
             }
             case SDLK_DOWN:
             case SDLK_s: {
-                for (Uint64 i = 0; i < uiEcs->entityCount; i++) {
+                for (Uint64 i = 0; i < zEngine->uiEcs->nextEntityID; i++) {
                     bitset targetFlags = 1 << TEXT_COMPONENT;
-                    bitset currEntityFlags = uiEcs->componentsFlags[i];
+                    bitset currEntityFlags = zEngine->uiEcs->componentsFlags[i];
 
                     if ((targetFlags & currEntityFlags) == targetFlags) {
-                        TextComponent *curr = (TextComponent *)(uiEcs->components[TEXT_COMPONENT].dense[i]);
+                        TextComponent *curr = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[i]);
                         if (curr->selected) {
                             curr->selected = 0;
                             if (strcmp(curr->text, "Exit") == 0) {
                                 // wrap around to `Play`
-                                for (Uint64 j = i; j >= 0; j--) {
-                                    TextComponent *fetch = (TextComponent *)(uiEcs->components[TEXT_COMPONENT].dense[j]);
+                                for (Uint64 j = 0; j < zEngine->uiEcs->nextEntityID; j++) {
+                                    TextComponent *fetch = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[j]);
                                     if (strcmp(fetch->text, "Play") == 0) {
                                         fetch->selected = 1;  // select "Play"
                                         break;
@@ -93,9 +101,15 @@ void handleMainMenuEvents(SDL_Event *event, GameState *currState, SDL_Renderer *
                                 }
                             } else {
                                 // select the next option
-                                (*(TextComponent *)(uiEcs->components[TEXT_COMPONENT].dense[i+1])).selected = 1;
+                                 for (Uint64 j = 0; j < zEngine->uiEcs->nextEntityID; j++) {
+                                    TextComponent *fetch = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[j]);
+                                    if (fetch->orderIdx == curr->orderIdx + 1) {
+                                        fetch->selected = 1;
+                                        break;
+                                    }
+                                }
                             }
-                            updateMenuUI(uiEcs, rdr);
+                            updateMenuUI(zEngine);
                             break;
                         }
                     }
@@ -104,15 +118,15 @@ void handleMainMenuEvents(SDL_Event *event, GameState *currState, SDL_Renderer *
             }
             case SDLK_RETURN:
             case SDLK_SPACE: {
-                for (Uint64 i = 0; i < uiEcs->entityCount; i++) {
-                    TextComponent *curr = (TextComponent *)(uiEcs->components[TEXT_COMPONENT].dense[i]);
+                for (Uint64 i = 0; i < zEngine->uiEcs->entityCount; i++) {
+                    TextComponent *curr = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[i]);
                     if (curr->selected) {
                         if (strcmp(curr->text, "Play") == 0) {
-                            onExitMainMenu(uiEcs, rdr);  // Clear the main menu UI
-                            // onEnterPlayState(gEcs, rdr);
-                            *currState = STATE_PLAYING;  // Start the game
+                            onExitMainMenu(zEngine);  // Clear the main menu UI
+                            onEnterPlayState(zEngine);
+                            zEngine->state = STATE_PLAYING;  // Start the game
                         } else if (strcmp(curr->text, "Exit") == 0) {
-                            *currState = STATE_EXIT;  // Exit the game
+                            zEngine->state = STATE_EXIT;  // Exit the game
                         }
                     }
                 }
@@ -122,26 +136,29 @@ void handleMainMenuEvents(SDL_Event *event, GameState *currState, SDL_Renderer *
     }
 }
 
-void renderMainMenu(SDL_Renderer *rdr, ECS uiEcs) {
+void renderMainMenu(ZENg zEngine) {
     // Clear the screen
-    SDL_SetRenderDrawColor(rdr, 100, 50, 0, 200);  // background color - brownish
-    SDL_RenderClear(rdr);
+    SDL_SetRenderDrawColor(zEngine->renderer, 100, 50, 0, 200);  // background color - brownish
+    SDL_RenderClear(zEngine->renderer);
 
     bitset targetMask = 1 << TEXT_COMPONENT;
 
-    for (Uint64 i = 0; i < uiEcs->entityCount; i++) {
-        // printf("Component %ld's flag: %d\nTarget flag: %d\n", i, uiEcs->componentsFlags[i], targetMask);
-        // printf("uiEcs->componentsFlags[i] (%d) & targetMask (%d) == targetMask (%d): %d\n", uiEcs->componentsFlags[i], targetMask, targetMask, (uiEcs->componentsFlags[i] & targetMask) == targetMask);
-        if ((uiEcs->componentsFlags[i] & targetMask) == targetMask) {
-            // if the entity has the text component
-            SDL_RenderCopy(
-                rdr,
-                (*(TextComponent *)(uiEcs->components[TEXT_COMPONENT].dense[i])).texture,
-                NULL,
-                (*(TextComponent *)(uiEcs->components[TEXT_COMPONENT].dense[i])).destRect
-            );
+    for (Uint64 i = 0; i < zEngine->uiEcs->entityCount; i++) {
+        // printf("Component %ld's flag: %d\nTarget flag: %d\n", i, zEngine->uiEcs->componentsFlags[i], targetMask);
+        // printf("zEngine->uiEcs->componentsFlags[i] (%d) & targetMask (%d) == targetMask (%d): %d\n", zEngine->uiEcs->componentsFlags[i], targetMask, targetMask, (zEngine->uiEcs->componentsFlags[i] & targetMask) == targetMask);
+        if ((zEngine->uiEcs->componentsFlags[i] & targetMask) == targetMask) {
+            TextComponent *curr = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[i]);
+            if (curr->state == STATE_MAIN_MENU) {
+                // if the entity has the text component
+                SDL_RenderCopy(
+                    zEngine->renderer,
+                    curr->texture,
+                    NULL,
+                    curr->destRect
+                );
+            }
         }
     }
 
-    SDL_RenderPresent(rdr);  // render current frame
+    SDL_RenderPresent(zEngine->renderer);  // render current frame
 }

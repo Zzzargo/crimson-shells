@@ -11,10 +11,12 @@
 #include <SDL2/SDL.h>
 
 typedef Uint64 Entity;  // in an ECS, an entity is just an ID
+extern Entity PLAYER_ID;  // global variable for the player entity ID
 typedef Uint8 bitset;  // a bitset to indicate which components an entity has
 
 typedef enum {
     HEALTH_COMPONENT,
+    POSITION_COMPONENT,
     VELOCITY_COMPONENT,
     TEXT_COMPONENT,  // from here more UI-based components
     RENDER_COMPONENT,
@@ -25,33 +27,40 @@ typedef enum {
 typedef struct {
     Uint64 **sparse;  // sparse set - array of arrays  sparse[page][offset] = denseIndex
     void **dense;  // dense set - dense[index] = (void *)component
+    Entity *denseToEntity;  // maps component in dense array to its owner entity's ID
     Uint64 denseSize;  // current size of the dense array
     Uint64 pageCount;  // number of pages allocated for this component
     ComponentType type;  // the type of the component, needed for further info on each component
 } Component;  // base component type
 
 typedef struct {
-    Uint8 active;  // indicates if the component is active
     Uint32 maxHealth; // maximum health of the entity
     Uint32 currentHealth; // current health of the entity
+    Uint8 active;  // indicates if the component is active
 } HealthComponent;
+
+typedef struct {
+    double_t x, y;
+} PositionComponent;
 
 typedef struct {
     double_t currVelocity;  // speed of the entity
     double_t maxVelocity;  // maximum speed of the entity
+    Uint8 active;
 } VelocityComponent;
 
 typedef struct {
-    Uint8 active;
-    Uint8 selected;  // for UI components
     SDL_Texture *texture;  // texture to render
     SDL_Rect *destRect;  // where to render the texture
+    Uint8 active;
+    Uint8 selected;  // for UI components
 } RenderComponent;
 
 typedef struct {
     GameState state;  // indicates which state the text corresponds to
     Uint8 active;  // indicates if the text component is active
     Uint8 selected;  // for UI components
+    Uint8 orderIdx;  // used to maintain order in ui entities
     TTF_Font *font;  // font to use for rendering text
     char *text;
     SDL_Color color;  // color of the text
@@ -61,6 +70,7 @@ typedef struct {
 
 #define INIT_CAPACITY 10  // capacity with which the ECS is initialised
 typedef struct EeSiEs {
+    char *name;  // used to distinguish the ECS
     Entity nextEntityID;  // next available entity ID
     Uint64 entityCount;  // number of entities currently in the ECS
     Uint64 capacity;  // current capacity of the ECS
@@ -83,6 +93,8 @@ Entity createEntity(ECS ecs);
 
 // adds a component to an entity in the ECS
 void addComponent(ECS ecs, Entity id, ComponentType compType, void *component);
+
+void deleteEntity(ECS ecs, Entity id);
 
 // frees the ECS memory
 void freeECS(ECS ecs);

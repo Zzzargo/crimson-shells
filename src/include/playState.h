@@ -1,10 +1,17 @@
 #ifndef PLAYSTATE_H
 #define PLAYSTATE_H
 
-#include "ecs.h"
 #include "tanki.h"
+#include "engine.h"
+#include "mainLoop.h"
 
-// game loop
-// void renderPlayState(SDL_Renderer *rdr, GameState *currState, GameECS ecs, UIECS uiEcs, FontManager fonts);
+// handles in-game events
+void handlePlayStateEvents(SDL_Event *e, ZENg zEngine);
+
+// game logic driven through continuous input
+void updatePlayState(ZENg zEngine);
+
+// renders the in-game entities
+void renderPlayState(ZENg zEngine);
 
 #endif // PLAYSTATE_H
