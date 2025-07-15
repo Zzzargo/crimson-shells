@@ -35,9 +35,19 @@ void updatePauseUI(ZENg zEngine) {
 void handlePauseStateEvents(SDL_Event *e, ZENg zEngine) {
     // Key press handling
     if (e->type == SDL_KEYDOWN) {
-        switch (e->key.keysym.sym) {
-            case SDLK_UP:
-            case SDLK_w: {
+        InputAction action = scancodeToAction(zEngine->inputMng, e->key.keysym.scancode);
+        if (action == INPUT_UNKNOWN) {
+            printf("Unknown input action for scancode %d\n", e->key.keysym.scancode);
+            return;
+        }
+
+        switch (action) {
+            case INPUT_BACK: {
+                // go back to the game
+                zEngine->state = STATE_PLAYING;
+                break;
+            }
+            case INPUT_MOVE_UP: {
                 Uint64 maxComp = zEngine->uiEcs->components[TEXT_COMPONENT].denseSize;
                 for (Uint64 i = 0; i < maxComp; i++) {
                     TextComponent *curr = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[i]);
@@ -68,8 +78,7 @@ void handlePauseStateEvents(SDL_Event *e, ZENg zEngine) {
                 }
                 break;
             }
-            case SDLK_DOWN:
-            case SDLK_s: {
+            case INPUT_MOVE_DOWN: {
                 Uint64 maxComp = zEngine->uiEcs->components[TEXT_COMPONENT].denseSize;
                 for (Uint64 i = 0; i < maxComp; i++) {
                     TextComponent *curr = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[i]);
@@ -100,8 +109,7 @@ void handlePauseStateEvents(SDL_Event *e, ZENg zEngine) {
                 }
                 break;
             }
-            case SDLK_RETURN:
-            case SDLK_SPACE: {
+            case INPUT_SELECT: {
                 Uint64 maxComp = zEngine->uiEcs->components[TEXT_COMPONENT].denseSize;
                 for (Uint64 i = 0; i < maxComp; i++) {
                     TextComponent *curr = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[i]);
@@ -123,8 +131,8 @@ void handlePauseStateEvents(SDL_Event *e, ZENg zEngine) {
 
 void renderPauseState(ZENg zEngine) {
     // Clear the screen
-    SDL_SetRenderDrawColor(zEngine->renderer, 100, 50, 0, 200);  // background color - brownish
-    SDL_RenderClear(zEngine->renderer);
+    // SDL_SetRenderDrawColor(zEngine->renderer, 100, 50, 0, 200);  // background color - brownish
+    // SDL_RenderClear(zEngine->renderer);
 
     // Render the options
     for (Uint64 i = 0; i < zEngine->uiEcs->nextEntityID; i++) {
@@ -135,6 +143,4 @@ void renderPauseState(ZENg zEngine) {
             }
         }
     }
-
-    SDL_RenderPresent(zEngine->renderer);  // render the current frame
 }

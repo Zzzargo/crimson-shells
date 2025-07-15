@@ -41,9 +41,15 @@ void updateMenuUI(ZENg zEngine) {
 void handleMainMenuEvents(SDL_Event *event, ZENg zEngine) {
     // Key press handling
     if (event->type == SDL_KEYDOWN) {
-        switch (event->key.keysym.sym) {
-            case SDLK_UP:
-            case SDLK_w: {
+        // pass the pressed key to the input manager
+        InputAction action = scancodeToAction(zEngine->inputMng, event->key.keysym.scancode);
+        if (action == INPUT_UNKNOWN) {
+            printf("Unknown input action for scancode %d\n", event->key.keysym.scancode);
+            return;
+        }
+
+        switch (action) {
+            case INPUT_MOVE_UP: {
                 for (Uint64 i = 0; i < zEngine->uiEcs->nextEntityID; i++) {
                     bitset targetFlags = 1 << TEXT_COMPONENT;
                     bitset currEntityFlags = zEngine->uiEcs->componentsFlags[i];
@@ -80,8 +86,7 @@ void handleMainMenuEvents(SDL_Event *event, ZENg zEngine) {
                 }
                 break;
             }
-            case SDLK_DOWN:
-            case SDLK_s: {
+            case INPUT_MOVE_DOWN: {
                 for (Uint64 i = 0; i < zEngine->uiEcs->nextEntityID; i++) {
                     bitset targetFlags = 1 << TEXT_COMPONENT;
                     bitset currEntityFlags = zEngine->uiEcs->componentsFlags[i];
@@ -116,8 +121,7 @@ void handleMainMenuEvents(SDL_Event *event, ZENg zEngine) {
                 }
                 break;
             }
-            case SDLK_RETURN:
-            case SDLK_SPACE: {
+            case INPUT_SELECT: {
                 for (Uint64 i = 0; i < zEngine->uiEcs->entityCount; i++) {
                     TextComponent *curr = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[i]);
                     if (curr->selected) {
@@ -159,6 +163,4 @@ void renderMainMenu(ZENg zEngine) {
             }
         }
     }
-
-    SDL_RenderPresent(zEngine->renderer);  // render current frame
 }

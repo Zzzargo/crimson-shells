@@ -59,6 +59,10 @@ void initGECS(ECS *gEcs) {
                 (*gEcs)->components[i].type = VELOCITY_COMPONENT;
                 break;
             }
+            case DIRECTION_COMPONENT: {
+                (*gEcs)->components[i].type = DIRECTION_COMPONENT;
+                break;
+            }
             case TEXT_COMPONENT: {
                 (*gEcs)->components[i].type = TEXT_COMPONENT;
                 break;

@@ -29,10 +29,11 @@ int main(int argc, char* argv[]) {
             running = handleEvents(&event, zEngine);
 
             if (event.type == SDL_QUIT || zEngine->state == STATE_EXIT) {
-                running = 0;  // quitting via the window close button
+                running = 0;
             }
         }
 
+        handleInput(zEngine);
         updateGameLogic(zEngine, deltaTime);
         renderFrame(zEngine);
         

@@ -20,6 +20,14 @@ Uint8 handleEvents(SDL_Event *e, ZENg zEngine) {
         }
         case STATE_EXIT: {
             return 0;  // game stops
+        }
+    }
+}
+
+void handleInput(ZENg zEngine) {
+    switch (zEngine->state) {
+        case STATE_PLAYING: {
+            handlePlayStateInput(zEngine);
             break;
         }
     }
@@ -30,16 +38,17 @@ void updateGameLogic(ZENg zEngine, double_t deltaTime) {
         // Main menu logic is handled via events
 
         case STATE_PLAYING: {
-            // continous movement handling
-            updatePlayState(zEngine);
+            // continous shii
+            velocitySystem(zEngine, deltaTime);
+            transformSystem(zEngine->gEcs);  // syncs position updates with the render components
             break;
         }
         case STATE_PAUSED: {
-            // todo
+            // later
             break;
         }
         case STATE_GAME_OVER: {
-            // todo
+            // later
             break;
         }
     }  
@@ -56,7 +65,16 @@ void renderFrame(ZENg zEngine) {
             break;
         }
         case STATE_PAUSED: {
+            renderPlayState(zEngine);
+
+            // transparent overlay
+            SDL_SetRenderDrawBlendMode(zEngine->renderer, SDL_BLENDMODE_BLEND);  // Enable blending for transparency
+            SDL_SetRenderDrawColor(zEngine->renderer, 0, 0, 0, 150);  // semi-transparent black
+            SDL_RenderFillRect(zEngine->renderer, NULL);  // Fill the entire screen with the semi-transparent color
+            
             renderPauseState(zEngine);
+
+            SDL_SetRenderDrawBlendMode(zEngine->renderer, SDL_BLENDMODE_NONE);  // Disable blending
             break;
         }
         case STATE_GAME_OVER: {
@@ -64,6 +82,7 @@ void renderFrame(ZENg zEngine) {
             break;
         }
     }
+    SDL_RenderPresent(zEngine->renderer);  // render the current frame
 }
 
 void onEnterMainMenu(ZENg zEngine) {
@@ -266,17 +285,29 @@ void onEnterPlayState(ZENg zEngine) {
     int wW, wH;
     SDL_GetWindowSize(zEngine->window, &wW, &wH);
     *posComp = (PositionComponent) {
-        wW / 2,
-        wH / 2
+        wW / 2.0,
+        wH / 2.0
     };
     addComponent(zEngine->gEcs, id, POSITION_COMPONENT, (void *)posComp);
+
+    DirectionComponent *dirComp = calloc(1, sizeof(DirectionComponent));
+    if (!dirComp) {
+        printf("Failed to allocate memory for direction component\n");
+        exit(EXIT_FAILURE);
+    }
+    *dirComp = (Vec2) DIR_UP;  // initial direction - up
+    addComponent(zEngine->gEcs, id, DIRECTION_COMPONENT, (void *)dirComp);
 
     VelocityComponent *speedComp = calloc(1, sizeof(VelocityComponent));
     if (!speedComp) {
         printf("Failed to allocate memory for velocity component\n");
         exit(EXIT_FAILURE);
     }
-    *speedComp = (VelocityComponent) {0.0, 10.0, 1};
+    *speedComp = (VelocityComponent) {
+        (Vec2) {0.0, 0.0 },
+        10.0,
+        1
+    };
 
     addComponent(zEngine->gEcs, id, VELOCITY_COMPONENT, (void *)speedComp);
 

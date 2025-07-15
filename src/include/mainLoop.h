@@ -6,7 +6,10 @@
 // used to poll events like key presses each frame. Returns the value for <bool>running
 Uint8 handleEvents(SDL_Event *e, ZENg zEngine);
 
-// used to handle continous input like movement keyboard keys
+//
+void handleInput(ZENg zEngine);
+
+// updates physics and game logic before rendering each frame
 void updateGameLogic(ZENg zEngine, double_t deltaTime);
 
 // renders each frame of the game according to the game state

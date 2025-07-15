@@ -9,7 +9,7 @@
 void handlePlayStateEvents(SDL_Event *e, ZENg zEngine);
 
 // game logic driven through continuous input
-void updatePlayState(ZENg zEngine);
+void handlePlayStateInput(ZENg zEngine);
 
 // renders the in-game entities
 void renderPlayState(ZENg zEngine);

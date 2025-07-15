@@ -21,7 +21,11 @@ include_directories(${SDL2_TTF_INCLUDE_DIRS})
 
 # Executable
 add_executable(GOATGame ${SOURCES})
-target_link_libraries(GOATGame PRIVATE ${SDL2_LIBRARIES} ${SDL2_TTF_LIBRARIES})
+target_link_libraries(GOATGame PRIVATE
+    ${SDL2_LIBRARIES}
+    ${SDL2_TTF_LIBRARIES}
+    m # math lib
+)
 
 # Copy assets into build folder after build
 add_custom_command(TARGET GOATGame POST_BUILD

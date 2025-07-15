@@ -9,6 +9,7 @@
 #include "fontManager.h"
 #include <stdlib.h>
 #include <SDL2/SDL.h>
+#include "vec2.h"
 
 typedef Uint64 Entity;  // in an ECS, an entity is just an ID
 extern Entity PLAYER_ID;  // global variable for the player entity ID
@@ -18,6 +19,7 @@ typedef enum {
     HEALTH_COMPONENT,
     POSITION_COMPONENT,
     VELOCITY_COMPONENT,
+    DIRECTION_COMPONENT,
     TEXT_COMPONENT,  // from here more UI-based components
     RENDER_COMPONENT,
     COMPONENT_COUNT  // automatically counts
@@ -39,15 +41,21 @@ typedef struct {
     Uint8 active;  // indicates if the component is active
 } HealthComponent;
 
-typedef struct {
-    double_t x, y;
-} PositionComponent;
+typedef Vec2 PositionComponent;  // position in 2D space
 
 typedef struct {
-    double_t currVelocity;  // speed of the entity
+    Vec2 currVelocity;  // current velocity
     double_t maxVelocity;  // maximum speed of the entity
     Uint8 active;
 } VelocityComponent;
+
+// moving directions
+#define DIR_LEFT (Vec2){-1.0, 0.0};
+#define DIR_RIGHT (Vec2){1.0, 0.0};
+#define DIR_UP (Vec2){0.0, -1.0};
+#define DIR_DOWN (Vec2){0.0, 1.0};
+
+typedef Vec2 DirectionComponent;
 
 typedef struct {
     SDL_Texture *texture;  // texture to render
