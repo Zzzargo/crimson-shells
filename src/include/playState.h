@@ -5,6 +5,9 @@
 #include "engine.h"
 #include "mainLoop.h"
 
+// spawns a bullet with a given owner entity, in the same direction the owner is looking
+void spawnBulletProjectile(ZENg zEngine, Entity owner);
+
 // handles in-game events
 void handlePlayStateEvents(SDL_Event *e, ZENg zEngine);
 

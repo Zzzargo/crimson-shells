@@ -39,6 +39,7 @@ void updateGameLogic(ZENg zEngine, double_t deltaTime) {
 
         case STATE_PLAYING: {
             // continous shii
+            lifetimeSystem(zEngine, deltaTime);
             velocitySystem(zEngine, deltaTime);
             transformSystem(zEngine->gEcs);  // syncs position updates with the render components
             break;

@@ -3,10 +3,10 @@
 
 #include "engine.h"
 
-// used to poll events like key presses each frame. Returns the value for <bool>running
+// used to poll events like key presses. Returns the value for <bool>running
 Uint8 handleEvents(SDL_Event *e, ZENg zEngine);
 
-//
+// handle continuous input
 void handleInput(ZENg zEngine);
 
 // updates physics and game logic before rendering each frame

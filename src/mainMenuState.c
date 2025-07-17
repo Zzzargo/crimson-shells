@@ -50,79 +50,69 @@ void handleMainMenuEvents(SDL_Event *event, ZENg zEngine) {
 
         switch (action) {
             case INPUT_MOVE_UP: {
-                for (Uint64 i = 0; i < zEngine->uiEcs->nextEntityID; i++) {
-                    bitset targetFlags = 1 << TEXT_COMPONENT;
-                    bitset currEntityFlags = zEngine->uiEcs->componentsFlags[i];
-
-                    if ((targetFlags & currEntityFlags) == targetFlags) {
-                        TextComponent *curr = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[i]);
-                        if (curr->selected) {
-                            curr->selected = 0;
-                            if (strcmp(curr->text, "Play") == 0) {
-                                // wrap around to `Exit`
-                                // starting at 0 because the ids can be reused
-                                for (Uint64 j = 0; j < zEngine->uiEcs->nextEntityID; j++) {
-                                    TextComponent *fetch = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[j]);
-                                    if (strcmp(fetch->text, "Exit") == 0) {
-                                        fetch->selected = 1;  // select "Exit"
-                                        break;
-                                    }
-                                }
-                            } else {
-                                // select the previous option
-                                for (Uint64 j = 0; j < zEngine->uiEcs->nextEntityID; j++) {
-                                    TextComponent *fetch = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[j]);
-                                    // find the previous item
-                                    if (fetch->orderIdx == curr->orderIdx - 1) {
-                                        fetch->selected = 1;
-                                        break;
-                                    }
+                for (Uint64 i = 0; i < zEngine->uiEcs->components[TEXT_COMPONENT].denseSize; i++) {
+                    TextComponent *curr = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[i]);
+                    if (curr->selected) {
+                        curr->selected = 0;
+                        if (strcmp(curr->text, "Play") == 0) {
+                            // wrap around to `Exit`
+                            // starting at 0 because the ids can be reused
+                            for (Uint64 j = 0; j < zEngine->uiEcs->components[TEXT_COMPONENT].denseSize; j++) {
+                                TextComponent *fetch = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[j]);
+                                if (strcmp(fetch->text, "Exit") == 0) {
+                                    fetch->selected = 1;  // select "Exit"
+                                    break;
                                 }
                             }
-                            updateMenuUI(zEngine);
-                            break;
+                        } else {
+                            // select the previous option
+                            for (Uint64 j = 0; j < zEngine->uiEcs->components[TEXT_COMPONENT].denseSize; j++) {
+                                TextComponent *fetch = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[j]);
+                                // find the previous item
+                                if (fetch->orderIdx == curr->orderIdx - 1) {
+                                    fetch->selected = 1;
+                                    break;
+                                }
+                            }
                         }
+                        updateMenuUI(zEngine);
+                        break;
                     }
                 }
                 break;
             }
             case INPUT_MOVE_DOWN: {
-                for (Uint64 i = 0; i < zEngine->uiEcs->nextEntityID; i++) {
-                    bitset targetFlags = 1 << TEXT_COMPONENT;
-                    bitset currEntityFlags = zEngine->uiEcs->componentsFlags[i];
-
-                    if ((targetFlags & currEntityFlags) == targetFlags) {
-                        TextComponent *curr = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[i]);
-                        if (curr->selected) {
-                            curr->selected = 0;
-                            if (strcmp(curr->text, "Exit") == 0) {
-                                // wrap around to `Play`
-                                for (Uint64 j = 0; j < zEngine->uiEcs->nextEntityID; j++) {
-                                    TextComponent *fetch = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[j]);
-                                    if (strcmp(fetch->text, "Play") == 0) {
-                                        fetch->selected = 1;  // select "Play"
-                                        break;
-                                    }
-                                }
-                            } else {
-                                // select the next option
-                                 for (Uint64 j = 0; j < zEngine->uiEcs->nextEntityID; j++) {
-                                    TextComponent *fetch = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[j]);
-                                    if (fetch->orderIdx == curr->orderIdx + 1) {
-                                        fetch->selected = 1;
-                                        break;
-                                    }
+                for (Uint64 i = 0; i < zEngine->uiEcs->components[TEXT_COMPONENT].denseSize; i++) {
+                    TextComponent *curr = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[i]);
+                    if (curr->selected) {
+                        curr->selected = 0;
+                        if (strcmp(curr->text, "Exit") == 0) {
+                            // wrap around to `Play`
+                            for (Uint64 j = 0; j < zEngine->uiEcs->components[TEXT_COMPONENT].denseSize; j++) {
+                                TextComponent *fetch = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[j]);
+                                if (strcmp(fetch->text, "Play") == 0) {
+                                    fetch->selected = 1;  // select "Play"
+                                    break;
                                 }
                             }
-                            updateMenuUI(zEngine);
-                            break;
+                        } else {
+                            // select the next option
+                                for (Uint64 j = 0; j < zEngine->uiEcs->components[TEXT_COMPONENT].denseSize; j++) {
+                                TextComponent *fetch = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[j]);
+                                if (fetch->orderIdx == curr->orderIdx + 1) {
+                                    fetch->selected = 1;
+                                    break;
+                                }
+                            }
                         }
+                        updateMenuUI(zEngine);
+                        break;
                     }
                 }
                 break;
             }
             case INPUT_SELECT: {
-                for (Uint64 i = 0; i < zEngine->uiEcs->entityCount; i++) {
+                for (Uint64 i = 0; i < zEngine->uiEcs->components[TEXT_COMPONENT].denseSize; i++) {
                     TextComponent *curr = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[i]);
                     if (curr->selected) {
                         if (strcmp(curr->text, "Play") == 0) {

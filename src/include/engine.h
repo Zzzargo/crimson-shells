@@ -26,6 +26,9 @@ ZENg initGame();
 // updates the entities' positions based on their velocity
 void velocitySystem(ZENg zEngine, double_t deltaTime);
 
+// destroys entities which lifetime has expired
+void lifetimeSystem(ZENg zEngine, double_t deltaTime);
+
 // updates the rendered entities based on their position
 void transformSystem(ECS ecs);
 

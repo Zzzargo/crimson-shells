@@ -63,6 +63,14 @@ void initGECS(ECS *gEcs) {
                 (*gEcs)->components[i].type = DIRECTION_COMPONENT;
                 break;
             }
+            case PROJECTILE_COMPONENT: {
+                (*gEcs)->components[i].type = PROJECTILE_COMPONENT;
+                break;
+            }
+            case LIFETIME_COMPONENT: {
+                (*gEcs)->components[i].type = LIFETIME_COMPONENT;
+                break;
+            }
             case TEXT_COMPONENT: {
                 (*gEcs)->components[i].type = TEXT_COMPONENT;
                 break;
@@ -153,7 +161,10 @@ Entity createEntity(ECS ecs) {
         // no free entities, create a new one
         if (ecs->entityCount >= ecs->capacity) {
             // resize the ECS if needed
+            Uint64 oldCapacity = ecs->capacity;
             ecs->capacity *= 2;
+            printf("Resizing ECS %s from %lu to %lu\n", ecs->name, oldCapacity, ecs->capacity);
+
             bitset *tmpFlags = realloc(ecs->componentsFlags, ecs->capacity * sizeof(bitset));
             if (!tmpFlags) {
                 fprintf(stderr, "Failed to reallocate memory for ECS components flags\n");
@@ -164,25 +175,29 @@ Entity createEntity(ECS ecs) {
             }
             ecs->componentsFlags = tmpFlags;
 
-            Component *tmpComponents = realloc(ecs->components, COMPONENT_COUNT * ecs->capacity * sizeof(Component));
-            if (!tmpComponents) {
-                fprintf(stderr, "Failed to reallocate memory for ECS components\n");
-                free(ecs->componentsFlags);
-                free(ecs->components);
-                free(ecs);
-                exit(EXIT_FAILURE);
+            // initalize the new flags to 0
+            for (Uint64 i = oldCapacity; i < ecs->capacity; i++) {
+                ecs->componentsFlags[i] = 00000000;
             }
-            ecs->components = tmpComponents;
 
-            // resize the components arrays
+            // resize the components arrays - only dense part
             for (Uint64 i = 0; i < COMPONENT_COUNT; i++) {
-                // TODO
+                if (ecs->components[i].dense) {
+                    void **tmpDense = realloc(ecs->components[i].dense, ecs->capacity * sizeof(void *));
+                    Entity *tmpDenseToEntity = realloc(ecs->components[i].denseToEntity, ecs->capacity * sizeof(Entity));
+                    if (!tmpDense || !tmpDenseToEntity) {
+                        fprintf(stderr, "Failed to reallocate memory for component %lu dense arrays\n", i);
+                        exit(EXIT_FAILURE);
+                    }
+                    ecs->components[i].dense = tmpDense;
+                    ecs->components[i].denseToEntity = tmpDenseToEntity;
+                }
             }
         }
         entitty = ecs->nextEntityID++;
     }
 
-    ecs->componentsFlags[entitty] = 00000000;  // the new entity has no components
+    ecs->componentsFlags[entitty] = 0;  // the new entity has no components
     ecs->entityCount++;
     printf("Created entity with ID %ld in %s\n", entitty, ecs->name);
     return entitty;
@@ -233,7 +248,6 @@ void addComponent(ECS ecs, Entity id, ComponentType compType, void *component) {
     if (id >= ecs->capacity) {
         printf("Reallocating memory for the dense array of the component %d's array\n", compType);
         // Resize the dense array if needed
-        ecs->capacity *= 2;
         void **tmpDense = realloc(ecs->components[compType].dense, ecs->capacity * sizeof(void *));
         Entity *tmpDenseToEntity = realloc(ecs->components[compType].denseToEntity, ecs->capacity * sizeof(Entity));
         if (!tmpDense || !tmpDenseToEntity) {
@@ -249,6 +263,7 @@ void addComponent(ECS ecs, Entity id, ComponentType compType, void *component) {
     ecs->components[compType].sparse[page][index] = denseIdx;
     ecs->components[compType].dense[denseIdx] = component;
     ecs->components[compType].denseToEntity[denseIdx] = id;  // map the component to its entity ID
+    printf("Mapped entity %lu to denseIdx %lu\n", id, denseIdx);
     ecs->components[compType].denseSize++;
 
     // and set the corresponding bitmask
@@ -257,6 +272,11 @@ void addComponent(ECS ecs, Entity id, ComponentType compType, void *component) {
 }
 
 void deleteEntity(ECS ecs, Entity id) {
+    if (!ecs) {
+        fprintf(stderr, "ECS is NULL, cannot delete entity\n");
+        return;
+    }
+
     if (id >= ecs->capacity || id < 0) {
         printf("Warning: Attempting to delete entity %ld which is out of bounds\n", id);
         return;

@@ -13,13 +13,15 @@
 
 typedef Uint64 Entity;  // in an ECS, an entity is just an ID
 extern Entity PLAYER_ID;  // global variable for the player entity ID
-typedef Uint8 bitset;  // a bitset to indicate which components an entity has
+typedef Uint64 bitset;  // a bitset to indicate which components an entity has
 
 typedef enum {
     HEALTH_COMPONENT,
     POSITION_COMPONENT,
     VELOCITY_COMPONENT,
     DIRECTION_COMPONENT,
+    PROJECTILE_COMPONENT,
+    LIFETIME_COMPONENT,
     TEXT_COMPONENT,  // from here more UI-based components
     RENDER_COMPONENT,
     COMPONENT_COUNT  // automatically counts
@@ -56,6 +58,18 @@ typedef struct {
 #define DIR_DOWN (Vec2){0.0, 1.0};
 
 typedef Vec2 DirectionComponent;
+
+typedef struct {
+    double_t dmg;  // how much damage does the projectile do
+    Uint8 piercing;
+    Uint8 exploding;
+    Uint8 friendly;  // indicates whether the projectile can damage the player
+} ProjectileComponent;
+
+typedef struct {
+    double_t lifeTime;
+    double_t timeAlive;
+} LifetimeComponent;
 
 typedef struct {
     SDL_Texture *texture;  // texture to render

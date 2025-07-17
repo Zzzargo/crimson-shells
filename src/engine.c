@@ -94,6 +94,17 @@ void velocitySystem(ZENg zEngine, double_t deltaTime) {
     }
 }
 
+void lifetimeSystem(ZENg zEngine, double_t deltaTime) {
+    for (Uint64 i = 0; i < zEngine->gEcs->components[LIFETIME_COMPONENT].denseSize; i++) {
+        LifetimeComponent *lifeComp = (LifetimeComponent *)(zEngine->gEcs->components[LIFETIME_COMPONENT].dense[i]);
+        lifeComp->timeAlive += deltaTime;
+        if (lifeComp->timeAlive >= lifeComp->lifeTime) {
+            Entity owner = zEngine->gEcs->components[LIFETIME_COMPONENT].denseToEntity[i];
+            deleteEntity(zEngine->gEcs, owner);
+        }
+    }   
+}
+
 void transformSystem(ECS ecs) {
     // iterate through all entities with POSITION_COMPONENT and update their rendered textures
     for (Uint64 i = 0; i < ecs->components[POSITION_COMPONENT].denseSize; i++) {

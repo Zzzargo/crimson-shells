@@ -135,12 +135,10 @@ void renderPauseState(ZENg zEngine) {
     // SDL_RenderClear(zEngine->renderer);
 
     // Render the options
-    for (Uint64 i = 0; i < zEngine->uiEcs->nextEntityID; i++) {
+    for (Uint64 i = 0; i < zEngine->uiEcs->components[TEXT_COMPONENT].denseSize; i++) {
         TextComponent *textComp = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[i]);
-        if (textComp) {
-            if (textComp->state == STATE_PAUSED) {
-                SDL_RenderCopy(zEngine->renderer, textComp->texture, NULL, textComp->destRect);
-            }
+        if (textComp->state == STATE_PAUSED) {
+            SDL_RenderCopy(zEngine->renderer, textComp->texture, NULL, textComp->destRect);
         }
     }
 }
