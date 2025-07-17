@@ -74,6 +74,13 @@ void velocitySystem(ZENg zEngine, double_t deltaTime) {
             posComp->x += velComp->currVelocity.x * deltaTime;
             posComp->y += velComp->currVelocity.y * deltaTime;
 
+            // and the hitboxes
+            CollisionComponent *colComp = (CollisionComponent *)(zEngine->gEcs->components[COLLISION_COMPONENT].dense[denseIndex]);
+            if (colComp && colComp->hitbox) {
+                colComp->hitbox->x = posComp->x;
+                colComp->hitbox->y = posComp->y;
+            }
+
             // clamp the position to the window bounds
             if (posComp->x < 0) posComp->x = 0;  // prevent going out of bounds
             if (posComp->y < 0) posComp->y = 0;  // prevent going out of bounds
@@ -103,6 +110,50 @@ void lifetimeSystem(ZENg zEngine, double_t deltaTime) {
             deleteEntity(zEngine->gEcs, owner);
         }
     }   
+}
+
+void handleCollision(ZENg zEngine, CollisionComponent *AColComp, CollisionComponent *BColComp, Entity AOwner, Entity BOwner) {
+
+}
+
+void collisionSystem(ZENg zEngine) {
+    for (Uint64 i = 0; i < zEngine->gEcs->components[COLLISION_COMPONENT].denseSize; i++) {
+        CollisionComponent *AColComp = (CollisionComponent *)(zEngine->gEcs->components[COLLISION_COMPONENT].dense[i]);
+        Entity AOwner = zEngine->gEcs->components[COLLISION_COMPONENT].denseToEntity[i];
+
+        if (!AColComp || !AColComp->hitbox) {
+            printf("Warning: Entity %ld has an invalid collision component\n", AOwner);
+            continue;
+        }
+
+        int wW, wH;
+        SDL_GetWindowSize(zEngine->window, &wW, &wH);
+        // if a bullet hits the screen edge - remove it
+        if (AColComp->hitbox->x < 0
+            || AColComp->hitbox->y < 0
+            || AColComp->hitbox->x + AColComp->hitbox->w > wW
+            || AColComp->hitbox->y + AColComp->hitbox->h > wH
+        ) {
+            deleteEntity(zEngine->gEcs, AOwner);
+            continue;  // skip to the next entity
+        }
+
+        // Check collisions with other entities
+        for (Uint64 j = i + 1; j < zEngine->gEcs->components[COLLISION_COMPONENT].denseSize; j++) {
+            CollisionComponent *BColComp = (CollisionComponent *)(zEngine->gEcs->components[COLLISION_COMPONENT].dense[j]);
+            Entity BOwner = zEngine->gEcs->components[COLLISION_COMPONENT].denseToEntity[j];
+
+            if (!BColComp || !BColComp->hitbox) {
+                printf("Warning: Entity %ld has an invalid collision component\n", BOwner);
+                continue;
+            }
+
+            // Check for intersections
+            if (SDL_HasIntersection(AColComp->hitbox, BColComp->hitbox)) {
+                handleCollision(zEngine, AColComp, BColComp, AOwner, BOwner);
+            }
+        }
+    }
 }
 
 void transformSystem(ECS ecs) {

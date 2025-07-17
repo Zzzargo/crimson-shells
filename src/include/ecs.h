@@ -22,6 +22,7 @@ typedef enum {
     DIRECTION_COMPONENT,
     PROJECTILE_COMPONENT,
     LIFETIME_COMPONENT,
+    COLLISION_COMPONENT,
     TEXT_COMPONENT,  // from here more UI-based components
     RENDER_COMPONENT,
     COMPONENT_COUNT  // automatically counts
@@ -70,6 +71,11 @@ typedef struct {
     double_t lifeTime;
     double_t timeAlive;
 } LifetimeComponent;
+
+typedef struct {
+    SDL_Rect *hitbox;  // the square where the entity can touch others
+    Uint8 isSolid;  // indicates if entities can pass through
+} CollisionComponent;
 
 typedef struct {
     SDL_Texture *texture;  // texture to render

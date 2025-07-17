@@ -66,6 +66,23 @@ void spawnBulletProjectile(ZENg zEngine, Entity owner) {
     };
     addComponent(zEngine->gEcs, bulletID, LIFETIME_COMPONENT, lifeComp);
 
+    CollisionComponent *bulletColl = calloc(1, sizeof(CollisionComponent));
+    if (!bulletColl) {
+        printf("Failed to allocate memory for bullet collision component\n");
+        exit(EXIT_FAILURE);
+    }
+    bulletColl->hitbox = calloc(1, sizeof(SDL_Rect));
+    if (!bulletColl->hitbox) {
+        printf("Failed to allocate memory for bullet collision hitbox\n");
+        exit(EXIT_FAILURE);
+    }
+    bulletColl->hitbox->x = (int)bulletPos->x;
+    bulletColl->hitbox->y = (int)bulletPos->y;
+    bulletColl->hitbox->w = 10;  // bullet size
+    bulletColl->hitbox->h = 10;
+    bulletColl->isSolid = 0;  // bullets can pass through each other
+    addComponent(zEngine->gEcs, bulletID, COLLISION_COMPONENT, (void *)bulletColl);
+
     RenderComponent *bulletRender = calloc(1, sizeof(RenderComponent));
     if (!bulletRender) {
         printf("Failed to allocate memory for bullet render component\n");

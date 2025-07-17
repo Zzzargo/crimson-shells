@@ -71,6 +71,10 @@ void initGECS(ECS *gEcs) {
                 (*gEcs)->components[i].type = LIFETIME_COMPONENT;
                 break;
             }
+            case COLLISION_COMPONENT: {
+                (*gEcs)->components[i].type = COLLISION_COMPONENT;
+                break;
+            }
             case TEXT_COMPONENT: {
                 (*gEcs)->components[i].type = TEXT_COMPONENT;
                 break;
@@ -401,6 +405,10 @@ void freeECS(ECS ecs) {
                                 case RENDER_COMPONENT: {
                                     if ((*(RenderComponent *)(curr)).texture) SDL_DestroyTexture((*(RenderComponent *)(curr)).texture);
                                     if ((*(RenderComponent *)(curr)).destRect) free((*(RenderComponent *)(curr)).destRect);
+                                    break;
+                                }
+                                case COLLISION_COMPONENT: {
+                                    if ((*(CollisionComponent *)(curr)).hitbox) free((*(CollisionComponent *)(curr)).hitbox);
                                     break;
                                 }
                             }

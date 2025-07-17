@@ -41,6 +41,7 @@ void updateGameLogic(ZENg zEngine, double_t deltaTime) {
             // continous shii
             lifetimeSystem(zEngine, deltaTime);
             velocitySystem(zEngine, deltaTime);
+            collisionSystem(zEngine);
             transformSystem(zEngine->gEcs);  // syncs position updates with the render components
             break;
         }
@@ -312,6 +313,23 @@ void onEnterPlayState(ZENg zEngine) {
 
     addComponent(zEngine->gEcs, id, VELOCITY_COMPONENT, (void *)speedComp);
 
+    CollisionComponent *colComp = calloc(1, sizeof(CollisionComponent));
+    if (!colComp) {
+        printf("Failed to allocate memory for collision component\n");
+        exit(EXIT_FAILURE);
+    }
+    colComp->hitbox = calloc(1, sizeof(SDL_Rect));
+    if (!colComp->hitbox) {
+        printf("Failed to allocate memory for collision hitbox\n");
+        exit(EXIT_FAILURE);
+    }
+    colComp->hitbox->x = posComp->x;
+    colComp->hitbox->y = posComp->y;
+    colComp->hitbox->w = wH / 20;  // size of the hitbox
+    colComp->hitbox->h = wH / 20;
+    colComp->isSolid = 1;  // player is sure solid
+    addComponent(zEngine->gEcs, id, COLLISION_COMPONENT, (void *)colComp);
+
     RenderComponent *renderComp = calloc(1, sizeof(RenderComponent));
     if (!renderComp) {
         printf("Failed to allocate memory for render component\n");
@@ -327,8 +345,8 @@ void onEnterPlayState(ZENg zEngine) {
     }
     // Initial position and size of the dot
     *renderComp->destRect = (SDL_Rect){
-        .x = wW / 2,  // Centered horizontally
-        .y = wH / 2,  // Centered vertically
+        .x = posComp->x,  // Centered horizontally
+        .y = posComp->y,  // Centered vertically
         .w = wH / 20,
         .h = wH / 20
     };

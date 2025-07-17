@@ -29,6 +29,11 @@ void velocitySystem(ZENg zEngine, double_t deltaTime);
 // destroys entities which lifetime has expired
 void lifetimeSystem(ZENg zEngine, double_t deltaTime);
 
+void handleCollision(ZENg zEngine, CollisionComponent *AColComp, CollisionComponent *BColComp, Entity AOwner, Entity BOwner);
+
+// passes the collision components to the collision handler
+void collisionSystem(ZENg zEngine);
+
 // updates the rendered entities based on their position
 void transformSystem(ECS ecs);
 
