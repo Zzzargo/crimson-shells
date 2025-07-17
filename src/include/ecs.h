@@ -11,6 +11,9 @@
 #include <SDL2/SDL.h>
 #include "vec2.h"
 
+typedef int32_t Int32;
+typedef int64_t Int64;
+
 typedef Uint64 Entity;  // in an ECS, an entity is just an ID
 extern Entity PLAYER_ID;  // global variable for the player entity ID
 typedef Uint64 bitset;  // a bitset to indicate which components an entity has
@@ -39,8 +42,8 @@ typedef struct {
 } Component;  // base component type
 
 typedef struct {
-    Uint32 maxHealth; // maximum health of the entity
-    Uint32 currentHealth; // current health of the entity
+    Int32 maxHealth; // maximum health of the entity
+    Int32 currentHealth; // current health of the entity
     Uint8 active;  // indicates if the component is active
 } HealthComponent;
 
@@ -61,7 +64,7 @@ typedef struct {
 typedef Vec2 DirectionComponent;
 
 typedef struct {
-    double_t dmg;  // how much damage does the projectile do
+    Int32 dmg;  // how much damage does the projectile do
     Uint8 piercing;
     Uint8 exploding;
     Uint8 friendly;  // indicates whether the projectile can damage the player
@@ -72,8 +75,16 @@ typedef struct {
     double_t timeAlive;
 } LifetimeComponent;
 
+typedef enum {
+    COL_ACTOR,
+    COL_BULLET,
+    COL_WALL,
+    COL_ITEM,
+} CollisionRole;
+
 typedef struct {
     SDL_Rect *hitbox;  // the square where the entity can touch others
+    CollisionRole role;  // the role of the entity in the collision
     Uint8 isSolid;  // indicates if entities can pass through
 } CollisionComponent;
 

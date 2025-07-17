@@ -267,7 +267,6 @@ void addComponent(ECS ecs, Entity id, ComponentType compType, void *component) {
     ecs->components[compType].sparse[page][index] = denseIdx;
     ecs->components[compType].dense[denseIdx] = component;
     ecs->components[compType].denseToEntity[denseIdx] = id;  // map the component to its entity ID
-    printf("Mapped entity %lu to denseIdx %lu\n", id, denseIdx);
     ecs->components[compType].denseSize++;
 
     // and set the corresponding bitmask

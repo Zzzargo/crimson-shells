@@ -34,6 +34,9 @@ void handleCollision(ZENg zEngine, CollisionComponent *AColComp, CollisionCompon
 // passes the collision components to the collision handler
 void collisionSystem(ZENg zEngine);
 
+// updates entities based on their health
+void healthSystem(ZENg zEngine);
+
 // updates the rendered entities based on their position
 void transformSystem(ECS ecs);
 

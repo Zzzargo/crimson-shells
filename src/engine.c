@@ -113,7 +113,44 @@ void lifetimeSystem(ZENg zEngine, double_t deltaTime) {
 }
 
 void handleCollision(ZENg zEngine, CollisionComponent *AColComp, CollisionComponent *BColComp, Entity AOwner, Entity BOwner) {
+    if (!AColComp->isSolid && !BColComp->isSolid) {
+        // two bullets collide - skip collision check
+        return;
+    }
 
+    Uint64 APage = AOwner / PAGE_SIZE;
+    Uint64 AIndex = AOwner % PAGE_SIZE;
+    Uint64 ADenseIndex = zEngine->gEcs->components[PROJECTILE_COMPONENT].sparse[APage][AIndex];
+    ProjectileComponent *AProjComp = (ProjectileComponent *)(zEngine->gEcs->components[PROJECTILE_COMPONENT].dense[ADenseIndex]);
+    
+    Uint64 BPage = BOwner / PAGE_SIZE;
+    Uint64 BIndex = BOwner % PAGE_SIZE;
+    Uint64 BDenseIndex = zEngine->gEcs->components[PROJECTILE_COMPONENT].sparse[BPage][BIndex];
+    ProjectileComponent *BProjComp = (ProjectileComponent *)(zEngine->gEcs->components[PROJECTILE_COMPONENT].dense[BDenseIndex]);
+
+    // if a bullet hits a solid entity, delete the bullet and do damage
+    if (AColComp->role == COL_BULLET && BColComp->isSolid && BOwner != PLAYER_ID && AProjComp) {
+        Uint64 HPage = BOwner / PAGE_SIZE;
+        Uint64 HIdx = BOwner % PAGE_SIZE;
+        Uint64 HDenseIdx = zEngine->gEcs->components[HEALTH_COMPONENT].sparse[HPage][HIdx];
+        HealthComponent *actorHealth = (HealthComponent *)(zEngine->gEcs->components[HEALTH_COMPONENT].dense[HDenseIdx]);
+        if (actorHealth && actorHealth->active) {
+            actorHealth->currentHealth -= AProjComp->dmg;
+            printf("Bullet (%lu) takes %u damage from entity %lu\n", AOwner, AProjComp->dmg, BOwner);
+        }
+        deleteEntity(zEngine->gEcs, AOwner);  // delete the bullet
+    } else if (BColComp->role == COL_BULLET && AColComp->isSolid && AOwner != PLAYER_ID && BProjComp) {
+        Uint64 HPage = AOwner / PAGE_SIZE;
+        Uint64 HIdx = AOwner % PAGE_SIZE;
+        Uint64 HDenseIdx = zEngine->gEcs->components[HEALTH_COMPONENT].sparse[HPage][HIdx];
+        
+        HealthComponent *actorHealth = (HealthComponent *)(zEngine->gEcs->components[HEALTH_COMPONENT].dense[HDenseIdx]);
+        if (actorHealth && actorHealth->active) {
+            actorHealth->currentHealth -= BProjComp->dmg;
+            printf("Bullet (%lu) takes %u damage from entity %lu\n", BOwner, BProjComp->dmg, AOwner);
+        }
+        deleteEntity(zEngine->gEcs, BOwner);  // delete the bullet
+    }
 }
 
 void collisionSystem(ZENg zEngine) {
@@ -129,10 +166,10 @@ void collisionSystem(ZENg zEngine) {
         int wW, wH;
         SDL_GetWindowSize(zEngine->window, &wW, &wH);
         // if a bullet hits the screen edge - remove it
-        if (AColComp->hitbox->x < 0
+        if (AColComp->role == COL_BULLET && (AColComp->hitbox->x < 0
             || AColComp->hitbox->y < 0
             || AColComp->hitbox->x + AColComp->hitbox->w > wW
-            || AColComp->hitbox->y + AColComp->hitbox->h > wH
+            || AColComp->hitbox->y + AColComp->hitbox->h > wH)
         ) {
             deleteEntity(zEngine->gEcs, AOwner);
             continue;  // skip to the next entity
@@ -152,6 +189,22 @@ void collisionSystem(ZENg zEngine) {
             if (SDL_HasIntersection(AColComp->hitbox, BColComp->hitbox)) {
                 handleCollision(zEngine, AColComp, BColComp, AOwner, BOwner);
             }
+        }
+    }
+}
+
+void healthSystem(ZENg zEngine) {
+    for (Uint64 i = 0; i < zEngine->gEcs->components[HEALTH_COMPONENT].denseSize; i++) {
+        HealthComponent *healthComp = (HealthComponent *)(zEngine->gEcs->components[HEALTH_COMPONENT].dense[i]);
+        Entity ownerID = zEngine->gEcs->components[HEALTH_COMPONENT].denseToEntity[i];
+
+        if (ownerID == PLAYER_ID) {
+            printf("PLAYER has %u/%u health\n", healthComp->currentHealth, healthComp->maxHealth);
+        } else {
+            printf("Entity %ld has %u/%u health\n", ownerID, healthComp->currentHealth, healthComp->maxHealth);
+        }
+        if (healthComp->currentHealth <= 0) {
+            deleteEntity(zEngine->gEcs, ownerID);
         }
     }
 }

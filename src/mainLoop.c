@@ -42,6 +42,7 @@ void updateGameLogic(ZENg zEngine, double_t deltaTime) {
             lifetimeSystem(zEngine, deltaTime);
             velocitySystem(zEngine, deltaTime);
             collisionSystem(zEngine);
+            healthSystem(zEngine);
             transformSystem(zEngine->gEcs);  // syncs position updates with the render components
             break;
         }
@@ -328,6 +329,7 @@ void onEnterPlayState(ZENg zEngine) {
     colComp->hitbox->w = wH / 20;  // size of the hitbox
     colComp->hitbox->h = wH / 20;
     colComp->isSolid = 1;  // player is sure solid
+    colComp->role = COL_ACTOR;  // player is an actor in the game
     addComponent(zEngine->gEcs, id, COLLISION_COMPONENT, (void *)colComp);
 
     RenderComponent *renderComp = calloc(1, sizeof(RenderComponent));
@@ -453,6 +455,88 @@ void onEnterPlayState(ZENg zEngine) {
     id = createEntity(zEngine->uiEcs);  // get a new entity's ID
     addComponent(zEngine->uiEcs, id, TEXT_COMPONENT, (void *)exitMMenu);
 
+    SDL_SetRenderTarget(zEngine->renderer, NULL);  // Reset the render target
+
+
+
+
+    // test entity
+    id = createEntity(zEngine->gEcs);
+    HealthComponent *ThealthComp = calloc(1, sizeof(HealthComponent));
+    if (!ThealthComp) {
+        printf("Failed to allocate memory for health component\n");
+        exit(EXIT_FAILURE);
+    }
+    *ThealthComp = (HealthComponent) {100, 100, 1};  // current, max, active
+    addComponent(zEngine->gEcs, id, HEALTH_COMPONENT, (void *)ThealthComp);
+
+    PositionComponent *TposComp = calloc(1, sizeof(PositionComponent));
+    if (!TposComp) {
+        printf("Failed to allocate memory for position component\n");
+        exit(EXIT_FAILURE);
+    }
+    *TposComp = (PositionComponent) {
+        wW / 2.0 + 500,
+        wH / 2.0
+    };
+    addComponent(zEngine->gEcs, id, POSITION_COMPONENT, (void *)TposComp);
+
+    CollisionComponent *TcolComp = calloc(1, sizeof(CollisionComponent));
+    if (!TcolComp) {
+        printf("Failed to allocate memory for collision component\n");
+        exit(EXIT_FAILURE);
+    }
+    TcolComp->hitbox = calloc(1, sizeof(SDL_Rect));
+    if (!TcolComp->hitbox) {
+        printf("Failed to allocate memory for collision hitbox\n");
+        exit(EXIT_FAILURE);
+    }
+    TcolComp->hitbox->x = TposComp->x;
+    TcolComp->hitbox->y = TposComp->y;
+    TcolComp->hitbox->w = wH / 20;  // size of the hitbox
+    TcolComp->hitbox->h = wH / 20;
+    TcolComp->isSolid = 1;  // player is sure solid
+    TcolComp->role = COL_ACTOR;
+    addComponent(zEngine->gEcs, id, COLLISION_COMPONENT, (void *)TcolComp);
+
+    RenderComponent *TrenderComp = calloc(1, sizeof(RenderComponent));
+    if (!TrenderComp) {
+        printf("Failed to allocate memory for render component\n");
+        exit(EXIT_FAILURE);
+    }
+    TrenderComp->active = 1;
+    TrenderComp->selected = 0;
+
+    TrenderComp->destRect = calloc(1, sizeof(SDL_Rect));
+    if (!TrenderComp->destRect) {
+        printf("Failed to allocate memory for dot rectangle\n");
+        exit(EXIT_FAILURE);
+    }
+    // Initial position and size of the dot
+    *TrenderComp->destRect = (SDL_Rect) {
+        .x = TposComp->x,  // Centered horizontally
+        .y = TposComp->y,  // Centered vertically
+        .w = wH / 20,
+        .h = wH / 20
+    };
+
+    TrenderComp->texture = SDL_CreateTexture(
+        zEngine->renderer,
+        SDL_PIXELFORMAT_RGBA8888,
+        SDL_TEXTUREACCESS_TARGET,
+        TrenderComp->destRect->w,
+        TrenderComp->destRect->h
+    );
+    if (!TrenderComp->texture) {
+        printf("Failed to create dot texture: %s\n", SDL_GetError());
+        exit(EXIT_FAILURE);
+    }
+
+    addComponent(zEngine->gEcs, id, RENDER_COMPONENT, (void *)TrenderComp);
+
+    SDL_SetRenderTarget(zEngine->renderer, TrenderComp->texture);  // draw only to the dot texture
+    SDL_SetRenderDrawColor(zEngine->renderer, 255, 255, 255, 255);  // White color for the dot
+    SDL_RenderFillRect(zEngine->renderer, NULL);  // Fill the rectangle with white color
     SDL_SetRenderTarget(zEngine->renderer, NULL);  // Reset the render target
 }
 

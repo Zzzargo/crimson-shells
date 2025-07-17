@@ -13,15 +13,6 @@ void spawnBulletProjectile(ZENg zEngine, Entity owner) {
     Uint64 pageIdx = owner % PAGE_SIZE;
     Uint64 denseIdx = zEngine->gEcs->components[RENDER_COMPONENT].sparse[page][pageIdx];
 
-    SDL_Rect *playerRect = (*(RenderComponent *)(zEngine->gEcs->components[RENDER_COMPONENT].dense[denseIdx])).destRect;
-    PositionComponent *playerPos = (PositionComponent *)(zEngine->gEcs->components[POSITION_COMPONENT].dense[denseIdx]);
-    *bulletPos = (PositionComponent) {
-        playerPos->x + playerRect->w / 2,  // center the bullet on the owner
-        playerPos->y + playerRect->h / 2
-    };
-
-    addComponent(zEngine->gEcs, bulletID, POSITION_COMPONENT, (void *)bulletPos);
-
     DirectionComponent *bulletDir = calloc(1, sizeof(DirectionComponent));
     if (!bulletDir) {
         printf("Failed to allocate memory for bullet direction component\n");
@@ -29,6 +20,15 @@ void spawnBulletProjectile(ZENg zEngine, Entity owner) {
     }
     *bulletDir = *(DirectionComponent *)(zEngine->gEcs->components[DIRECTION_COMPONENT].dense[denseIdx]);  // bullet inherits the player's direction
     addComponent(zEngine->gEcs, bulletID, DIRECTION_COMPONENT, (void *)bulletDir);
+
+    SDL_Rect *ownerRect = (*(RenderComponent *)(zEngine->gEcs->components[RENDER_COMPONENT].dense[denseIdx])).destRect;
+    PositionComponent *playerPos = (PositionComponent *)(zEngine->gEcs->components[POSITION_COMPONENT].dense[denseIdx]);
+    *bulletPos = (PositionComponent) {
+        playerPos->x + ownerRect->w / 2 + 20,  // center the bullet on the owner
+        playerPos->y + ownerRect->h / 2
+    };
+
+    addComponent(zEngine->gEcs, bulletID, POSITION_COMPONENT, (void *)bulletPos);
 
     VelocityComponent *bulletSpeed = calloc(1, sizeof(VelocityComponent));
     if (!bulletSpeed) {
@@ -53,7 +53,7 @@ void spawnBulletProjectile(ZENg zEngine, Entity owner) {
         .exploding = 0,
         .friendly = (owner == PLAYER_ID) ? 1 : 0
     };
-    addComponent(zEngine->gEcs, bulletID, PROJECTILE_COMPONENT, projComp);
+    addComponent(zEngine->gEcs, bulletID, PROJECTILE_COMPONENT, (void *)projComp);
 
     LifetimeComponent *lifeComp = calloc(1, sizeof(LifetimeComponent));
     if (!lifeComp) {
@@ -64,7 +64,7 @@ void spawnBulletProjectile(ZENg zEngine, Entity owner) {
         .lifeTime = 5,  // 5s
         .timeAlive = 0
     };
-    addComponent(zEngine->gEcs, bulletID, LIFETIME_COMPONENT, lifeComp);
+    addComponent(zEngine->gEcs, bulletID, LIFETIME_COMPONENT, (void *)lifeComp);
 
     CollisionComponent *bulletColl = calloc(1, sizeof(CollisionComponent));
     if (!bulletColl) {
@@ -81,6 +81,7 @@ void spawnBulletProjectile(ZENg zEngine, Entity owner) {
     bulletColl->hitbox->w = 10;  // bullet size
     bulletColl->hitbox->h = 10;
     bulletColl->isSolid = 0;  // bullets can pass through each other
+    bulletColl->role = COL_BULLET;
     addComponent(zEngine->gEcs, bulletID, COLLISION_COMPONENT, (void *)bulletColl);
 
     RenderComponent *bulletRender = calloc(1, sizeof(RenderComponent));
