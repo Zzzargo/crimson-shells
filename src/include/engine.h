@@ -10,7 +10,7 @@ typedef struct engine {
 
     SDL_Window *window;
     SDL_Renderer *renderer;
-    FontManager fonts;
+    ResourceManager resources;
 
     // Core engine systems
 

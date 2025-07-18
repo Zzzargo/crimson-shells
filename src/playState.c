@@ -173,8 +173,8 @@ void handlePlayStateInput(ZENg zEngine) {
 
     if (moving) {
         // set the velocity vector
-        playerSpeed->currVelocity.x = playerSpeed->maxVelocity * playerDir->x * 150;
-        playerSpeed->currVelocity.y = playerSpeed->maxVelocity * playerDir->y * 150;
+        playerSpeed->currVelocity.x = playerSpeed->maxVelocity * playerDir->x * 30;
+        playerSpeed->currVelocity.y = playerSpeed->maxVelocity * playerDir->y * 30;
     } else {
         // If no movement input, stop the player
         playerSpeed->currVelocity = (Vec2) { .x = 0.0, .y = 0.0 };

@@ -19,11 +19,21 @@ include_directories(${SDL2_INCLUDE_DIRS})
 find_package(SDL2_ttf REQUIRED)
 include_directories(${SDL2_TTF_INCLUDE_DIRS})
 
+# Image
+find_package(SDL2_image REQUIRED)
+include_directories(${SDL2_IMAGE_INCLUDE_DIRS})
+
+# And sounds
+find_package(SDL2_mixer REQUIRED)
+include_directories(${SDL2_MIXER_INCLUDE_DIRS})
+
 # Executable
 add_executable(GOATGame ${SOURCES})
 target_link_libraries(GOATGame PRIVATE
     ${SDL2_LIBRARIES}
     ${SDL2_TTF_LIBRARIES}
+    ${SDL2_IMAGE_LIBRARIES}
+    ${SDL2_MIXER_LIBRARIES}
     m # math lib
 )
 

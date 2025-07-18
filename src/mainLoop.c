@@ -102,7 +102,7 @@ void onEnterMainMenu(ZENg zEngine) {
     title->active = 1;
     title->selected = 0;  // not selectable
     title->orderIdx = 0;  // first item
-    title->font = zEngine->fonts->titleFont;
+    title->font = getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf");
     title->text = strdup("GOAT Game");
     title->color = COLOR_WHITE_TRANSPARENT;  // semi-transparent white
 
@@ -148,7 +148,7 @@ void onEnterMainMenu(ZENg zEngine) {
     play->active = 1;
     play->selected = 1;  // "Play" is selected by default
     play->orderIdx = 1;
-    play->font = zEngine->fonts->menuFont;
+    play->font = getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf");
     play->text = strdup("Play");
     play->color = COLOR_YELLOW;  // highlighted color
 
@@ -188,7 +188,7 @@ void onEnterMainMenu(ZENg zEngine) {
     exitOpt->active = 1;
     exitOpt->selected = 0;  // "Exit" is not selected by default
     exitOpt->orderIdx = 2;
-    exitOpt->font = zEngine->fonts->menuFont;
+    exitOpt->font = getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf");
     exitOpt->text = strdup("Exit");
     exitOpt->color = COLOR_WHITE;  // normal color
 
@@ -227,7 +227,7 @@ void onEnterMainMenu(ZENg zEngine) {
     instructions->active = 1;
     instructions->selected = 0;  // not selectable
     instructions->orderIdx = 3;
-    instructions->font = zEngine->fonts->menuFont;
+    instructions->font = getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf");
     instructions->text = strdup("Use W/S or Arrow Keys to navigate, Enter/Space to select");
     instructions->color = COLOR_WHITE_TRANSPARENT;
 
@@ -384,7 +384,7 @@ void onEnterPlayState(ZENg zEngine) {
     cont->active = 1;
     cont->selected = 1;  // "Continue" is selected by default
     cont->orderIdx = 0;
-    cont->font = zEngine->fonts->menuFont;
+    cont->font = getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf");
     cont->text = strdup("Continue");
     cont->color = COLOR_YELLOW;  // highlighted color
 
@@ -425,7 +425,7 @@ void onEnterPlayState(ZENg zEngine) {
     exitMMenu->active = 1;
     exitMMenu->selected = 0;
     exitMMenu->orderIdx = 1;
-    exitMMenu->font = zEngine->fonts->menuFont;
+    exitMMenu->font = getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf");
     exitMMenu->text = strdup("Exit to main menu");
     exitMMenu->color = COLOR_WHITE;
 

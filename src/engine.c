@@ -3,7 +3,7 @@
 ZENg initGame() {
     ZENg zEngine = calloc(1, sizeof(struct engine));
     // Initialize SDL
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0) {
         printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
         exit(EXIT_FAILURE);
     }
@@ -18,8 +18,10 @@ ZENg initGame() {
     loadKeyBindings(zEngine->inputMng, "keys.cfg");
     zEngine->inputMng->keyboardState = SDL_GetKeyboardState(NULL);  // get the current keyboard state
 
-    // Initialize font manager
-    initFonts(&zEngine->fonts);
+    // Initialize the resource manager and preload resources
+    initResourceManager(&zEngine->resources);
+
+    preloadResources(zEngine->resources, zEngine->renderer);
 
     // Initialize ECS
     initGECS(&zEngine->gEcs);
@@ -242,7 +244,7 @@ void destroyEngine(ZENg *zEngine) {
 
     freeECS((*zEngine)->gEcs);
     freeECS((*zEngine)->uiEcs);
-    freeFonts(&((*zEngine)->fonts));
+    freeResourceManager(&(*zEngine)->resources);
 
     SDL_DestroyRenderer((*zEngine)->renderer);
     SDL_DestroyWindow((*zEngine)->window);

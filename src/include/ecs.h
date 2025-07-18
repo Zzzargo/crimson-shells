@@ -6,8 +6,7 @@
 // Using sparse sets with pagination for efficiency
 
 #include "tanki.h"
-#include "fontManager.h"
-#include <stdlib.h>
+#include "resourceManager.h"
 #include <SDL2/SDL.h>
 #include "vec2.h"
 
