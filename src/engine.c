@@ -1,5 +1,166 @@
 #include "include/engine.h"
 
+void loadSettings(ZENg zEngine, const char *filePath) {
+    // look for the file
+    FILE *fin = fopen(filePath, "r");
+    if (!fin) {
+        // file doesn't exist
+        printf("No config file found in %s. Using defaults\n", filePath);
+
+        zEngine->inputMng = calloc(1, sizeof(struct inputmng));
+        if (!zEngine->inputMng) {
+            printf("Failed allocating memory for the input manager");
+            exit(EXIT_FAILURE);
+        }
+        setDefaultBindings(zEngine->inputMng);
+
+        zEngine->display = calloc(1, sizeof(struct displaymng));
+        if (!zEngine->display) {
+            printf("Failed allocating memory for the display manager");
+            exit(EXIT_FAILURE);
+        }
+        setDefaultDisplaySettings(zEngine->display);
+        
+        // the function above doesn't create the window and the renderer
+        zEngine->display->window = SDL_CreateWindow(
+            "Adele's Adventure",
+            SDL_WINDOWPOS_CENTERED,
+            SDL_WINDOWPOS_CENTERED,
+            zEngine->display->width,
+            zEngine->display->height,
+            zEngine->display->wdwFlags
+        );
+        if (!zEngine->display->window) {
+            printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
+            exit(EXIT_FAILURE);
+        }
+        zEngine->display->renderer = SDL_CreateRenderer(
+            zEngine->display->window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC
+        );
+        if (!zEngine->display->renderer) {
+            printf("Renderer could not be created! SDL_Error: %s\n", SDL_GetError());
+            SDL_DestroyWindow(zEngine->display->window);
+            exit(EXIT_FAILURE);
+        }
+        return;
+    }
+
+    // if the file exists, read the settings
+
+    enum SECTIONS {
+        NONE,
+        SECTION_DISPLAY,
+        SECTION_BINDINGS
+    } currSect = NONE;
+
+    /* In case display settings are not fully specified, here's a failsafe*/
+    Int32 width = 1280, height = 720;
+    Int32 fullscreen = 0; Int32 vsync = 0;
+
+    char line[128];
+
+    while (fgets(line, sizeof(line), fin)) {
+        line[strcspn(line, "\r\n")] = 0;
+
+        // Skip empty lines
+        if (strlen(line) == 0) continue;
+
+        // Section headers
+        if (strcmp(line, "[DISPLAY]") == 0) {
+            currSect = SECTION_DISPLAY;
+            continue;
+        } else if (strcmp(line, "[INPUT]") == 0) {
+            currSect = SECTION_BINDINGS;
+            continue;
+        }
+
+        // Skip comments
+        if (line[0] == '#') continue;
+        
+        char setting[64], value[64];
+        if (sscanf(line, "%[^=]=%s", setting, value) != 2) continue;  // format is [SETTING]=[VALUE]
+
+        switch (currSect) {
+            case SECTION_DISPLAY: {
+                if (strcmp(setting, "WIDTH") == 0) {
+                    width = atoi(value);
+                } else if (strcmp(setting, "HEIGHT") == 0) {
+                    height = atoi(value);
+                } else if (strcmp(setting, "FULLSCREEN") == 0) {
+                    fullscreen = atoi(value);
+                } else if (strcmp(setting, "VSYNC") == 0) {
+                    vsync = atoi(value);
+                } else {
+                    printf("Unknown DISPLAY setting: %s\n", setting);
+                }
+            }
+            case SECTION_BINDINGS: {
+                SDL_Scancode scancode = SDL_GetScancodeFromName(value);
+                if (scancode == SDL_SCANCODE_UNKNOWN) {
+                    printf("Unknown value '%s' for setting '%s'\n", value, setting);
+                    continue;
+                }
+                if (strcmp(setting, "MOVE_UP") == 0) {
+                    zEngine->inputMng->bindings[INPUT_MOVE_UP] = scancode;
+                } else if (strcmp(setting, "MOVE_DOWN") == 0) {
+                    zEngine->inputMng->bindings[INPUT_MOVE_DOWN] = scancode;
+                } else if (strcmp(setting, "MOVE_LEFT") == 0) {
+                    zEngine->inputMng->bindings[INPUT_MOVE_LEFT] = scancode;
+                } else if (strcmp(setting, "MOVE_RIGHT") == 0) {
+                    zEngine->inputMng->bindings[INPUT_MOVE_RIGHT] = scancode;
+                } else if (strcmp(setting, "SELECT") == 0) {
+                    zEngine->inputMng->bindings[INPUT_SELECT] = scancode;
+                } else if (strcmp(setting, "BACK") == 0) {
+                    zEngine->inputMng->bindings[INPUT_BACK] = scancode;
+                } else if (strcmp(setting, "INTERACT") == 0) {
+                    zEngine->inputMng->bindings[INPUT_INTERACT] = scancode;
+                } else if (strcmp(setting, "SHOOT") == 0) {
+                    zEngine->inputMng->bindings[INPUT_SHOOT] = scancode;
+                } else if (strcmp(setting, "SPECIAL") == 0) {
+                    zEngine->inputMng->bindings[INPUT_SPECIAL] = scancode;
+                } else {
+                    printf("Unknown setting '%s'\n", setting);
+                }
+            }
+        }
+    }
+    fclose(fin);
+
+    zEngine->display->width = width;
+    zEngine->display->height = height;
+    zEngine->display->wdwFlags = fullscreen ? SDL_WINDOW_FULLSCREEN : SDL_WINDOW_SHOWN;
+
+    // Create the window with the read settings
+    zEngine->display->window = SDL_CreateWindow(
+        "Adele's Adventure",
+        SDL_WINDOWPOS_CENTERED,
+        SDL_WINDOWPOS_CENTERED,
+        zEngine->display->width,
+        zEngine->display->height,
+        zEngine->display->wdwFlags
+    );
+
+    if (!zEngine->display->window) {
+        printf("Window creation failed: %s\n", SDL_GetError());
+        exit(EXIT_FAILURE);
+    }
+
+    // Create renderer
+    Int32 rendererFlags = SDL_RENDERER_ACCELERATED;
+    if (vsync) rendererFlags |= SDL_RENDERER_PRESENTVSYNC;
+
+    zEngine->display->renderer = SDL_CreateRenderer(
+        zEngine->display->window, -1, rendererFlags
+    );
+    if (!zEngine->display->renderer) {
+        printf("Renderer creation failed: %s\n", SDL_GetError());
+        SDL_DestroyWindow(zEngine->display->window);
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Key bindings loaded from %s\n", filePath);
+}
+
 ZENg initGame() {
     ZENg zEngine = calloc(1, sizeof(struct engine));
     // Initialize SDL
@@ -8,52 +169,25 @@ ZENg initGame() {
         exit(EXIT_FAILURE);
     }
 
-    // Initialize the input manager
-    zEngine->inputMng = calloc(1, sizeof(struct inputmng));
-    if (!zEngine->inputMng) {
-        printf("Failed to allocate memory for input manager\n");
-        SDL_Quit();
-        exit(EXIT_FAILURE);
-    }
-    loadKeyBindings(zEngine->inputMng, "keys.cfg");
-    zEngine->inputMng->keyboardState = SDL_GetKeyboardState(NULL);  // get the current keyboard state
-
-    // Initialize the resource manager and preload resources
-    initResourceManager(&zEngine->resources);
-
-    preloadResources(zEngine->resources, zEngine->renderer);
+    // Initalize the display and input managers by reading settings file if existent
+    loadSettings(zEngine, "settings.ini");
 
     // Initialize ECS
     initGECS(&zEngine->gEcs);
     initUIECS(&zEngine->uiEcs);
 
-    // Create a window
-    (zEngine->window) = SDL_CreateWindow(
-        "GOAT Game",
-        SDL_WINDOWPOS_CENTERED,
-        SDL_WINDOWPOS_CENTERED,
-        1280, 720,  // a medium 16:9 window in the center of the monitor if windowed mode
-        SDL_WINDOW_FULLSCREEN_DESKTOP
-    );
-    if (!zEngine->window) {
-        printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
-        SDL_Quit();
-        exit(EXIT_FAILURE);
-    }
-
-    // Create a renderer
-    (zEngine->renderer) = SDL_CreateRenderer(zEngine->window, -1, SDL_RENDERER_ACCELERATED);
-    if (!zEngine->renderer) {
-        printf("Renderer could not be created! SDL_Error: %s\n", SDL_GetError());
-        SDL_DestroyWindow(zEngine->window);
-        SDL_Quit();
-        exit(EXIT_FAILURE);
-    }
+    // Initialize the resource manager and preload resources
+    initResourceManager(&zEngine->resources);
+    preloadResources(zEngine->resources, zEngine->display->renderer);
 
     // start on the main menu
     zEngine->state = STATE_MAIN_MENU;
     return zEngine;
 }
+
+/**
+ * =====================================================================================================================
+ */
 
 void velocitySystem(ZENg zEngine, double_t deltaTime) {
     // for each entity with a VELOCITY_COMPONENT, update its position based on the current velocity
@@ -88,7 +222,7 @@ void velocitySystem(ZENg zEngine, double_t deltaTime) {
             if (posComp->y < 0) posComp->y = 0;  // prevent going out of bounds
 
             int wW, wH;
-            SDL_GetWindowSize(zEngine->window, &wW, &wH);
+            SDL_GetWindowSize(zEngine->display->window, &wW, &wH);
             Uint64 denseRenderIndex = zEngine->gEcs->components[RENDER_COMPONENT].sparse[page][index];
             SDL_Rect *entityRect = ((RenderComponent *)(zEngine->gEcs->components[RENDER_COMPONENT].dense[denseRenderIndex]))->destRect;
             if (entityRect) {
@@ -103,6 +237,10 @@ void velocitySystem(ZENg zEngine, double_t deltaTime) {
     }
 }
 
+/**
+ * =====================================================================================================================
+ */
+
 void lifetimeSystem(ZENg zEngine, double_t deltaTime) {
     for (Uint64 i = 0; i < zEngine->gEcs->components[LIFETIME_COMPONENT].denseSize; i++) {
         LifetimeComponent *lifeComp = (LifetimeComponent *)(zEngine->gEcs->components[LIFETIME_COMPONENT].dense[i]);
@@ -113,6 +251,10 @@ void lifetimeSystem(ZENg zEngine, double_t deltaTime) {
         }
     }   
 }
+
+/**
+ * =====================================================================================================================
+ */
 
 void handleCollision(ZENg zEngine, CollisionComponent *AColComp, CollisionComponent *BColComp, Entity AOwner, Entity BOwner) {
     if (!AColComp->isSolid && !BColComp->isSolid) {
@@ -155,6 +297,10 @@ void handleCollision(ZENg zEngine, CollisionComponent *AColComp, CollisionCompon
     }
 }
 
+/**
+ * =====================================================================================================================
+ */
+
 void collisionSystem(ZENg zEngine) {
     for (Uint64 i = 0; i < zEngine->gEcs->components[COLLISION_COMPONENT].denseSize; i++) {
         CollisionComponent *AColComp = (CollisionComponent *)(zEngine->gEcs->components[COLLISION_COMPONENT].dense[i]);
@@ -166,7 +312,7 @@ void collisionSystem(ZENg zEngine) {
         }
 
         int wW, wH;
-        SDL_GetWindowSize(zEngine->window, &wW, &wH);
+        SDL_GetWindowSize(zEngine->display->window, &wW, &wH);
         // if a bullet hits the screen edge - remove it
         if (AColComp->role == COL_BULLET && (AColComp->hitbox->x < 0
             || AColComp->hitbox->y < 0
@@ -195,21 +341,24 @@ void collisionSystem(ZENg zEngine) {
     }
 }
 
+/**
+ * =====================================================================================================================
+ */
+
 void healthSystem(ZENg zEngine) {
     for (Uint64 i = 0; i < zEngine->gEcs->components[HEALTH_COMPONENT].denseSize; i++) {
         HealthComponent *healthComp = (HealthComponent *)(zEngine->gEcs->components[HEALTH_COMPONENT].dense[i]);
         Entity ownerID = zEngine->gEcs->components[HEALTH_COMPONENT].denseToEntity[i];
 
-        if (ownerID == PLAYER_ID) {
-            printf("PLAYER has %u/%u health\n", healthComp->currentHealth, healthComp->maxHealth);
-        } else {
-            printf("Entity %ld has %u/%u health\n", ownerID, healthComp->currentHealth, healthComp->maxHealth);
-        }
         if (healthComp->currentHealth <= 0) {
             deleteEntity(zEngine->gEcs, ownerID);
         }
     }
 }
+
+/**
+ * =====================================================================================================================
+ */
 
 void transformSystem(ECS ecs) {
     // iterate through all entities with POSITION_COMPONENT and update their rendered textures
@@ -237,6 +386,10 @@ void transformSystem(ECS ecs) {
     }
 }
 
+/**
+ * =====================================================================================================================
+ */
+
 void destroyEngine(ZENg *zEngine) {
     // save the current input bindings to the config file
     saveKeyBindings((*zEngine)->inputMng, "keys.cfg");
@@ -246,8 +399,8 @@ void destroyEngine(ZENg *zEngine) {
     freeECS((*zEngine)->uiEcs);
     freeResourceManager(&(*zEngine)->resources);
 
-    SDL_DestroyRenderer((*zEngine)->renderer);
-    SDL_DestroyWindow((*zEngine)->window);
+    SDL_DestroyRenderer((*zEngine)->display->renderer);
+    SDL_DestroyWindow((*zEngine)->display->window);
     SDL_Quit();
     free(*zEngine);
 }

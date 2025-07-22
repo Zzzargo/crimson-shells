@@ -3,8 +3,8 @@
 void updateMenuUI(ZENg zEngine) {
     // Rerender the UI based on the entities' current components' states
 
-    SDL_SetRenderDrawColor(zEngine->renderer, 100, 50, 0, 200);  // background color - brownish
-    SDL_RenderClear(zEngine->renderer);  // clear the renderer
+    SDL_SetRenderDrawColor(zEngine->display->renderer, 100, 50, 0, 200);  // background color - brownish
+    SDL_RenderClear(zEngine->display->renderer);  // clear the renderer
 
     for (Uint64 i = 0; i < zEngine->uiEcs->entityCount; i++) {
         bitset targetFlags = 1 << TEXT_COMPONENT;
@@ -27,8 +27,8 @@ void updateMenuUI(ZENg zEngine) {
                         curr->text,
                         curr->selected ? COLOR_YELLOW : COLOR_WHITE
                     );
-                    curr->texture = SDL_CreateTextureFromSurface(zEngine->renderer, surface);
-                    SDL_RenderCopy(zEngine->renderer, curr->texture, NULL, curr->destRect);
+                    curr->texture = SDL_CreateTextureFromSurface(zEngine->display->renderer, surface);
+                    SDL_RenderCopy(zEngine->display->renderer, curr->texture, NULL, curr->destRect);
                     SDL_FreeSurface(surface);
                     printf("Updated entity %ld's texture\n", i);
                 }
@@ -38,9 +38,30 @@ void updateMenuUI(ZENg zEngine) {
     printf("\n");
 }
 
+/**
+ * =====================================================================================================================
+ */
+
 void handleMainMenuEvents(SDL_Event *event, ZENg zEngine) {
     // Key press handling
     if (event->type == SDL_KEYDOWN) {
+
+
+        if (event->key.keysym.sym == SDLK_F11) {
+            // test feature - fullscreen switch
+            Int32 curr = zEngine->display->wdwFlags & SDL_WINDOW_FULLSCREEN;
+            if (curr) {
+                SDL_SetWindowFullscreen(zEngine->display->window, SDL_WINDOW_SHOWN);
+                zEngine->display->wdwFlags &= ~SDL_WINDOW_FULLSCREEN;
+            }
+            else {
+                SDL_SetWindowFullscreen(zEngine->display->window, SDL_WINDOW_FULLSCREEN);
+                zEngine->display->wdwFlags |= SDL_WINDOW_FULLSCREEN;
+            }
+            printf("REACH\n");
+        }
+
+
         // pass the pressed key to the input manager
         InputAction action = scancodeToAction(zEngine->inputMng, event->key.keysym.scancode);
         if (action == INPUT_UNKNOWN) {
@@ -130,10 +151,14 @@ void handleMainMenuEvents(SDL_Event *event, ZENg zEngine) {
     }
 }
 
+/**
+ * =====================================================================================================================
+ */
+
 void renderMainMenu(ZENg zEngine) {
     // Clear the screen
-    SDL_SetRenderDrawColor(zEngine->renderer, 100, 50, 0, 200);  // background color - brownish
-    SDL_RenderClear(zEngine->renderer);
+    SDL_SetRenderDrawColor(zEngine->display->renderer, 100, 50, 0, 200);  // background color - brownish
+    SDL_RenderClear(zEngine->display->renderer);
 
     bitset targetMask = 1 << TEXT_COMPONENT;
 
@@ -145,7 +170,7 @@ void renderMainMenu(ZENg zEngine) {
             if (curr->state == STATE_MAIN_MENU) {
                 // if the entity has the text component
                 SDL_RenderCopy(
-                    zEngine->renderer,
+                    zEngine->display->renderer,
                     curr->texture,
                     NULL,
                     curr->destRect

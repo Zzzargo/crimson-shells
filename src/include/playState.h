@@ -1,7 +1,7 @@
 #ifndef PLAYSTATE_H
 #define PLAYSTATE_H
 
-#include "tanki.h"
+#include "global.h"
 #include "engine.h"
 #include "mainLoop.h"
 

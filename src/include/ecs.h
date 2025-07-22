@@ -5,9 +5,9 @@
 // Little game - big ideas
 // Using sparse sets with pagination for efficiency
 
-#include "tanki.h"
-#include "resourceManager.h"
+#include "global.h"
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
 #include "vec2.h"
 
 typedef int32_t Int32;
@@ -120,21 +120,46 @@ typedef struct EeSiEs {
     Uint64 freeEntityCapacity;  // capacity of the free entities array
 } *ECS;
 
-// initialises the game ECS
+/**
+ * Initialises the game ECS - more dynamic entities
+ * @param gEcs pointer to an ECS = struct ecs**
+ */
 void initGECS(ECS *gEcs);
 
-// initialises the UI ECS
+/**
+ * Initialises the UI ECS - mostly static entities
+ * @param uiEcs pointer to an ECS = struct ecs**
+ */
 void initUIECS(ECS *uiEcs);
 
-// creates a new entity in the ECS (gives a new entity ID)
+/**
+ * Creates a new entity in an ECS
+ * @param ecs an ECS struct = struct ecs*
+ * @return Entity(ID)
+ * @note an entity in an ECS is just the ID (a number)
+*/
 Entity createEntity(ECS ecs);
 
-// adds a component to an entity in the ECS
+/**
+ * Adds a component to an entity in an ECS
+ * @param ecs an ECS struct = struct ecs*
+ * @param id ID of the owner entity
+ * @param compType component type = enum variable
+ * @param component address of a component to be added to the entity
+*/
 void addComponent(ECS ecs, Entity id, ComponentType compType, void *component);
 
+/**
+ * Deletes an entity along with all its associated components
+ * @param ecs an ECS struct = struct ecs*
+ * @param id the entity ID
+ */
 void deleteEntity(ECS ecs, Entity id);
 
-// frees the ECS memory
+/**
+ * Frees the memory allocated for and inside an ECS
+ * @param ecs an ECS struct = struct ecs*
+ */
 void freeECS(ECS ecs);
 
 #endif // ECS_H

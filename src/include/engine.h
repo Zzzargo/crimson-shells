@@ -3,44 +3,79 @@
 
 #include "ecs.h"
 #include "inputManager.h"
-#include <math.h>  // of course we need math, vectors be vectoring
+#include "resourceManager.h"
+#include "displayManager.h"
 
 typedef struct engine {
-    // Window
-
-    SDL_Window *window;
-    SDL_Renderer *renderer;
+    DisplayManager display;
     ResourceManager resources;
-
-    // Core engine systems
-
+    InputManager inputMng;
     ECS uiEcs;
     ECS gEcs;
-    InputManager inputMng;
     GameState state;
 } *ZENg;
 
-// initialises the engine
+/**
+ * Loads the settings from a file
+ * @param zEngine pointer to the engine
+ * @param filepath path to the settings file
+ * @note The function loads the settings into the engine's display manager and input manager
+ */
+void loadSettings(ZENg zEngine, const char *filePath);
+
+/**
+ * Initialises the game engine
+ * @return ZENg = struct engine*
+ */
 ZENg initGame();
 
-// updates the entities' positions based on their velocity
+/**
+ * Updates the entities' positions based on their velocity
+ * @param zEngine pointer to the engine
+ * @param deltaTime time since the last frame in seconds
+ */
 void velocitySystem(ZENg zEngine, double_t deltaTime);
 
-// destroys entities which lifetime has expired
+/**
+ * Destroys entities which lifetime has expired
+ * @param zEngine pointer to the engine
+ * @param deltaTime time since the last frame in seconds
+ */
 void lifetimeSystem(ZENg zEngine, double_t deltaTime);
 
+/**
+ * Handles collisions between entities
+ * @param zEngine pointer to the engine
+ * @param AColComp pointer to the first collision component
+ * @param BColComp pointer to the second collision component
+ * @param AOwner the owner entity of the first collision component
+ * @param BOwner the owner entity of the second collision component
+ */
 void handleCollision(ZENg zEngine, CollisionComponent *AColComp, CollisionComponent *BColComp, Entity AOwner, Entity BOwner);
 
-// passes the collision components to the collision handler
+/**
+ * Passes the collision components to the collision handler
+ * @param zEngine pointer to the engine
+ */
 void collisionSystem(ZENg zEngine);
 
-// updates entities based on their health
+/**
+ * Updates entities based on their health
+ * @param zEngine pointer to the engine
+ */
 void healthSystem(ZENg zEngine);
 
-// updates the rendered entities based on their position
+/**
+ * Updates the rendered entities based on their position
+ * @param ecs pointer to the ECS
+ */
 void transformSystem(ECS ecs);
 
-// frees the memory used by the engine
+/**
+ * Frees the memory used by the engine
+ * @param zEngine pointer to the engine
+ * @return void
+ */
 void destroyEngine(ZENg *zEngine);
 
 #endif // ZENG_H

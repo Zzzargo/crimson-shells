@@ -1,5 +1,5 @@
-#ifndef TANKI_H
-#define TANKI_H
+#ifndef GLOBAL_H
+#define GLOBAL_H
 
 #define COLOR_WHITE_TRANSPARENT (SDL_Color){255, 255, 255, 155}  // semi-transparent white
 #define COLOR_WHITE (SDL_Color){255, 255, 255, 255}  // normal text color
@@ -16,4 +16,4 @@ typedef enum {
     STATE_EXIT
 } GameState;
 
-#endif // TANKI_H
+#endif // GLOBAL_H

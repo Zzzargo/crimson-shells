@@ -1,7 +1,7 @@
 #ifndef MAINMENUSTATE_H
 #define MAINMENUSTATE_H
 
-#include "tanki.h"
+#include "global.h"
 #include "engine.h"
 #include "mainLoop.h"
 

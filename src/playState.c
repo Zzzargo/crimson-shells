@@ -104,7 +104,7 @@ void spawnBulletProjectile(ZENg zEngine, Entity owner) {
         .h = 10
     };
     bulletRender->texture = SDL_CreateTexture(
-        zEngine->renderer,
+        zEngine->display->renderer,
         SDL_PIXELFORMAT_RGBA8888,
         SDL_TEXTUREACCESS_TARGET,
         bulletRender->destRect->w,
@@ -114,10 +114,10 @@ void spawnBulletProjectile(ZENg zEngine, Entity owner) {
         printf("Failed to create bullet texture: %s\n", SDL_GetError());
         exit(EXIT_FAILURE);
     }
-    SDL_SetRenderTarget(zEngine->renderer, bulletRender->texture);
-    SDL_SetRenderDrawColor(zEngine->renderer, 255, 255, 255, 255);
-    SDL_RenderClear(zEngine->renderer);
-    SDL_SetRenderTarget(zEngine->renderer, NULL);
+    SDL_SetRenderTarget(zEngine->display->renderer, bulletRender->texture);
+    SDL_SetRenderDrawColor(zEngine->display->renderer, 255, 255, 255, 255);
+    SDL_RenderClear(zEngine->display->renderer);
+    SDL_SetRenderTarget(zEngine->display->renderer, NULL);
     addComponent(zEngine->gEcs, bulletID, RENDER_COMPONENT, (void *)bulletRender);
 }
 
@@ -183,14 +183,14 @@ void handlePlayStateInput(ZENg zEngine) {
 
 void renderPlayState(ZENg zEngine) {
     // Clear the screen
-    SDL_SetRenderDrawColor(zEngine->renderer, 20, 20, 20, 200);  // background color - grey
-    SDL_RenderClear(zEngine->renderer);
+    SDL_SetRenderDrawColor(zEngine->display->renderer, 20, 20, 20, 200);  // background color - grey
+    SDL_RenderClear(zEngine->display->renderer);
 
     // Render game entities
     for (Uint64 i = 0; i < zEngine->gEcs->components[RENDER_COMPONENT].denseSize; i++) {
         RenderComponent *render = (RenderComponent *)(zEngine->gEcs->components[RENDER_COMPONENT].dense[i]);
         if (render) {
-            SDL_RenderCopy(zEngine->renderer, render->texture, NULL, render->destRect);
+            SDL_RenderCopy(zEngine->display->renderer, render->texture, NULL, render->destRect);
         }
     }
 }

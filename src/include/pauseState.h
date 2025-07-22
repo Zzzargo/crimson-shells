@@ -1,7 +1,7 @@
 #ifndef PAUSE_STATE_H
 #define PAUSE_STATE_H
 
-#include "tanki.h"
+#include "global.h"
 #include "engine.h"
 #include "mainLoop.h"
 

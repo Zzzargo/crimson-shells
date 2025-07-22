@@ -94,6 +94,10 @@ void initGECS(ECS *gEcs) {
     }
 }
 
+/**
+ * =====================================================================================================================
+ */
+
 void initUIECS(ECS *uiEcs) {
     (*uiEcs) = malloc(sizeof(struct EeSiEs));
     if (!(*uiEcs)) {
@@ -156,6 +160,10 @@ void initUIECS(ECS *uiEcs) {
     }
 }
 
+/**
+ * =====================================================================================================================
+ */
+
 Entity createEntity(ECS ecs) {
     Entity entitty;
     if (ecs->freeEntityCount > 0) {
@@ -206,6 +214,10 @@ Entity createEntity(ECS ecs) {
     printf("Created entity with ID %ld in %s\n", entitty, ecs->name);
     return entitty;
 }
+
+/**
+ * =====================================================================================================================
+ */
 
 void addComponent(ECS ecs, Entity id, ComponentType compType, void *component) {
     Uint64 page = id / PAGE_SIZE;  // determine the page for the entity
@@ -273,6 +285,10 @@ void addComponent(ECS ecs, Entity id, ComponentType compType, void *component) {
     ecs->componentsFlags[id] |= (1 << compType);
     printf("Added component %d to entity %ld from %s\n", compType, id, ecs->name);
 }
+
+/**
+ * =====================================================================================================================
+ */
 
 void deleteEntity(ECS ecs, Entity id) {
     if (!ecs) {
@@ -379,6 +395,10 @@ void deleteEntity(ECS ecs, Entity id) {
     
     printf("Deleted entity with ID %ld from %s\n", id, ecs->name);
 }
+
+/**
+ * =====================================================================================================================
+ */
 
 void freeECS(ECS ecs) {
     if (ecs) {

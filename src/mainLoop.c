@@ -24,6 +24,10 @@ Uint8 handleEvents(SDL_Event *e, ZENg zEngine) {
     }
 }
 
+/**
+ * =====================================================================================================================
+ */
+
 void handleInput(ZENg zEngine) {
     switch (zEngine->state) {
         case STATE_PLAYING: {
@@ -32,6 +36,10 @@ void handleInput(ZENg zEngine) {
         }
     }
 }
+
+/**
+ * =====================================================================================================================
+ */
 
 void updateGameLogic(ZENg zEngine, double_t deltaTime) {
     switch (zEngine->state) {
@@ -57,6 +65,10 @@ void updateGameLogic(ZENg zEngine, double_t deltaTime) {
     }  
 }
 
+/**
+ * =====================================================================================================================
+ */
+
 void renderFrame(ZENg zEngine) {
     switch (zEngine->state) {
         case STATE_MAIN_MENU: {
@@ -71,13 +83,13 @@ void renderFrame(ZENg zEngine) {
             renderPlayState(zEngine);
 
             // transparent overlay
-            SDL_SetRenderDrawBlendMode(zEngine->renderer, SDL_BLENDMODE_BLEND);  // Enable blending for transparency
-            SDL_SetRenderDrawColor(zEngine->renderer, 0, 0, 0, 150);  // semi-transparent black
-            SDL_RenderFillRect(zEngine->renderer, NULL);  // Fill the entire screen with the semi-transparent color
+            SDL_SetRenderDrawBlendMode(zEngine->display->renderer, SDL_BLENDMODE_BLEND);  // Enable blending for transparency
+            SDL_SetRenderDrawColor(zEngine->display->renderer, 0, 0, 0, 150);  // semi-transparent black
+            SDL_RenderFillRect(zEngine->display->renderer, NULL);  // Fill the entire screen with the semi-transparent color
             
             renderPauseState(zEngine);
 
-            SDL_SetRenderDrawBlendMode(zEngine->renderer, SDL_BLENDMODE_NONE);  // Disable blending
+            SDL_SetRenderDrawBlendMode(zEngine->display->renderer, SDL_BLENDMODE_NONE);  // Disable blending
             break;
         }
         case STATE_GAME_OVER: {
@@ -85,8 +97,12 @@ void renderFrame(ZENg zEngine) {
             break;
         }
     }
-    SDL_RenderPresent(zEngine->renderer);  // render the current frame
+    SDL_RenderPresent(zEngine->display->renderer);  // render the current frame
 }
+
+/**
+ * =====================================================================================================================
+ */
 
 void onEnterMainMenu(ZENg zEngine) {
     // add the entities(text) with render components to the UI ECS
@@ -111,7 +127,7 @@ void onEnterMainMenu(ZENg zEngine) {
         printf("Failed to create text surface: %s\n", TTF_GetError());
         exit(EXIT_FAILURE);
     }
-    title->texture = SDL_CreateTextureFromSurface(zEngine->renderer, titleSurface);
+    title->texture = SDL_CreateTextureFromSurface(zEngine->display->renderer, titleSurface);
     if (!title->texture) {
         printf("Failed to create text texture: %s\n", SDL_GetError());
         exit(EXIT_FAILURE);
@@ -123,7 +139,7 @@ void onEnterMainMenu(ZENg zEngine) {
         exit(EXIT_FAILURE);
     }
     int wW, wH;
-    SDL_GetWindowSize(zEngine->window, &wW, &wH);  // Get the window size
+    SDL_GetWindowSize(zEngine->display->window, &wW, &wH);  // Get the window size
     // center the title horizontally and position it at the top of the options
     *title->destRect = (SDL_Rect) {
         .x = (wW - titleSurface->w) / 2,  // center horizontally
@@ -157,7 +173,7 @@ void onEnterMainMenu(ZENg zEngine) {
         printf("Failed to create text surface: %s\n", TTF_GetError());
         exit(EXIT_FAILURE);
     }
-    play->texture = SDL_CreateTextureFromSurface(zEngine->renderer, playSurface);
+    play->texture = SDL_CreateTextureFromSurface(zEngine->display->renderer, playSurface);
     if (!play->texture) {
         printf("Failed to create text texture: %s\n", SDL_GetError());
         exit(EXIT_FAILURE);
@@ -197,7 +213,7 @@ void onEnterMainMenu(ZENg zEngine) {
         printf("Failed to create text surface: %s\n", TTF_GetError());
         exit(EXIT_FAILURE);
     }
-    exitOpt->texture = SDL_CreateTextureFromSurface(zEngine->renderer, exitSurface);
+    exitOpt->texture = SDL_CreateTextureFromSurface(zEngine->display->renderer, exitSurface);
     if (!exitOpt->texture){
         printf("Failed to create text texture: %s\n", SDL_GetError());
         exit(EXIT_FAILURE);
@@ -236,7 +252,7 @@ void onEnterMainMenu(ZENg zEngine) {
         printf("Failed to create text surface: %s\n", TTF_GetError());
         exit(EXIT_FAILURE);
     }
-    instructions->texture = SDL_CreateTextureFromSurface(zEngine->renderer, instrSurface);
+    instructions->texture = SDL_CreateTextureFromSurface(zEngine->display->renderer, instrSurface);
     if (!instructions->texture) {
         printf("Failed to create text texture: %s\n", SDL_GetError());
         exit(EXIT_FAILURE);
@@ -258,6 +274,10 @@ void onEnterMainMenu(ZENg zEngine) {
     addComponent(zEngine->uiEcs, id, TEXT_COMPONENT, (void *)instructions);
 }
 
+/**
+ * =====================================================================================================================
+ */
+
 void onExitMainMenu(ZENg zEngine) {
     // delete all main menu entities
     Uint64 i = 0;
@@ -266,6 +286,10 @@ void onExitMainMenu(ZENg zEngine) {
         i++;
     }
 }
+
+/**
+ * =====================================================================================================================
+ */
 
 void onEnterPlayState(ZENg zEngine) {
     // Add the initial game entities to the ECS
@@ -286,7 +310,7 @@ void onEnterPlayState(ZENg zEngine) {
         exit(EXIT_FAILURE);
     }
     int wW, wH;
-    SDL_GetWindowSize(zEngine->window, &wW, &wH);
+    SDL_GetWindowSize(zEngine->display->window, &wW, &wH);
     *posComp = (PositionComponent) {
         wW / 2.0,
         wH / 2.0
@@ -353,13 +377,7 @@ void onEnterPlayState(ZENg zEngine) {
         .h = wH / 20
     };
 
-    renderComp->texture = SDL_CreateTexture(
-        zEngine->renderer,
-        SDL_PIXELFORMAT_RGBA8888,
-        SDL_TEXTUREACCESS_TARGET,
-        renderComp->destRect->w,
-        renderComp->destRect->h
-    );
+    renderComp->texture = getTexture(zEngine->resources, "assets/textures/adele.png");
     if (!renderComp->texture) {
         printf("Failed to create dot texture: %s\n", SDL_GetError());
         exit(EXIT_FAILURE);
@@ -367,9 +385,9 @@ void onEnterPlayState(ZENg zEngine) {
 
     addComponent(zEngine->gEcs, id, RENDER_COMPONENT, (void *)renderComp);
 
-    SDL_SetRenderTarget(zEngine->renderer, renderComp->texture);  // draw only to the dot texture
-    SDL_SetRenderDrawColor(zEngine->renderer, 255, 255, 255, 255);  // White color for the dot
-    SDL_RenderFillRect(zEngine->renderer, NULL);  // Fill the rectangle with white color
+    SDL_SetRenderTarget(zEngine->display->renderer, renderComp->texture);  // draw only to the dot texture
+    SDL_SetRenderDrawColor(zEngine->display->renderer, 255, 255, 255, 255);  // White color for the dot
+    SDL_RenderFillRect(zEngine->display->renderer, NULL);  // Fill the rectangle with white color
 
     // prepare the pause menu
 
@@ -393,7 +411,7 @@ void onEnterPlayState(ZENg zEngine) {
         printf("Failed to create text surface: %s\n", TTF_GetError());
         exit(EXIT_FAILURE);
     }
-    cont->texture = SDL_CreateTextureFromSurface(zEngine->renderer, contSurface);
+    cont->texture = SDL_CreateTextureFromSurface(zEngine->display->renderer, contSurface);
     if (!cont->texture){
         printf("Failed to create text texture: %s\n", SDL_GetError());
         exit(EXIT_FAILURE);
@@ -434,7 +452,7 @@ void onEnterPlayState(ZENg zEngine) {
         printf("Failed to create text surface: %s\n", TTF_GetError());
         exit(EXIT_FAILURE);
     }
-    exitMMenu->texture = SDL_CreateTextureFromSurface(zEngine->renderer, exitSurf);
+    exitMMenu->texture = SDL_CreateTextureFromSurface(zEngine->display->renderer, exitSurf);
     if (!exitMMenu->texture){
         printf("Failed to create text texture: %s\n", SDL_GetError());
         exit(EXIT_FAILURE);
@@ -455,7 +473,7 @@ void onEnterPlayState(ZENg zEngine) {
     id = createEntity(zEngine->uiEcs);  // get a new entity's ID
     addComponent(zEngine->uiEcs, id, TEXT_COMPONENT, (void *)exitMMenu);
 
-    SDL_SetRenderTarget(zEngine->renderer, NULL);  // Reset the render target
+    SDL_SetRenderTarget(zEngine->display->renderer, NULL);  // Reset the render target
 
 
 
@@ -521,7 +539,7 @@ void onEnterPlayState(ZENg zEngine) {
     };
 
     TrenderComp->texture = SDL_CreateTexture(
-        zEngine->renderer,
+        zEngine->display->renderer,
         SDL_PIXELFORMAT_RGBA8888,
         SDL_TEXTUREACCESS_TARGET,
         TrenderComp->destRect->w,
@@ -534,11 +552,15 @@ void onEnterPlayState(ZENg zEngine) {
 
     addComponent(zEngine->gEcs, id, RENDER_COMPONENT, (void *)TrenderComp);
 
-    SDL_SetRenderTarget(zEngine->renderer, TrenderComp->texture);  // draw only to the dot texture
-    SDL_SetRenderDrawColor(zEngine->renderer, 255, 255, 255, 255);  // White color for the dot
-    SDL_RenderFillRect(zEngine->renderer, NULL);  // Fill the rectangle with white color
-    SDL_SetRenderTarget(zEngine->renderer, NULL);  // Reset the render target
+    SDL_SetRenderTarget(zEngine->display->renderer, TrenderComp->texture);  // draw only to the dot texture
+    SDL_SetRenderDrawColor(zEngine->display->renderer, 255, 255, 255, 255);  // White color for the dot
+    SDL_RenderFillRect(zEngine->display->renderer, NULL);  // Fill the rectangle with white color
+    SDL_SetRenderTarget(zEngine->display->renderer, NULL);  // Reset the render target
 }
+
+/**
+ * =====================================================================================================================
+ */
 
 void onExitPlayState(ZENg zEngine) {
     // delete game entities

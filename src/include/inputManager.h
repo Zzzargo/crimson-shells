@@ -22,10 +22,6 @@ typedef struct inputmng {
     SDL_Scancode bindings[INPUT_ACTION_COUNT];  // input configuration
 } *InputManager;
 
-// Loads key bindings from a file into the input manager
-// If the file does not exist, it will set the default bindings
-void loadKeyBindings(InputManager inputMng, const char *filePath);
-
 // saves the current key bindings to a file
 void saveKeyBindings(InputManager inputMng, const char *filePath);
 

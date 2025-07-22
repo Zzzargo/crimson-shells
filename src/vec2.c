@@ -4,6 +4,10 @@ double_t vec2_len(Vec2 v) {
     return sqrt(v.x * v.x + v.y * v.y);
 }
 
+/**
+ * =====================================================================================================================
+ */
+
 Vec2 vec2_normalize(Vec2 v) {
     double_t len = sqrt(v.x * v.x + v.y * v.y);
     if (len > 0.0) {

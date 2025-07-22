@@ -1,8 +1,8 @@
 #include "include/pauseState.h"
 
 void updatePauseUI(ZENg zEngine) {
-    SDL_SetRenderDrawColor(zEngine->renderer, 100, 50, 0, 200);  // background color - brownish
-    SDL_RenderClear(zEngine->renderer);  // clear the renderer
+    SDL_SetRenderDrawColor(zEngine->display->renderer, 100, 50, 0, 200);  // background color - brownish
+    SDL_RenderClear(zEngine->display->renderer);  // clear the renderer
 
     for (Uint64 i = 0; i < zEngine->uiEcs->components[TEXT_COMPONENT].denseSize; i++) {
         TextComponent *curr = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[i]);
@@ -21,8 +21,8 @@ void updatePauseUI(ZENg zEngine) {
                         curr->text,
                         curr->selected ? COLOR_YELLOW : COLOR_WHITE
                     );
-                    curr->texture = SDL_CreateTextureFromSurface(zEngine->renderer, surface);
-                    SDL_RenderCopy(zEngine->renderer, curr->texture, NULL, curr->destRect);
+                    curr->texture = SDL_CreateTextureFromSurface(zEngine->display->renderer, surface);
+                    SDL_RenderCopy(zEngine->display->renderer, curr->texture, NULL, curr->destRect);
                     SDL_FreeSurface(surface);
                     printf("Updated entity %ld's texture\n", i);
                 }
@@ -31,6 +31,10 @@ void updatePauseUI(ZENg zEngine) {
     }
     printf("\n");
 }
+
+/**
+ * =====================================================================================================================
+ */
 
 void handlePauseStateEvents(SDL_Event *e, ZENg zEngine) {
     // Key press handling
@@ -129,16 +133,20 @@ void handlePauseStateEvents(SDL_Event *e, ZENg zEngine) {
     }
 }
 
+/**
+ * =====================================================================================================================
+ */
+
 void renderPauseState(ZENg zEngine) {
     // Clear the screen
-    // SDL_SetRenderDrawColor(zEngine->renderer, 100, 50, 0, 200);  // background color - brownish
-    // SDL_RenderClear(zEngine->renderer);
+    // SDL_SetRenderDrawColor(zEngine->display->renderer, 100, 50, 0, 200);  // background color - brownish
+    // SDL_RenderClear(zEngine->display->renderer);
 
     // Render the options
     for (Uint64 i = 0; i < zEngine->uiEcs->components[TEXT_COMPONENT].denseSize; i++) {
         TextComponent *textComp = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[i]);
         if (textComp->state == STATE_PAUSED) {
-            SDL_RenderCopy(zEngine->renderer, textComp->texture, NULL, textComp->destRect);
+            SDL_RenderCopy(zEngine->display->renderer, textComp->texture, NULL, textComp->destRect);
         }
     }
 }
