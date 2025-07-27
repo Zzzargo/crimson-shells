@@ -14,6 +14,12 @@ void initGECS(ECS *gEcs) {
     (*gEcs)->nextEntityID = 0;
     (*gEcs)->entityCount = 0;
     (*gEcs)->capacity = INIT_CAPACITY;
+    (*gEcs)->activeEntities = calloc(INIT_CAPACITY, sizeof(Entity));
+    if (!(*gEcs)->activeEntities) {
+        fprintf(stderr, "Failed to allocate memory for ECS active entities\n");
+        free(*gEcs);
+        exit(EXIT_FAILURE);
+    }
 
     (*gEcs)->freeEntities = calloc(INIT_CAPACITY, sizeof(Entity));
     if (!(*gEcs)->freeEntities) {
@@ -45,52 +51,8 @@ void initGECS(ECS *gEcs) {
         (*gEcs)->components[i].denseSize = 0;
         (*gEcs)->components[i].sparse = NULL;
         (*gEcs)->components[i].pageCount = 0;
-        
-        switch (i) {
-            case HEALTH_COMPONENT: {
-                (*gEcs)->components[i].type = HEALTH_COMPONENT;
-                break;
-            }
-            case POSITION_COMPONENT: {
-                (*gEcs)->components[i].type = POSITION_COMPONENT;
-                break;
-            }
-            case VELOCITY_COMPONENT: {
-                (*gEcs)->components[i].type = VELOCITY_COMPONENT;
-                break;
-            }
-            case DIRECTION_COMPONENT: {
-                (*gEcs)->components[i].type = DIRECTION_COMPONENT;
-                break;
-            }
-            case PROJECTILE_COMPONENT: {
-                (*gEcs)->components[i].type = PROJECTILE_COMPONENT;
-                break;
-            }
-            case LIFETIME_COMPONENT: {
-                (*gEcs)->components[i].type = LIFETIME_COMPONENT;
-                break;
-            }
-            case COLLISION_COMPONENT: {
-                (*gEcs)->components[i].type = COLLISION_COMPONENT;
-                break;
-            }
-            case TEXT_COMPONENT: {
-                (*gEcs)->components[i].type = TEXT_COMPONENT;
-                break;
-            }
-            case RENDER_COMPONENT: {
-                (*gEcs)->components[i].type = RENDER_COMPONENT;
-                break;
-            }
-            default: {
-                fprintf(stderr, "Unknown component type %lu\n", i);
-                free((*gEcs)->componentsFlags);
-                free((*gEcs)->components);
-                free(*gEcs);
-                exit(EXIT_FAILURE);
-            }
-        }
+
+        (*gEcs)->components[i].type = i;
     }
 }
 
@@ -109,6 +71,12 @@ void initUIECS(ECS *uiEcs) {
     (*uiEcs)->nextEntityID = 0;
     (*uiEcs)->entityCount = 0;
     (*uiEcs)->capacity = INIT_CAPACITY;
+    (*uiEcs)->activeEntities = calloc(INIT_CAPACITY, sizeof(Entity));
+    if (!(*uiEcs)->activeEntities) {
+        fprintf(stderr, "Failed to allocate memory for UI ECS active entities\n");
+        free(*uiEcs);
+        exit(EXIT_FAILURE);
+    }
 
     (*uiEcs)->freeEntities = calloc(INIT_CAPACITY, sizeof(Entity));
     if (!(*uiEcs)->freeEntities) {
@@ -139,24 +107,7 @@ void initUIECS(ECS *uiEcs) {
         (*uiEcs)->components[i].denseSize = 0;
         (*uiEcs)->components[i].sparse = NULL;
         (*uiEcs)->components[i].pageCount = 0;
-        
-        switch (i) {
-            case TEXT_COMPONENT: {
-                (*uiEcs)->components[i].type = TEXT_COMPONENT;
-                break;
-            }
-            case RENDER_COMPONENT: {
-                (*uiEcs)->components[i].type = RENDER_COMPONENT;
-                break;
-            }
-            default: {
-                fprintf(stderr, "Unknown component type %lu\n", i);
-                free((*uiEcs)->componentsFlags);
-                free((*uiEcs)->components);
-                free(*uiEcs);
-                exit(EXIT_FAILURE);
-            }
-        }
+        (*uiEcs)->components[i].type = i;
     }
 }
 
@@ -176,6 +127,17 @@ Entity createEntity(ECS ecs) {
             Uint64 oldCapacity = ecs->capacity;
             ecs->capacity *= 2;
             printf("Resizing ECS %s from %lu to %lu\n", ecs->name, oldCapacity, ecs->capacity);
+
+            Entity *tmpActive = realloc(ecs->activeEntities, ecs->capacity * sizeof(Entity));
+            if (!tmpActive) {
+                fprintf(stderr, "Failed to reallocate memory for ECS active entities\n");
+                free(ecs->activeEntities);
+                free(ecs->componentsFlags);
+                free(ecs->components);
+                free(ecs);
+                exit(EXIT_FAILURE);
+            }
+            ecs->activeEntities = tmpActive;
 
             bitset *tmpFlags = realloc(ecs->componentsFlags, ecs->capacity * sizeof(bitset));
             if (!tmpFlags) {
@@ -210,7 +172,7 @@ Entity createEntity(ECS ecs) {
     }
 
     ecs->componentsFlags[entitty] = 0;  // the new entity has no components
-    ecs->entityCount++;
+    ecs->activeEntities[ecs->entityCount++] = entitty;  // add it to the active entities array
     printf("Created entity with ID %ld in %s\n", entitty, ecs->name);
     return entitty;
 }
@@ -302,7 +264,7 @@ void deleteEntity(ECS ecs, Entity id) {
     }
 
     if (ecs->componentsFlags[id] == 00000000) {
-        // entity has no compponents, just free the ID
+        // entity has no components, just free the ID
         ecs->freeEntities[ecs->freeEntityCount++] = id;
         ecs->entityCount--;
         return;
@@ -329,16 +291,19 @@ void deleteEntity(ECS ecs, Entity id) {
                 // Free the component data based on its type
                 if (component) {
                     switch (i) {
+                        case COLLISION_COMPONENT: {
+                            CollisionComponent *colComp = (CollisionComponent*)component;
+                            if (colComp->hitbox) free(colComp->hitbox);
+                            break;
+                        }
                         case TEXT_COMPONENT: {
                             TextComponent *textComp = (TextComponent*)component;
-                            if (textComp->texture) SDL_DestroyTexture(textComp->texture);
                             if (textComp->text) free(textComp->text);
                             if (textComp->destRect) free(textComp->destRect);
                             break;
                         }
                         case RENDER_COMPONENT: {
                             RenderComponent *render = (RenderComponent*)component;
-                            if (render->texture) SDL_DestroyTexture(render->texture);
                             if (render->destRect) free(render->destRect);
                             break;
                         }
@@ -388,7 +353,15 @@ void deleteEntity(ECS ecs, Entity id) {
         }
         ecs->freeEntities = newFreeEntities;
     }
-    
+
+    // Remove the entity from the active entities array
+    for (Uint64 i = 0; i < ecs->entityCount; i++) {
+        if (ecs->activeEntities[i] == id) {
+            ecs->activeEntities[i] = ecs->activeEntities[ecs->entityCount - 1];
+            break;
+        }
+    }
+     
     // Add this entity to the free list
     ecs->freeEntities[ecs->freeEntityCount++] = id;
     ecs->entityCount--;
@@ -407,6 +380,9 @@ void freeECS(ECS ecs) {
         }
         if (ecs->componentsFlags) {
             free(ecs->componentsFlags);
+        }
+        if (ecs->activeEntities) {
+            free(ecs->activeEntities);
         }
         if (ecs->components) {
             for (Uint64 i = 0; i < COMPONENT_COUNT; i++) {

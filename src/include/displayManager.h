@@ -1,7 +1,7 @@
 #ifndef DISPLAY_MANAGER_H
 #define DISPLAY_MANAGER_H
 
-#include <SDL2/SDL.h>
+#include <global.h>
 
 typedef struct displaymng {
     SDL_Window *window;  // pointer to the game's window
@@ -13,5 +13,11 @@ typedef struct displaymng {
 } *DisplayManager;
 
 void setDefaultDisplaySettings(DisplayManager display);
+
+void setWindowSize(DisplayManager mgr, int width, int height);
+
+void toggleFullscreen(DisplayManager mgr);
+
+void handleDisplayEvent(DisplayManager mgr, SDL_Event *event);
 
 #endif // DISPLAY_MANAGER_H

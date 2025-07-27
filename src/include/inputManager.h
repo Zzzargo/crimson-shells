@@ -1,7 +1,7 @@
 #ifndef INPUT_MANAGER_H
 #define INPUT_MANAGER_H
 
-#include <SDL2/SDL_ttf.h>
+#include "global.h"
 
 typedef enum {
     INPUT_MOVE_UP,

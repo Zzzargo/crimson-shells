@@ -227,6 +227,20 @@ void freeResourceManager(ResourceManager *resMng) {
         while (entry) {
             ResourceEntry *next = entry->next;
             free(entry->key);
+            switch (entry->type) {
+                case RESOURCE_TEXTURE: {
+                    SDL_DestroyTexture((SDL_Texture *)entry->resource);
+                    break;
+                }
+                case RESOURCE_FONT: {
+                    TTF_CloseFont((TTF_Font *)entry->resource);
+                    break;
+                }
+                case RESOURCE_SOUND: {
+                    Mix_FreeChunk((Mix_Chunk *)entry->resource);
+                    break;
+                }
+            }
             free(entry);
             entry = next;
         }

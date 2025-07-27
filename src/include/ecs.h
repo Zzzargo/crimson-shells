@@ -6,12 +6,6 @@
 // Using sparse sets with pagination for efficiency
 
 #include "global.h"
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_ttf.h>
-#include "vec2.h"
-
-typedef int32_t Int32;
-typedef int64_t Int64;
 
 typedef Uint64 Entity;  // in an ECS, an entity is just an ID
 extern Entity PLAYER_ID;  // global variable for the player entity ID
@@ -95,7 +89,6 @@ typedef struct {
 } RenderComponent;
 
 typedef struct {
-    GameState state;  // indicates which state the text corresponds to
     Uint8 active;  // indicates if the text component is active
     Uint8 selected;  // for UI components
     Uint8 orderIdx;  // used to maintain order in ui entities
@@ -110,6 +103,7 @@ typedef struct {
 typedef struct EeSiEs {
     char *name;  // used to distinguish the ECS
     Entity nextEntityID;  // next available entity ID
+    Entity *activeEntities;  // array of active entities
     Uint64 entityCount;  // number of entities currently in the ECS
     Uint64 capacity;  // current capacity of the ECS
     bitset *componentsFlags;  // an array of bitsets, one for each entity

@@ -1,4 +1,283 @@
-#include "include/playState.h"
+#include "include/stateManager.h"
+
+void onEnterPlayState(ZENg zEngine) {
+    // Add the initial game entities to the ECS
+    Entity id = createEntity(zEngine->gEcs);
+    PLAYER_ID = id;  // set the global player ID
+
+    HealthComponent *healthComp = calloc(1, sizeof(HealthComponent));
+    if (!healthComp) {
+        printf("Failed to allocate memory for health component\n");
+        exit(EXIT_FAILURE);
+    }
+    *healthComp = (HealthComponent) {100, 100, 1};  // current, max, active
+    addComponent(zEngine->gEcs, id, HEALTH_COMPONENT, (void *)healthComp);
+
+    PositionComponent *posComp = calloc(1, sizeof(PositionComponent));
+    if (!posComp) {
+        printf("Failed to allocate memory for position component\n");
+        exit(EXIT_FAILURE);
+    }
+    int wW, wH;
+    SDL_GetWindowSize(zEngine->display->window, &wW, &wH);
+    *posComp = (PositionComponent) {
+        wW / 2.0,
+        wH / 2.0
+    };
+    addComponent(zEngine->gEcs, id, POSITION_COMPONENT, (void *)posComp);
+
+    DirectionComponent *dirComp = calloc(1, sizeof(DirectionComponent));
+    if (!dirComp) {
+        printf("Failed to allocate memory for direction component\n");
+        exit(EXIT_FAILURE);
+    }
+    *dirComp = (Vec2) DIR_UP;  // initial direction - up
+    addComponent(zEngine->gEcs, id, DIRECTION_COMPONENT, (void *)dirComp);
+
+    VelocityComponent *speedComp = calloc(1, sizeof(VelocityComponent));
+    if (!speedComp) {
+        printf("Failed to allocate memory for velocity component\n");
+        exit(EXIT_FAILURE);
+    }
+    *speedComp = (VelocityComponent) {
+        (Vec2) {0.0, 0.0 },
+        10.0,
+        1
+    };
+
+    addComponent(zEngine->gEcs, id, VELOCITY_COMPONENT, (void *)speedComp);
+
+    CollisionComponent *colComp = calloc(1, sizeof(CollisionComponent));
+    if (!colComp) {
+        printf("Failed to allocate memory for collision component\n");
+        exit(EXIT_FAILURE);
+    }
+    colComp->hitbox = calloc(1, sizeof(SDL_Rect));
+    if (!colComp->hitbox) {
+        printf("Failed to allocate memory for collision hitbox\n");
+        exit(EXIT_FAILURE);
+    }
+    colComp->hitbox->x = posComp->x;
+    colComp->hitbox->y = posComp->y;
+    colComp->hitbox->w = wH / 20;  // size of the hitbox
+    colComp->hitbox->h = wH / 20;
+    colComp->isSolid = 1;  // player is sure solid
+    colComp->role = COL_ACTOR;  // player is an actor in the game
+    addComponent(zEngine->gEcs, id, COLLISION_COMPONENT, (void *)colComp);
+
+    RenderComponent *renderComp = calloc(1, sizeof(RenderComponent));
+    if (!renderComp) {
+        printf("Failed to allocate memory for render component\n");
+        exit(EXIT_FAILURE);
+    }
+    renderComp->active = 1;
+    renderComp->selected = 0;
+
+    renderComp->destRect = calloc(1, sizeof(SDL_Rect));
+    if (!renderComp->destRect) {
+        printf("Failed to allocate memory for dot rectangle\n");
+        exit(EXIT_FAILURE);
+    }
+    // Initial position and size of the dot
+    *renderComp->destRect = (SDL_Rect){
+        .x = posComp->x,  // Centered horizontally
+        .y = posComp->y,  // Centered vertically
+        .w = wH / 20,
+        .h = wH / 20
+    };
+
+    renderComp->texture = getTexture(zEngine->resources, "assets/textures/adele.png");
+    if (!renderComp->texture) {
+        printf("Failed to create dot texture: %s\n", SDL_GetError());
+        exit(EXIT_FAILURE);
+    }
+
+    addComponent(zEngine->gEcs, id, RENDER_COMPONENT, (void *)renderComp);
+
+    SDL_SetRenderTarget(zEngine->display->renderer, renderComp->texture);  // draw only to the dot texture
+    SDL_SetRenderDrawColor(zEngine->display->renderer, 255, 255, 255, 255);  // White color for the dot
+    SDL_RenderFillRect(zEngine->display->renderer, NULL);  // Fill the rectangle with white color
+
+    // prepare the pause menu
+
+    // continue option
+    TextComponent *cont = calloc(1, sizeof(TextComponent));
+    if (!cont) {
+        printf("Failed to allocate memory for continue text component\n");
+        exit(EXIT_FAILURE);
+    }
+    
+    // cont->state = STATE_PAUSED;  FIX
+    cont->active = 1;
+    cont->selected = 1;  // "Continue" is selected by default
+    cont->orderIdx = 0;
+    cont->font = getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf");
+    cont->text = strdup("Continue");
+    cont->color = COLOR_YELLOW;  // highlighted color
+
+    SDL_Surface *contSurface = TTF_RenderText_Solid(cont->font, cont->text, cont->color);
+    if (!contSurface) {
+        printf("Failed to create text surface: %s\n", TTF_GetError());
+        exit(EXIT_FAILURE);
+    }
+    cont->texture = SDL_CreateTextureFromSurface(zEngine->display->renderer, contSurface);
+    if (!cont->texture){
+        printf("Failed to create text texture: %s\n", SDL_GetError());
+        exit(EXIT_FAILURE);
+    }
+    cont->destRect = calloc(1, sizeof(SDL_Rect));
+    if (!cont->destRect) {
+        printf("Failed to allocate memory for continue rectangle\n");
+        exit(EXIT_FAILURE);
+    }
+    *cont->destRect = (SDL_Rect){
+        .x = (wW - contSurface->w) / 2,
+        .y = (wH - contSurface->h) * 4 / 9,
+        .w = contSurface->w,
+        contSurface->h
+    };
+    SDL_FreeSurface(contSurface);
+
+    id = createEntity(zEngine->uiEcs);  // get a new entity's ID
+    addComponent(zEngine->uiEcs, id, TEXT_COMPONENT, (void *)cont);
+
+    // exit to main menu option
+    TextComponent *exitMMenu = calloc(1, sizeof(TextComponent));
+    if (!exitMMenu) {
+        printf("Failed to allocate memory for exit to main menu text component\n");
+        exit(EXIT_FAILURE);
+    }
+    
+    // exitMMenu->state = STATE_PAUSED;  FIX
+    exitMMenu->active = 1;
+    exitMMenu->selected = 0;
+    exitMMenu->orderIdx = 1;
+    exitMMenu->font = getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf");
+    exitMMenu->text = strdup("Exit to main menu");
+    exitMMenu->color = COLOR_WHITE;
+
+    SDL_Surface *exitSurf = TTF_RenderText_Solid(exitMMenu->font, exitMMenu->text, exitMMenu->color);
+    if (!exitSurf) {
+        printf("Failed to create text surface: %s\n", TTF_GetError());
+        exit(EXIT_FAILURE);
+    }
+    exitMMenu->texture = SDL_CreateTextureFromSurface(zEngine->display->renderer, exitSurf);
+    if (!exitMMenu->texture){
+        printf("Failed to create text texture: %s\n", SDL_GetError());
+        exit(EXIT_FAILURE);
+    }
+    exitMMenu->destRect = calloc(1, sizeof(SDL_Rect));
+    if (!exitMMenu->destRect) {
+        printf("Failed to allocate memory for exit to main menu rectangle\n");
+        exit(EXIT_FAILURE);
+    }
+    *exitMMenu->destRect = (SDL_Rect){
+        .x = (wW - exitSurf->w) / 2,
+        .y = (wH - exitSurf->h) * 4 / 7,
+        .w = exitSurf->w,
+        exitSurf->h
+    };
+    SDL_FreeSurface(exitSurf);
+
+    id = createEntity(zEngine->uiEcs);  // get a new entity's ID
+    addComponent(zEngine->uiEcs, id, TEXT_COMPONENT, (void *)exitMMenu);
+
+    SDL_SetRenderTarget(zEngine->display->renderer, NULL);  // Reset the render target
+
+
+
+
+    // test entity
+    id = createEntity(zEngine->gEcs);
+    HealthComponent *ThealthComp = calloc(1, sizeof(HealthComponent));
+    if (!ThealthComp) {
+        printf("Failed to allocate memory for health component\n");
+        exit(EXIT_FAILURE);
+    }
+    *ThealthComp = (HealthComponent) {100, 100, 1};  // current, max, active
+    addComponent(zEngine->gEcs, id, HEALTH_COMPONENT, (void *)ThealthComp);
+
+    PositionComponent *TposComp = calloc(1, sizeof(PositionComponent));
+    if (!TposComp) {
+        printf("Failed to allocate memory for position component\n");
+        exit(EXIT_FAILURE);
+    }
+    *TposComp = (PositionComponent) {
+        wW / 2.0 + 500,
+        wH / 2.0
+    };
+    addComponent(zEngine->gEcs, id, POSITION_COMPONENT, (void *)TposComp);
+
+    CollisionComponent *TcolComp = calloc(1, sizeof(CollisionComponent));
+    if (!TcolComp) {
+        printf("Failed to allocate memory for collision component\n");
+        exit(EXIT_FAILURE);
+    }
+    TcolComp->hitbox = calloc(1, sizeof(SDL_Rect));
+    if (!TcolComp->hitbox) {
+        printf("Failed to allocate memory for collision hitbox\n");
+        exit(EXIT_FAILURE);
+    }
+    TcolComp->hitbox->x = TposComp->x;
+    TcolComp->hitbox->y = TposComp->y;
+    TcolComp->hitbox->w = wH / 20;  // size of the hitbox
+    TcolComp->hitbox->h = wH / 20;
+    TcolComp->isSolid = 1;  // player is sure solid
+    TcolComp->role = COL_ACTOR;
+    addComponent(zEngine->gEcs, id, COLLISION_COMPONENT, (void *)TcolComp);
+
+    RenderComponent *TrenderComp = calloc(1, sizeof(RenderComponent));
+    if (!TrenderComp) {
+        printf("Failed to allocate memory for render component\n");
+        exit(EXIT_FAILURE);
+    }
+    TrenderComp->active = 1;
+    TrenderComp->selected = 0;
+
+    TrenderComp->destRect = calloc(1, sizeof(SDL_Rect));
+    if (!TrenderComp->destRect) {
+        printf("Failed to allocate memory for dot rectangle\n");
+        exit(EXIT_FAILURE);
+    }
+    // Initial position and size of the dot
+    *TrenderComp->destRect = (SDL_Rect) {
+        .x = TposComp->x,  // Centered horizontally
+        .y = TposComp->y,  // Centered vertically
+        .w = wH / 20,
+        .h = wH / 20
+    };
+
+    TrenderComp->texture = SDL_CreateTexture(
+        zEngine->display->renderer,
+        SDL_PIXELFORMAT_RGBA8888,
+        SDL_TEXTUREACCESS_TARGET,
+        TrenderComp->destRect->w,
+        TrenderComp->destRect->h
+    );
+    if (!TrenderComp->texture) {
+        printf("Failed to create dot texture: %s\n", SDL_GetError());
+        exit(EXIT_FAILURE);
+    }
+
+    addComponent(zEngine->gEcs, id, RENDER_COMPONENT, (void *)TrenderComp);
+
+    SDL_SetRenderTarget(zEngine->display->renderer, TrenderComp->texture);  // draw only to the dot texture
+    SDL_SetRenderDrawColor(zEngine->display->renderer, 255, 255, 255, 255);  // White color for the dot
+    SDL_RenderFillRect(zEngine->display->renderer, NULL);  // Fill the rectangle with white color
+    SDL_SetRenderTarget(zEngine->display->renderer, NULL);  // Reset the render target
+}
+
+void onExitPlayState(ZENg zEngine) {
+    // delete game entities
+    while (zEngine->gEcs->entityCount > 0) {
+        deleteEntity(zEngine->gEcs, zEngine->gEcs->activeEntities[0]);
+    }
+
+    // and the pause menu UI entities
+    while (zEngine->uiEcs->entityCount > 0) {
+        deleteEntity(zEngine->uiEcs, zEngine->uiEcs->activeEntities[0]);
+    }
+}
 
 void spawnBulletProjectile(ZENg zEngine, Entity owner) {
     Entity bulletID = createEntity(zEngine->gEcs);
@@ -121,17 +400,26 @@ void spawnBulletProjectile(ZENg zEngine, Entity owner) {
     addComponent(zEngine->gEcs, bulletID, RENDER_COMPONENT, (void *)bulletRender);
 }
 
-void handlePlayStateEvents(SDL_Event *e, ZENg zEngine) {
+Uint8 handlePlayStateEvents(SDL_Event *e, ZENg zEngine) {
     if (e->type == SDL_KEYDOWN) {
         InputAction action = scancodeToAction(zEngine->inputMng, e->key.keysym.scancode);
         if (action == INPUT_UNKNOWN) {
             printf("Unknown input action for scancode %d\n", e->key.keysym.scancode);
-            return;
+            return 1;
         }
         switch (action) {
             case INPUT_BACK: {
-                zEngine->state = STATE_PAUSED;
-                break;
+                GameState *pauseState = calloc(1, sizeof(GameState));
+                if (!pauseState) {
+                    printf("Failed to allocate memory for pause state\n");
+                    exit(EXIT_FAILURE);
+                }
+                pauseState->type = STATE_PAUSED;
+                pauseState->handleEvents = &handlePauseStateEvents;
+                pauseState->render = &renderPauseState;
+                pauseState->isOverlay = 1;
+                pushState(zEngine, pauseState);
+                return 1;
             }
             case INPUT_SHOOT: {
                 // spawn a bullet with the owner PLAYER
@@ -139,6 +427,7 @@ void handlePlayStateEvents(SDL_Event *e, ZENg zEngine) {
             }
         }
     }
+    return 1;
 }
 
 void handlePlayStateInput(ZENg zEngine) {
@@ -179,6 +468,14 @@ void handlePlayStateInput(ZENg zEngine) {
         // If no movement input, stop the player
         playerSpeed->currVelocity = (Vec2) { .x = 0.0, .y = 0.0 };
     }
+}
+
+void updatePlayStateLogic(ZENg zEngine, double_t deltaTime) {
+    lifetimeSystem(zEngine, deltaTime);
+    velocitySystem(zEngine, deltaTime);
+    collisionSystem(zEngine);
+    healthSystem(zEngine);
+    transformSystem(zEngine->gEcs);
 }
 
 void renderPlayState(ZENg zEngine) {

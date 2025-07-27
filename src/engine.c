@@ -181,7 +181,20 @@ ZENg initGame() {
     preloadResources(zEngine->resources, zEngine->display->renderer);
 
     // start on the main menu
-    zEngine->state = STATE_MAIN_MENU;
+    initStateManager(&zEngine->stateMng);
+    GameState *mainMenuState = calloc(1, sizeof(GameState));
+    if (!mainMenuState) {
+        printf("Failed to allocate memory for main menu state\n");
+        exit(EXIT_FAILURE);
+    }
+
+    mainMenuState->type = STATE_MAIN_MENU;
+    mainMenuState->onEnter = &onEnterMainMenu;
+    mainMenuState->onExit = &onExitMainMenu;
+    mainMenuState->handleEvents = &handleMainMenuEvents;
+    mainMenuState->render = &renderMainMenu;
+    pushState(zEngine, mainMenuState);
+
     return zEngine;
 }
 
@@ -335,6 +348,7 @@ void collisionSystem(ZENg zEngine) {
 
             // Check for intersections
             if (SDL_HasIntersection(AColComp->hitbox, BColComp->hitbox)) {
+                printf("Collision detected between entities %ld and %ld\n", AOwner, BOwner);
                 handleCollision(zEngine, AColComp, BColComp, AOwner, BOwner);
             }
         }
@@ -397,10 +411,15 @@ void destroyEngine(ZENg *zEngine) {
 
     freeECS((*zEngine)->gEcs);
     freeECS((*zEngine)->uiEcs);
+
     freeResourceManager(&(*zEngine)->resources);
+
+    free((*zEngine)->stateMng->states[0]);  // free the main menu state
+    free((*zEngine)->stateMng);
 
     SDL_DestroyRenderer((*zEngine)->display->renderer);
     SDL_DestroyWindow((*zEngine)->display->window);
+    free((*zEngine)->display);
     SDL_Quit();
     free(*zEngine);
 }

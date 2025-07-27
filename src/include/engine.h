@@ -6,14 +6,19 @@
 #include "resourceManager.h"
 #include "displayManager.h"
 
+struct statemng;  // forward declaration
+typedef struct statemng *StateManager;
+
 typedef struct engine {
     DisplayManager display;
     ResourceManager resources;
     InputManager inputMng;
+    StateManager stateMng;
     ECS uiEcs;
     ECS gEcs;
-    GameState state;
 } *ZENg;
+
+#include "stateManager.h"  // stateManager neeeds the engine definition
 
 /**
  * Loads the settings from a file

@@ -1,4 +1,4 @@
-#include "include/pauseState.h"
+#include "include/stateManager.h"
 
 void updatePauseUI(ZENg zEngine) {
     SDL_SetRenderDrawColor(zEngine->display->renderer, 100, 50, 0, 200);  // background color - brownish
@@ -6,7 +6,7 @@ void updatePauseUI(ZENg zEngine) {
 
     for (Uint64 i = 0; i < zEngine->uiEcs->components[TEXT_COMPONENT].denseSize; i++) {
         TextComponent *curr = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[i]);
-        if (curr->state == STATE_PAUSED) {  // if it's part of the pause menu
+        // if (curr->state == STATE_PAUSED) {  // if it's part of the pause menu
             // if the entity has selectable color
             if (
                 CMP_COLORS(curr->color, COLOR_WHITE)
@@ -27,7 +27,7 @@ void updatePauseUI(ZENg zEngine) {
                     printf("Updated entity %ld's texture\n", i);
                 }
             }
-        }
+        // }
     }
     printf("\n");
 }
@@ -36,20 +36,20 @@ void updatePauseUI(ZENg zEngine) {
  * =====================================================================================================================
  */
 
-void handlePauseStateEvents(SDL_Event *e, ZENg zEngine) {
+Uint8 handlePauseStateEvents(SDL_Event *e, ZENg zEngine) {
     // Key press handling
     if (e->type == SDL_KEYDOWN) {
         InputAction action = scancodeToAction(zEngine->inputMng, e->key.keysym.scancode);
         if (action == INPUT_UNKNOWN) {
             printf("Unknown input action for scancode %d\n", e->key.keysym.scancode);
-            return;
+            return 1;
         }
 
         switch (action) {
             case INPUT_BACK: {
                 // go back to the game
-                zEngine->state = STATE_PLAYING;
-                break;
+                popState(zEngine);
+                return 1;
             }
             case INPUT_MOVE_UP: {
                 Uint64 maxComp = zEngine->uiEcs->components[TEXT_COMPONENT].denseSize;
@@ -77,7 +77,7 @@ void handlePauseStateEvents(SDL_Event *e, ZENg zEngine) {
                             }
                         }
                         updatePauseUI(zEngine);
-                        break;
+                        return 1;
                     }
                 }
                 break;
@@ -108,7 +108,7 @@ void handlePauseStateEvents(SDL_Event *e, ZENg zEngine) {
                             }
                         }
                         updatePauseUI(zEngine);
-                        break;
+                        return 1;
                     }
                 }
                 break;
@@ -119,11 +119,10 @@ void handlePauseStateEvents(SDL_Event *e, ZENg zEngine) {
                     TextComponent *curr = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[i]);
                     if (curr && curr->selected) {
                         if (strcmp(curr->text, "Continue") == 0) {
-                            zEngine->state = STATE_PLAYING;  // Resume
+                            popState(zEngine);  // go back to the game
                         } else if (strcmp(curr->text, "Exit to main menu") == 0) {
-                            onExitPlayState(zEngine);
-                            onEnterMainMenu(zEngine);
-                            zEngine->state = STATE_MAIN_MENU;
+                            popState(zEngine);  // exit to game
+                            popState(zEngine);  // exit to main menu
                         }
                     }
                 }
@@ -131,6 +130,7 @@ void handlePauseStateEvents(SDL_Event *e, ZENg zEngine) {
             }
         }
     }
+    return 1;
 }
 
 /**
@@ -138,15 +138,17 @@ void handlePauseStateEvents(SDL_Event *e, ZENg zEngine) {
  */
 
 void renderPauseState(ZENg zEngine) {
-    // Clear the screen
-    // SDL_SetRenderDrawColor(zEngine->display->renderer, 100, 50, 0, 200);  // background color - brownish
-    // SDL_RenderClear(zEngine->display->renderer);
+    renderPlayState(zEngine);
+
+     // transparent overlay
+    SDL_SetRenderDrawBlendMode(zEngine->display->renderer, SDL_BLENDMODE_BLEND);  // Enable blending for transparency
+    SDL_SetRenderDrawColor(zEngine->display->renderer, 0, 0, 0, 150);  // semi-transparent black
+    SDL_RenderFillRect(zEngine->display->renderer, NULL);  // Fill the entire screen with the semi-transparent color
 
     // Render the options
     for (Uint64 i = 0; i < zEngine->uiEcs->components[TEXT_COMPONENT].denseSize; i++) {
         TextComponent *textComp = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[i]);
-        if (textComp->state == STATE_PAUSED) {
-            SDL_RenderCopy(zEngine->display->renderer, textComp->texture, NULL, textComp->destRect);
-        }
+        SDL_RenderCopy(zEngine->display->renderer, textComp->texture, NULL, textComp->destRect);
     }
+    SDL_SetRenderDrawBlendMode(zEngine->display->renderer, SDL_BLENDMODE_NONE);  // Disable blending
 }

@@ -1,12 +1,9 @@
-#include "include/mainLoop.h"
+#include "include/engine.h"
 
 Entity PLAYER_ID = 0;  // will be set when the player is created
 
 int main(int argc, char* argv[]) {
     ZENg zEngine = initGame();
-
-    // prepare the main menu UI components
-    onEnterMainMenu(zEngine);
 
     // time for some delta time (no pun intended)
     Uint64 lastFrameTime = SDL_GetTicks64();
@@ -25,17 +22,23 @@ int main(int argc, char* argv[]) {
         // Cap delta time to prevent spikes after lags
         if (deltaTime > 0.1) deltaTime = 0.1;  // max 100 ms per frame
 
+        GameState *currState = zEngine->stateMng->states[zEngine->stateMng->top - 1];
         while (SDL_PollEvent(&event)) {
-            running = handleEvents(&event, zEngine);
+            running = currState->handleEvents(&event, zEngine);
+            currState = getCurrState(zEngine->stateMng);  // get the current state after handling events
+            if (!running) printf("Event handler returned 0 for the main loop\n");
 
-            if (event.type == SDL_QUIT || zEngine->state == STATE_EXIT) {
+            if (event.type == SDL_QUIT || (currState && currState->type) == STATE_EXIT) {
                 running = 0;
             }
         }
 
-        handleInput(zEngine);
-        updateGameLogic(zEngine, deltaTime);
-        renderFrame(zEngine);
+        // currState can be NULL if the stack was popped, so check it
+        if (currState && currState->handleInput) currState->handleInput(zEngine);
+        if (currState && currState->update) currState->update(zEngine, deltaTime);
+        if (currState && currState->render) currState->render(zEngine);
+        
+        SDL_RenderPresent(zEngine->display->renderer);
         
         Uint64 frameTime = SDL_GetTicks64() - frameStart;
         if (frameTime < targetFrameTime) {
