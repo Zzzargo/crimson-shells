@@ -224,7 +224,9 @@ Uint8 handleMainMenuEvents(SDL_Event *event, ZENg zEngine) {
         }
 
         if (event->key.keysym.sym == SDLK_F10) {
-            setWindowSize(zEngine->display, 1600, 900);
+            if (zEngine->display->wdwFlags & SDL_WINDOW_FULLSCREEN)
+                setFullscreenResolution(zEngine->display, 1600, 900);
+            else setWindowSize(zEngine->display, 1600, 900);
             return 1;
         }
 

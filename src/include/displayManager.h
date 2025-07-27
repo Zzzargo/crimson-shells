@@ -18,6 +18,10 @@ void setWindowSize(DisplayManager mgr, int width, int height);
 
 void toggleFullscreen(DisplayManager mgr);
 
+void setFullscreenResolution(DisplayManager mgr, int width, int height);
+
 void handleDisplayEvent(DisplayManager mgr, SDL_Event *event);
+
+void saveDisplaySettings(DisplayManager mgr, const char *filePath);
 
 #endif // DISPLAY_MANAGER_H

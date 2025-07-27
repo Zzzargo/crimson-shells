@@ -77,6 +77,13 @@ void healthSystem(ZENg zEngine);
 void transformSystem(ECS ecs);
 
 /**
+ * Saves the current settings to a file
+ * @param zEngine pointer to the engine
+ * @param filePath path to the settings file
+ */
+void saveSettings(ZENg zEngine, const char *filePath);
+
+/**
  * Frees the memory used by the engine
  * @param zEngine pointer to the engine
  * @return void

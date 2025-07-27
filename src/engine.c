@@ -3,22 +3,23 @@
 void loadSettings(ZENg zEngine, const char *filePath) {
     // look for the file
     FILE *fin = fopen(filePath, "r");
+
+    zEngine->inputMng = calloc(1, sizeof(struct inputmng));
+    if (!zEngine->inputMng) {
+        printf("Failed allocating memory for the input manager");
+        exit(EXIT_FAILURE);
+    }
+
+    zEngine->display = calloc(1, sizeof(struct displaymng));
+    if (!zEngine->display) {
+        printf("Failed allocating memory for the display manager");
+        exit(EXIT_FAILURE);
+    }
+
     if (!fin) {
         // file doesn't exist
         printf("No config file found in %s. Using defaults\n", filePath);
-
-        zEngine->inputMng = calloc(1, sizeof(struct inputmng));
-        if (!zEngine->inputMng) {
-            printf("Failed allocating memory for the input manager");
-            exit(EXIT_FAILURE);
-        }
         setDefaultBindings(zEngine->inputMng);
-
-        zEngine->display = calloc(1, sizeof(struct displaymng));
-        if (!zEngine->display) {
-            printf("Failed allocating memory for the display manager");
-            exit(EXIT_FAILURE);
-        }
         setDefaultDisplaySettings(zEngine->display);
         
         // the function above doesn't create the window and the renderer
@@ -42,12 +43,22 @@ void loadSettings(ZENg zEngine, const char *filePath) {
             SDL_DestroyWindow(zEngine->display->window);
             exit(EXIT_FAILURE);
         }
+
+        int displayIndex = SDL_GetWindowDisplayIndex(zEngine->display->window);
+    int numModes = SDL_GetNumDisplayModes(displayIndex);
+    
+    printf("Available display modes for display #%d:\n", displayIndex);
+    for (int i = 0; i < numModes; i++) {
+        SDL_DisplayMode mode;
+        SDL_GetDisplayMode(displayIndex, i, &mode);
+        printf("  Mode %d: %dx%d @%dHz\n", i, mode.w, mode.h, mode.refresh_rate);
+    }
         return;
     }
 
     // if the file exists, read the settings
 
-    enum SECTIONS {
+    enum {
         NONE,
         SECTION_DISPLAY,
         SECTION_BINDINGS
@@ -158,7 +169,7 @@ void loadSettings(ZENg zEngine, const char *filePath) {
         exit(EXIT_FAILURE);
     }
 
-    printf("Key bindings loaded from %s\n", filePath);
+    printf("Settings loaded from %s\n", filePath);
 }
 
 ZENg initGame() {
@@ -403,10 +414,18 @@ void transformSystem(ECS ecs) {
 /**
  * =====================================================================================================================
  */
+void saveSettings(ZENg zEngine, const char *filePath) {
+    saveKeyBindings(zEngine->inputMng, filePath);
+    saveDisplaySettings(zEngine->display, filePath);
+    printf("Settings saved to %s\n", filePath);
+}
+
+/**
+ * =====================================================================================================================
+ */
 
 void destroyEngine(ZENg *zEngine) {
-    // save the current input bindings to the config file
-    saveKeyBindings((*zEngine)->inputMng, "keys.cfg");
+    saveSettings((*zEngine), "settings.ini");
     free((*zEngine)->inputMng);
 
     freeECS((*zEngine)->gEcs);
