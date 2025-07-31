@@ -3,6 +3,7 @@
 
 #include "global.h"
 
+// Available input actions enum
 typedef enum {
     INPUT_MOVE_UP,
     INPUT_MOVE_DOWN,
@@ -22,14 +23,35 @@ typedef struct inputmng {
     SDL_Scancode bindings[INPUT_ACTION_COUNT];  // input configuration
 } *InputManager;
 
-// saves the current key bindings to a file
+/**
+ * Saves the current key bindings to a file
+ * @param inputMng pointer to the input manager
+ * @param filePath path to the settings file
+ * @note The function saves the bindings in a simple key=value format
+ */
 void saveKeyBindings(InputManager inputMng, const char *filePath);
 
+/**
+ * Sets the default key bindings
+ * @note Defaults: WASD + IJKL
+ * @param inputMng pointer to the input manager
+ */
 void setDefaultBindings(InputManager inputMng);
 
+/**
+ * Checks if an action is currently pressed
+ * @param inputMng pointer to the input manager
+ * @param action enum type of the action to check
+ */
 Uint8 isActionPressed(InputManager inputMng, InputAction action);
 
-// Translates a scancode to an action
+/**
+ * Translates a SDL scancode to an engine action
+ * @param inputMng pointer to the input manager
+ * @param scancode SDL scancode to translate
+ * @return InputAction enum value corresponding to the scancode
+ * @note Returns INPUT_UNKNOWN if the scancode is not bound to any action
+ */
 InputAction scancodeToAction(InputManager inputMng, SDL_Scancode scancode);
 
 #endif

@@ -181,6 +181,99 @@ Entity createEntity(ECS ecs) {
  * =====================================================================================================================
  */
 
+TextComponent* createTextComponent(SDL_Renderer *rdr, TTF_Font *font, char *text, SDL_Color color, Uint8 active) {
+    TextComponent *comp = calloc(1, sizeof(TextComponent));
+    if (!comp) {
+        printf("Failed to allocate memory for text component\n");
+        exit(EXIT_FAILURE);
+    }
+
+    comp->font = font;
+    comp->text = text;
+    comp->color = color;
+    comp->active = active;
+
+    SDL_Surface *surface = TTF_RenderText_Solid(comp->font, comp->text, comp->color);
+    if (!surface) {
+        printf("Failed to create text surface: %s\n", TTF_GetError());
+        exit(EXIT_FAILURE);
+    }
+    comp->texture = SDL_CreateTextureFromSurface(rdr, surface);
+    if (!comp->texture) {
+        printf("Failed to create text texture: %s\n", SDL_GetError());
+        exit(EXIT_FAILURE);
+    }
+
+    comp->destRect = calloc(1, sizeof(SDL_Rect));
+    if (!comp->destRect) {
+        printf("Failed to allocate memory for text rectangle\n");
+        exit(EXIT_FAILURE);
+    }
+
+    *comp->destRect = (SDL_Rect) {
+        .x = 0,
+        .y = 0,
+        .w = surface->w,
+        .h = surface->h
+    };
+
+    SDL_FreeSurface(surface);
+    return comp;
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+ButtonComponent* createButtonComponent(
+    SDL_Renderer *rdr, TTF_Font *font, char *text, SDL_Color color,
+    void (*onClick)(ZENg), Uint8 selected, Uint8 orderIdx
+) {
+    ButtonComponent *comp = calloc(1, sizeof(ButtonComponent));
+    if (!comp) {
+        printf("Failed to allocate memory for button component\n");
+        exit(EXIT_FAILURE);
+    }
+
+    comp->selected = selected;
+    comp->orderIdx = orderIdx;
+    comp->onClick = onClick;
+    comp->font = font;
+    comp->text = text;
+    comp->color = color;
+
+    SDL_Surface *titleSurface = TTF_RenderText_Solid(comp->font, comp->text, comp->color);
+    if (!titleSurface) {
+        printf("Failed to create text surface: %s\n", TTF_GetError());
+        exit(EXIT_FAILURE);
+    }
+    comp->texture = SDL_CreateTextureFromSurface(rdr, titleSurface);
+    if (!comp->texture) {
+        printf("Failed to create text texture: %s\n", SDL_GetError());
+        exit(EXIT_FAILURE);
+    }
+
+    comp->destRect = calloc(1, sizeof(SDL_Rect));
+    if (!comp->destRect) {
+        printf("Failed to allocate memory for comp rectangle\n");
+        exit(EXIT_FAILURE);
+    }
+
+    *comp->destRect = (SDL_Rect) {
+        .x = 0,
+        .y = 0,
+        .w = titleSurface->w,
+        .h = titleSurface->h
+    };
+
+    SDL_FreeSurface(titleSurface);  // we don't need the surface anymore
+    return comp;
+}
+
+/**
+ * =====================================================================================================================
+ */
+
 void addComponent(ECS ecs, Entity id, ComponentType compType, void *component) {
     Uint64 page = id / PAGE_SIZE;  // determine the page for the entity
     Uint64 index = id % PAGE_SIZE;  // determine the index within the page

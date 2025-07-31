@@ -7,21 +7,45 @@ typedef struct displaymng {
     SDL_Window *window;  // pointer to the game's window
     SDL_Renderer *renderer;  // pointer to the renderer
 
-    Uint32 width;  // current width of the window
-    Uint32 height;  // current height of the window
+    SDL_DisplayMode currentMode;  // thanks SDL for making this easy
     Uint32 wdwFlags;  // fullscreen, borderless, etc.
 } *DisplayManager;
 
+/**
+ * Sets the default display settings for the screen
+ * @note default is 1280x720 @60Hz, windowed mode
+ * @param display pointer to the display manager
+ */
 void setDefaultDisplaySettings(DisplayManager display);
 
-void setWindowSize(DisplayManager mgr, int width, int height);
-
+/**
+ * Toggles fullscreen mode for the display
+ * @param mgr pointer to the display manager
+ */
 void toggleFullscreen(DisplayManager mgr);
 
-void setFullscreenResolution(DisplayManager mgr, int width, int height);
+/**
+ * Gets the available display modes for the primary display
+ * @param mgr pointer to the display manager
+ * @param count pointer to an integer to store the number of modes
+ * @return array of SDL_DisplayMode structs or NULL on failure
+ */
+SDL_DisplayMode* getAvailableDisplayModes(DisplayManager mgr, int *count);
 
-void handleDisplayEvent(DisplayManager mgr, SDL_Event *event);
+/**
+ * Sets the display mode for the window
+ * @param mgr pointer to the display manager
+ * @param mode pointer to the SDL_DisplayMode to set
+ */
+void setDisplayMode(DisplayManager mgr, const SDL_DisplayMode *mode);
 
+// void handleDisplayEvent(DisplayManager mgr, SDL_Event *event);
+
+/**
+ * Saves the current display settings to a file
+ * @param mgr pointer to the display manager
+ * @param filePath path to the settings file
+ */
 void saveDisplaySettings(DisplayManager mgr, const char *filePath);
 
 #endif // DISPLAY_MANAGER_H

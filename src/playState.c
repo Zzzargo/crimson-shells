@@ -101,19 +101,18 @@ void onEnterPlayState(ZENg zEngine) {
     // prepare the pause menu
 
     // continue option
-    TextComponent *cont = calloc(1, sizeof(TextComponent));
+    ButtonComponent *cont = calloc(1, sizeof(ButtonComponent));
     if (!cont) {
         printf("Failed to allocate memory for continue text component\n");
         exit(EXIT_FAILURE);
     }
     
-    // cont->state = STATE_PAUSED;  FIX
-    cont->active = 1;
     cont->selected = 1;  // "Continue" is selected by default
     cont->orderIdx = 0;
     cont->font = getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf");
     cont->text = strdup("Continue");
     cont->color = COLOR_YELLOW;  // highlighted color
+    cont->onClick = &pauseToPlay;
 
     SDL_Surface *contSurface = TTF_RenderText_Solid(cont->font, cont->text, cont->color);
     if (!contSurface) {
@@ -139,39 +138,38 @@ void onEnterPlayState(ZENg zEngine) {
     SDL_FreeSurface(contSurface);
 
     id = createEntity(zEngine->uiEcs);  // get a new entity's ID
-    addComponent(zEngine->uiEcs, id, TEXT_COMPONENT, (void *)cont);
+    addComponent(zEngine->uiEcs, id, BUTTON_COMPONENT, (void *)cont);
 
     // exit to main menu option
-    TextComponent *exitMMenu = calloc(1, sizeof(TextComponent));
-    if (!exitMMenu) {
+    ButtonComponent *exitToMMenu = calloc(1, sizeof(ButtonComponent));
+    if (!exitToMMenu) {
         printf("Failed to allocate memory for exit to main menu text component\n");
         exit(EXIT_FAILURE);
     }
     
-    // exitMMenu->state = STATE_PAUSED;  FIX
-    exitMMenu->active = 1;
-    exitMMenu->selected = 0;
-    exitMMenu->orderIdx = 1;
-    exitMMenu->font = getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf");
-    exitMMenu->text = strdup("Exit to main menu");
-    exitMMenu->color = COLOR_WHITE;
+    exitToMMenu->selected = 0;
+    exitToMMenu->orderIdx = 1;
+    exitToMMenu->font = getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf");
+    exitToMMenu->text = strdup("Exit to main menu");
+    exitToMMenu->color = COLOR_WHITE;
+    exitToMMenu->onClick = &pauseToMMenu;
 
-    SDL_Surface *exitSurf = TTF_RenderText_Solid(exitMMenu->font, exitMMenu->text, exitMMenu->color);
+    SDL_Surface *exitSurf = TTF_RenderText_Solid(exitToMMenu->font, exitToMMenu->text, exitToMMenu->color);
     if (!exitSurf) {
         printf("Failed to create text surface: %s\n", TTF_GetError());
         exit(EXIT_FAILURE);
     }
-    exitMMenu->texture = SDL_CreateTextureFromSurface(zEngine->display->renderer, exitSurf);
-    if (!exitMMenu->texture){
+    exitToMMenu->texture = SDL_CreateTextureFromSurface(zEngine->display->renderer, exitSurf);
+    if (!exitToMMenu->texture){
         printf("Failed to create text texture: %s\n", SDL_GetError());
         exit(EXIT_FAILURE);
     }
-    exitMMenu->destRect = calloc(1, sizeof(SDL_Rect));
-    if (!exitMMenu->destRect) {
+    exitToMMenu->destRect = calloc(1, sizeof(SDL_Rect));
+    if (!exitToMMenu->destRect) {
         printf("Failed to allocate memory for exit to main menu rectangle\n");
         exit(EXIT_FAILURE);
     }
-    *exitMMenu->destRect = (SDL_Rect){
+    *exitToMMenu->destRect = (SDL_Rect){
         .x = (wW - exitSurf->w) / 2,
         .y = (wH - exitSurf->h) * 4 / 7,
         .w = exitSurf->w,
@@ -180,7 +178,7 @@ void onEnterPlayState(ZENg zEngine) {
     SDL_FreeSurface(exitSurf);
 
     id = createEntity(zEngine->uiEcs);  // get a new entity's ID
-    addComponent(zEngine->uiEcs, id, TEXT_COMPONENT, (void *)exitMMenu);
+    addComponent(zEngine->uiEcs, id, BUTTON_COMPONENT, (void *)exitToMMenu);
 
     SDL_SetRenderTarget(zEngine->display->renderer, NULL);  // Reset the render target
 
@@ -416,9 +414,10 @@ Uint8 handlePlayStateEvents(SDL_Event *e, ZENg zEngine) {
                 }
                 pauseState->type = STATE_PAUSED;
                 pauseState->handleEvents = &handlePauseStateEvents;
-                pauseState->render = &renderPauseState;
+                pauseState->render = NULL;  // rendering is done only when needed
                 pauseState->isOverlay = 1;
                 pushState(zEngine, pauseState);
+                renderPauseState(zEngine);  // render the pause state once
                 return 1;
             }
             case INPUT_SHOOT: {

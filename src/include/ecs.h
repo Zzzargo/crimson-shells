@@ -7,10 +7,11 @@
 
 #include "global.h"
 
-typedef Uint64 Entity;  // in an ECS, an entity is just an ID
-extern Entity PLAYER_ID;  // global variable for the player entity ID
-typedef Uint64 bitset;  // a bitset to indicate which components an entity has
+typedef Uint64 Entity;  // In an ECS, an entity is just an ID
+extern Entity PLAYER_ID;  // Global variable for the player entity ID
+typedef Uint64 bitset;  // A bitset to indicate which components an entity has
 
+// Available component types enum
 typedef enum {
     HEALTH_COMPONENT,
     POSITION_COMPONENT,
@@ -19,36 +20,40 @@ typedef enum {
     PROJECTILE_COMPONENT,
     LIFETIME_COMPONENT,
     COLLISION_COMPONENT,
-    TEXT_COMPONENT,  // from here more UI-based components
+    TEXT_COMPONENT,  // From here more UI-based components
+    BUTTON_COMPONENT,
     RENDER_COMPONENT,
-    COMPONENT_COUNT  // automatically counts
+    COMPONENT_COUNT  // Automatically counts
 } ComponentType;
 
-#define PAGE_SIZE 64  // size of a page of a component's sparse array
+#define PAGE_SIZE 64  // Size of a page of a component's sparse array
+
+// General definition of a component with its sparse and dense arrays
 typedef struct {
-    Uint64 **sparse;  // sparse set - array of arrays  sparse[page][offset] = denseIndex
-    void **dense;  // dense set - dense[index] = (void *)component
-    Entity *denseToEntity;  // maps component in dense array to its owner entity's ID
-    Uint64 denseSize;  // current size of the dense array
-    Uint64 pageCount;  // number of pages allocated for this component
-    ComponentType type;  // the type of the component, needed for further info on each component
-} Component;  // base component type
+    Uint64 **sparse;  // Sparse set - array of arrays  sparse[page][offset] = denseIndex
+    void **dense;  // Dense set - dense[index] = (void *)component
+    Entity *denseToEntity;  // Maps component in dense array to its owner entity's ID
+    Uint64 denseSize;  // Current size of the dense array
+    Uint64 pageCount;  // Number of pages allocated for this component
+    ComponentType type;  // The type of the component, needed for further info on each component
+} Component;
 
 typedef struct {
-    Int32 maxHealth; // maximum health of the entity
-    Int32 currentHealth; // current health of the entity
-    Uint8 active;  // indicates if the component is active
+    Int32 maxHealth; // Maximum health of the entity
+    Int32 currentHealth; // Current health of the entity
+    Uint8 active;  // Indicates if the component is active
 } HealthComponent;
 
-typedef Vec2 PositionComponent;  // position in 2D space
+typedef Vec2 PositionComponent;  // Position in 2D space
 
 typedef struct {
-    Vec2 currVelocity;  // current velocity
-    double_t maxVelocity;  // maximum speed of the entity
+    Vec2 currVelocity;  // Current velocity
+    double_t maxVelocity;  // Maximum speed of the entity
     Uint8 active;
 } VelocityComponent;
 
-// moving directions
+// Moving directions
+
 #define DIR_LEFT (Vec2){-1.0, 0.0};
 #define DIR_RIGHT (Vec2){1.0, 0.0};
 #define DIR_UP (Vec2){0.0, -1.0};
@@ -57,10 +62,10 @@ typedef struct {
 typedef Vec2 DirectionComponent;
 
 typedef struct {
-    Int32 dmg;  // how much damage does the projectile do
+    Int32 dmg;  // How much damage does the projectile do
     Uint8 piercing;
     Uint8 exploding;
-    Uint8 friendly;  // indicates whether the projectile can damage the player
+    Uint8 friendly;  // Indicates whether the projectile can damage the player
 } ProjectileComponent;
 
 typedef struct {
@@ -76,42 +81,54 @@ typedef enum {
 } CollisionRole;
 
 typedef struct {
-    SDL_Rect *hitbox;  // the square where the entity can touch others
-    CollisionRole role;  // the role of the entity in the collision
-    Uint8 isSolid;  // indicates if entities can pass through
+    SDL_Rect *hitbox;  // The square where the entity can touch others
+    CollisionRole role;  // The role of the entity in the collision
+    Uint8 isSolid;  // Indicates if entities can pass through
 } CollisionComponent;
 
 typedef struct {
-    SDL_Texture *texture;  // texture to render
-    SDL_Rect *destRect;  // where to render the texture
+    SDL_Texture *texture;  // Texture to render
+    SDL_Rect *destRect;  // Where to render the texture
     Uint8 active;
-    Uint8 selected;  // for UI components
+    Uint8 selected;  // For UI components
 } RenderComponent;
 
 typedef struct {
-    Uint8 active;  // indicates if the text component is active
-    Uint8 selected;  // for UI components
-    Uint8 orderIdx;  // used to maintain order in ui entities
-    TTF_Font *font;  // font to use for rendering text
+    SDL_Color color;  // Color of the text
+    TTF_Font *font;  // Font to use for rendering text
     char *text;
-    SDL_Color color;  // color of the text
-    SDL_Texture *texture;  // texture for the text
-    SDL_Rect *destRect;  // where to render the text
+    SDL_Texture *texture;  // Texture for the text
+    SDL_Rect *destRect;  // Where to render the text
+    Uint8 active;  // Indicates if the text component should be rendered
 } TextComponent;
 
-#define INIT_CAPACITY 10  // capacity with which the ECS is initialised
-typedef struct EeSiEs {
-    char *name;  // used to distinguish the ECS
-    Entity nextEntityID;  // next available entity ID
-    Entity *activeEntities;  // array of active entities
-    Uint64 entityCount;  // number of entities currently in the ECS
-    Uint64 capacity;  // current capacity of the ECS
-    bitset *componentsFlags;  // an array of bitsets, one for each entity
-    Component *components;  // array of components, each component is a sparse set
+typedef struct engine *ZENg;  // forward declaration of the engine
+typedef struct {
+    SDL_Color color;  // Color of the button text
+    void (*onClick)(ZENg);  // What the button does
+    TTF_Font *font;  // Font used by the button text
+    char *text;
+    SDL_Texture *texture;
+    SDL_Rect *destRect;  // Where to render the button
+    Uint8 selected;  // For UI components
+    Uint8 orderIdx;  // Used to maintain order in UI entities
+} ButtonComponent;
 
-    Entity *freeEntities;  // array of free entities, used for recycling IDs
-    Uint64 freeEntityCount;  // number of free entities available for reuse
-    Uint64 freeEntityCapacity;  // capacity of the free entities array
+#define INIT_CAPACITY 10  // Capacity with which the ECS is initialised
+
+// ECS structure definition
+typedef struct EeSiEs {
+    char *name;  // Used to distinguish the ECS
+    Entity nextEntityID;  // Next available entity ID
+    Entity *activeEntities;  // Array of active entities
+    Uint64 entityCount;  // Number of entities currently in the ECS
+    Uint64 capacity;  // Current capacity of the ECS
+    bitset *componentsFlags;  // An array of bitsets, one for each entity
+    Component *components;  // Array of components, each component is a sparse set
+
+    Entity *freeEntities;  // Array of free entities, used for recycling IDs
+    Uint64 freeEntityCount;  // Number of free entities available for reuse
+    Uint64 freeEntityCapacity;  // Capacity of the free entities array
 } *ECS;
 
 /**
@@ -133,6 +150,33 @@ void initUIECS(ECS *uiEcs);
  * @note an entity in an ECS is just the ID (a number)
 */
 Entity createEntity(ECS ecs);
+
+/**
+ * Creates a text component for menus
+ * @param rdr
+ * @param font
+ * @param text
+ * @param color
+ * @param active
+ * @note the returned text component is created @ 0x0, so further positioning is needed
+ */
+TextComponent* createTextComponent(SDL_Renderer *rdr, TTF_Font *font, char *text, SDL_Color color, Uint8 active);
+
+/**
+ * Creates a button component for menus
+ * @param rdr
+ * @param font
+ * @param text
+ * @param color
+ * @param onClick
+ * @param selected
+ * @param orderIdx
+ * @note the returned button component is created @ 0x0, so further positioning is needed
+ */
+ButtonComponent* createButtonComponent(
+    SDL_Renderer *rdr, TTF_Font *font, char *text, SDL_Color color,
+    void (*onClick)(ZENg), Uint8 selected, Uint8 orderIdx
+);
 
 /**
  * Adds a component to an entity in an ECS

@@ -27,8 +27,8 @@ void loadSettings(ZENg zEngine, const char *filePath) {
             "Adele's Adventure",
             SDL_WINDOWPOS_CENTERED,
             SDL_WINDOWPOS_CENTERED,
-            zEngine->display->width,
-            zEngine->display->height,
+            zEngine->display->currentMode.w,
+            zEngine->display->currentMode.h,
             zEngine->display->wdwFlags
         );
         if (!zEngine->display->window) {
@@ -137,8 +137,8 @@ void loadSettings(ZENg zEngine, const char *filePath) {
     }
     fclose(fin);
 
-    zEngine->display->width = width;
-    zEngine->display->height = height;
+    zEngine->display->currentMode.w = width;
+    zEngine->display->currentMode.h = height;
     zEngine->display->wdwFlags = fullscreen ? SDL_WINDOW_FULLSCREEN : SDL_WINDOW_SHOWN;
 
     // Create the window with the read settings
@@ -146,8 +146,8 @@ void loadSettings(ZENg zEngine, const char *filePath) {
         "Adele's Adventure",
         SDL_WINDOWPOS_CENTERED,
         SDL_WINDOWPOS_CENTERED,
-        zEngine->display->width,
-        zEngine->display->height,
+        zEngine->display->currentMode.w,
+        zEngine->display->currentMode.h,
         zEngine->display->wdwFlags
     );
 
@@ -203,8 +203,9 @@ ZENg initGame() {
     mainMenuState->onEnter = &onEnterMainMenu;
     mainMenuState->onExit = &onExitMainMenu;
     mainMenuState->handleEvents = &handleMainMenuEvents;
-    mainMenuState->render = &renderMainMenu;
+    mainMenuState->render = NULL;  // rendering is done only when needed
     pushState(zEngine, mainMenuState);
+    renderMenu(zEngine);  // render the main menu once
 
     return zEngine;
 }
@@ -304,7 +305,7 @@ void handleCollision(ZENg zEngine, CollisionComponent *AColComp, CollisionCompon
         HealthComponent *actorHealth = (HealthComponent *)(zEngine->gEcs->components[HEALTH_COMPONENT].dense[HDenseIdx]);
         if (actorHealth && actorHealth->active) {
             actorHealth->currentHealth -= AProjComp->dmg;
-            printf("Bullet (%lu) takes %u damage from entity %lu\n", AOwner, AProjComp->dmg, BOwner);
+            printf("Bullet (%lu) takes %u health from entity %lu\n", AOwner, AProjComp->dmg, BOwner);
         }
         deleteEntity(zEngine->gEcs, AOwner);  // delete the bullet
     } else if (BColComp->role == COL_BULLET && AColComp->isSolid && AOwner != PLAYER_ID && BProjComp) {
@@ -315,7 +316,7 @@ void handleCollision(ZENg zEngine, CollisionComponent *AColComp, CollisionCompon
         HealthComponent *actorHealth = (HealthComponent *)(zEngine->gEcs->components[HEALTH_COMPONENT].dense[HDenseIdx]);
         if (actorHealth && actorHealth->active) {
             actorHealth->currentHealth -= BProjComp->dmg;
-            printf("Bullet (%lu) takes %u damage from entity %lu\n", BOwner, BProjComp->dmg, AOwner);
+            printf("Bullet (%lu) takes %u health from entity %lu\n", BOwner, BProjComp->dmg, AOwner);
         }
         deleteEntity(zEngine->gEcs, BOwner);  // delete the bullet
     }
@@ -428,10 +429,11 @@ void destroyEngine(ZENg *zEngine) {
     saveSettings((*zEngine), "settings.ini");
     free((*zEngine)->inputMng);
 
+    freeResourceManager(&(*zEngine)->resources);
+
     freeECS((*zEngine)->gEcs);
     freeECS((*zEngine)->uiEcs);
 
-    freeResourceManager(&(*zEngine)->resources);
 
     free((*zEngine)->stateMng->states[0]);  // free the main menu state
     free((*zEngine)->stateMng);

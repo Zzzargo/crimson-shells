@@ -9,6 +9,7 @@
 struct statemng;  // forward declaration
 typedef struct statemng *StateManager;
 
+// Engine structure definition
 typedef struct engine {
     DisplayManager display;
     ResourceManager resources;
@@ -18,7 +19,7 @@ typedef struct engine {
     ECS gEcs;
 } *ZENg;
 
-#include "stateManager.h"  // stateManager neeeds the engine definition
+#include "stateManager.h"  // stateManager needs the engine definition
 
 /**
  * Loads the settings from a file
