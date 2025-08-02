@@ -1,47 +1,44 @@
 #include "include/stateManager.h"
 
 void onEnterOptionsMenu(ZENg zEngine) {
-    Uint8 orderIdx = 0;  // counts the inserted texts
+    int screenW = zEngine->display->currentMode.w;
+    int screenH = zEngine->display->currentMode.h;
 
-    ButtonComponent *game = createButtonComponent(
-        zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf"),
-        strdup("Game"), COLOR_YELLOW, &optionsToGameOpt, 1, orderIdx++
-    );
-    game->destRect->x = (zEngine->display->currentMode.w - game->destRect->w) / 2;
-    game->destRect->y = (zEngine->display->currentMode.h - game->destRect->h) / 3;
+    // Percentages from the top of the screen
+    double listStartPos = 0.35;
+    double listItemsSpacing = 0.08;
 
-    Entity id = createEntity(zEngine->uiEcs);
-    addComponent(zEngine->uiEcs, id, BUTTON_COMPONENT, (void *)game);
+    // Create buttons with evenly spaced positions
+    char* buttonLabels[] = {
+        "Game", "Audio", "Display", "Controls", "Back"
+    };
+    // this is amazing
+    void (*buttonActions[])(ZENg) = {
+        &optionsToGameOpt, &optionsToAudioOpt, &optionsToVideoOpt, 
+        &optionsToControlsOpt, &optionsToMMenu
+    };
 
-    ButtonComponent *audio = createButtonComponent(
-        zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf"),
-        strdup("Audio"), COLOR_WHITE, &optionsToAudioOpt, 0, orderIdx++
-    );
-    audio->destRect->x = (zEngine->display->currentMode.w - audio->destRect->w) / 2;
-    audio->destRect->y = (zEngine->display->currentMode.h - audio->destRect->h) / 2.5;
+    Entity id;
 
-    id = createEntity(zEngine->uiEcs);
-    addComponent(zEngine->uiEcs, id, BUTTON_COMPONENT, (void *)audio);
+    for (Uint8 orderIdx = 0; orderIdx < (sizeof(buttonLabels) / sizeof(buttonLabels[0])); orderIdx++) {
+        ButtonComponent *button = createButtonComponent(
+            zEngine->display->renderer, 
+            getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf"),
+            strdup(buttonLabels[orderIdx]), 
+            orderIdx == 0 ? COLOR_YELLOW : COLOR_WHITE, // First button selected (color)
+            buttonActions[orderIdx], 
+            orderIdx == 0 ? 1 : 0,  // First button selected (field flag)
+            orderIdx
+        );
+        
+        button->destRect->x = (screenW - button->destRect->w) / 2;
+        button->destRect->y = screenH * (listStartPos + orderIdx * listItemsSpacing);
+        
+        id = createEntity(zEngine->uiEcs);
+        addComponent(zEngine->uiEcs, id, BUTTON_COMPONENT, (void *)button);
+    }
 
-    ButtonComponent *video = createButtonComponent(
-        zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf"),
-        strdup("Video"), COLOR_WHITE, &optionsToVideoOpt, 0, orderIdx++
-    );
-    video->destRect->x = (zEngine->display->currentMode.w - video->destRect->w) / 2;
-    video->destRect->y = (zEngine->display->currentMode.h - video->destRect->h) / 2;
-
-    id = createEntity(zEngine->uiEcs);
-    addComponent(zEngine->uiEcs, id, BUTTON_COMPONENT, (void *)video);
-
-    ButtonComponent *Controls = createButtonComponent(
-        zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf"),
-        strdup("Controls"), COLOR_WHITE, &optionsToControlsOpt, 0, orderIdx++
-    );
-    Controls->destRect->x = (zEngine->display->currentMode.w - Controls->destRect->w) / 2;
-    Controls->destRect->y = (zEngine->display->currentMode.h - Controls->destRect->h) / 1.5;
-
-    id = createEntity(zEngine->uiEcs);
-    addComponent(zEngine->uiEcs, id, BUTTON_COMPONENT, (void *)Controls);
+    renderMenu(zEngine);  // render manually the first time
 }
 
 /**
@@ -59,7 +56,7 @@ void onExitOptionsMenu(ZENg zEngine) {
  */
 
 Uint8 handleOptionsMenuEvents(SDL_Event *event, ZENg zEngine) {
-    return handleMenuNavigation(event, zEngine, "Game", "Controls", &updateMenuUI);
+    return handleMenuNavigation(event, zEngine, "Game", "Back", &updateMenuUI);
 }
 
 /**
@@ -83,7 +80,17 @@ void optionsToAudioOpt(ZENg zEngine) {
  */
 
 void optionsToVideoOpt(ZENg zEngine) {
+    GameState *videoOpt = calloc(1, sizeof(GameState));
+    if (!videoOpt) {
+        printf("Failed to allocate memory for the video options state");
+        exit(EXIT_FAILURE);
+    }
+    videoOpt->type = STATE_OPTIONS_VIDEO;
+    videoOpt->onEnter = &onEnterVideoOptions;
+    videoOpt->onExit = &onExitVideoOptions;
+    videoOpt->handleEvents = &handleVideoOptionsEvents;
 
+    pushState(zEngine, videoOpt);
 }
 
 /**
@@ -92,4 +99,12 @@ void optionsToVideoOpt(ZENg zEngine) {
 
 void optionsToControlsOpt(ZENg zEngine) {
 
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+void optionsToMMenu(ZENg zEngine) {
+    popState(zEngine);  // -> Main menu
 }

@@ -5,12 +5,7 @@ void onEnterPlayState(ZENg zEngine) {
     Entity id = createEntity(zEngine->gEcs);
     PLAYER_ID = id;  // set the global player ID
 
-    HealthComponent *healthComp = calloc(1, sizeof(HealthComponent));
-    if (!healthComp) {
-        printf("Failed to allocate memory for health component\n");
-        exit(EXIT_FAILURE);
-    }
-    *healthComp = (HealthComponent) {100, 100, 1};  // current, max, active
+    HealthComponent *healthComp = createHealthComponent(100, 100, 1);
     addComponent(zEngine->gEcs, id, HEALTH_COMPONENT, (void *)healthComp);
 
     PositionComponent *posComp = calloc(1, sizeof(PositionComponent));
@@ -26,25 +21,13 @@ void onEnterPlayState(ZENg zEngine) {
     };
     addComponent(zEngine->gEcs, id, POSITION_COMPONENT, (void *)posComp);
 
-    DirectionComponent *dirComp = calloc(1, sizeof(DirectionComponent));
-    if (!dirComp) {
-        printf("Failed to allocate memory for direction component\n");
-        exit(EXIT_FAILURE);
-    }
-    *dirComp = (Vec2) DIR_UP;  // initial direction - up
+    DirectionComponent *dirComp = createDirectionComponent(DIR_UP);
     addComponent(zEngine->gEcs, id, DIRECTION_COMPONENT, (void *)dirComp);
 
-    VelocityComponent *speedComp = calloc(1, sizeof(VelocityComponent));
-    if (!speedComp) {
-        printf("Failed to allocate memory for velocity component\n");
-        exit(EXIT_FAILURE);
-    }
-    *speedComp = (VelocityComponent) {
-        (Vec2) {0.0, 0.0 },
-        10.0,
-        1
-    };
-
+    VelocityComponent *speedComp = createVelocityComponent(
+        (Vec2){0.0, 0.0},
+        300.0, 1
+    );
     addComponent(zEngine->gEcs, id, VELOCITY_COMPONENT, (void *)speedComp);
 
     CollisionComponent *colComp = calloc(1, sizeof(CollisionComponent));
@@ -86,7 +69,7 @@ void onEnterPlayState(ZENg zEngine) {
         .h = wH / 20
     };
 
-    renderComp->texture = getTexture(zEngine->resources, "assets/textures/adele.png");
+    renderComp->texture = getTexture(zEngine->resources, "assets/textures/tank.png");
     if (!renderComp->texture) {
         printf("Failed to create dot texture: %s\n", SDL_GetError());
         exit(EXIT_FAILURE);
@@ -277,46 +260,49 @@ void onExitPlayState(ZENg zEngine) {
     }
 }
 
-void spawnBulletProjectile(ZENg zEngine, Entity owner) {
+void spawnBulletProjectile(ZENg zEngine, Entity shooter) {
     Entity bulletID = createEntity(zEngine->gEcs);
+
+    // Bullet size
+    int bulletW = 10, bulletH = 10;
+
+    // get the shooter components
+    Uint64 shooterPage = shooter / PAGE_SIZE;
+    Uint64 shooterPageIdx = shooter % PAGE_SIZE;
+    Uint64 shooterDenseIdx = zEngine->gEcs->components[RENDER_COMPONENT].sparse[shooterPage][shooterPageIdx];
+
+    // Bullet inherits the shooter's direction
+    DirectionComponent *bulletDir = createDirectionComponent(
+        *(DirectionComponent *)(zEngine->gEcs->components[DIRECTION_COMPONENT].dense[shooterDenseIdx])
+    );
+    addComponent(zEngine->gEcs, bulletID, DIRECTION_COMPONENT, (void *)bulletDir);
+
+    SDL_Rect *shooterRect = (*(RenderComponent *)(zEngine->gEcs->components[RENDER_COMPONENT].dense[shooterDenseIdx])).destRect;
+    PositionComponent *shooterPos = (PositionComponent *)(zEngine->gEcs->components[POSITION_COMPONENT].dense[shooterDenseIdx]);
+
+    double playerCenterX = shooterPos->x + shooterRect->w / 2.0;
+    double playerCenterY = shooterPos->y + shooterRect->h / 2.0;
+
+    double bulletOffsetX = bulletDir->x * (shooterRect->w / 2.0 + bulletW / 2.0);
+    double bulletOffsetY = bulletDir->y * (shooterRect->h / 2.0 + bulletH / 2.0);
+
     PositionComponent *bulletPos = calloc(1, sizeof(PositionComponent));
     if (!bulletPos) {
         printf("Failed to allocate memory for bullet position component\n");
         exit(EXIT_FAILURE);
     }
-
-    // get the owner components
-    Uint64 page = owner / PAGE_SIZE;
-    Uint64 pageIdx = owner % PAGE_SIZE;
-    Uint64 denseIdx = zEngine->gEcs->components[RENDER_COMPONENT].sparse[page][pageIdx];
-
-    DirectionComponent *bulletDir = calloc(1, sizeof(DirectionComponent));
-    if (!bulletDir) {
-        printf("Failed to allocate memory for bullet direction component\n");
-        exit(EXIT_FAILURE);
-    }
-    *bulletDir = *(DirectionComponent *)(zEngine->gEcs->components[DIRECTION_COMPONENT].dense[denseIdx]);  // bullet inherits the player's direction
-    addComponent(zEngine->gEcs, bulletID, DIRECTION_COMPONENT, (void *)bulletDir);
-
-    SDL_Rect *ownerRect = (*(RenderComponent *)(zEngine->gEcs->components[RENDER_COMPONENT].dense[denseIdx])).destRect;
-    PositionComponent *playerPos = (PositionComponent *)(zEngine->gEcs->components[POSITION_COMPONENT].dense[denseIdx]);
     *bulletPos = (PositionComponent) {
-        playerPos->x + ownerRect->w / 2 + 20,  // center the bullet on the owner
-        playerPos->y + ownerRect->h / 2
+        // bullet starts at the edge of the player rect corresponding to the player's direction
+        playerCenterX + bulletOffsetX - bulletW / 2.0,
+        playerCenterY + bulletOffsetY - bulletH / 2.0
     };
 
     addComponent(zEngine->gEcs, bulletID, POSITION_COMPONENT, (void *)bulletPos);
 
-    VelocityComponent *bulletSpeed = calloc(1, sizeof(VelocityComponent));
-    if (!bulletSpeed) {
-        printf("Failed to allocate memory for bullet velocity component\n");
-        exit(EXIT_FAILURE);
-    }
-    *bulletSpeed = (VelocityComponent) {
-        (Vec2) {bulletDir->x * 300, bulletDir->y * 300},  // speed is 300 units per second
-        300.0,  // max speed
-        1  // active
-    };
+    VelocityComponent *bulletSpeed = createVelocityComponent(
+        (Vec2) {bulletDir->x * 500, bulletDir->y * 500},
+        500.0, 1
+    );
     addComponent(zEngine->gEcs, bulletID, VELOCITY_COMPONENT, (void *)bulletSpeed);
 
     ProjectileComponent *projComp = calloc(1, sizeof(ProjectileComponent));
@@ -328,7 +314,7 @@ void spawnBulletProjectile(ZENg zEngine, Entity owner) {
         .dmg = 15,
         .piercing = 0,
         .exploding = 0,
-        .friendly = (owner == PLAYER_ID) ? 1 : 0
+        .friendly = (shooter == PLAYER_ID) ? 1 : 0
     };
     addComponent(zEngine->gEcs, bulletID, PROJECTILE_COMPONENT, (void *)projComp);
 
@@ -380,21 +366,12 @@ void spawnBulletProjectile(ZENg zEngine, Entity owner) {
         .w = 10,  // bullet size
         .h = 10
     };
-    bulletRender->texture = SDL_CreateTexture(
-        zEngine->display->renderer,
-        SDL_PIXELFORMAT_RGBA8888,
-        SDL_TEXTUREACCESS_TARGET,
-        bulletRender->destRect->w,
-        bulletRender->destRect->h
-    );
+    bulletRender->texture = getTexture(zEngine->resources, "assets/textures/bullet.png");
     if (!bulletRender->texture) {
         printf("Failed to create bullet texture: %s\n", SDL_GetError());
         exit(EXIT_FAILURE);
     }
-    SDL_SetRenderTarget(zEngine->display->renderer, bulletRender->texture);
-    SDL_SetRenderDrawColor(zEngine->display->renderer, 255, 255, 255, 255);
-    SDL_RenderClear(zEngine->display->renderer);
-    SDL_SetRenderTarget(zEngine->display->renderer, NULL);
+
     addComponent(zEngine->gEcs, bulletID, RENDER_COMPONENT, (void *)bulletRender);
 }
 
@@ -461,8 +438,8 @@ void handlePlayStateInput(ZENg zEngine) {
 
     if (moving) {
         // set the velocity vector
-        playerSpeed->currVelocity.x = playerSpeed->maxVelocity * playerDir->x * 30;
-        playerSpeed->currVelocity.y = playerSpeed->maxVelocity * playerDir->y * 30;
+        playerSpeed->currVelocity.x = playerSpeed->maxVelocity * playerDir->x;
+        playerSpeed->currVelocity.y = playerSpeed->maxVelocity * playerDir->y;
     } else {
         // If no movement input, stop the player
         playerSpeed->currVelocity = (Vec2) { .x = 0.0, .y = 0.0 };
@@ -486,7 +463,24 @@ void renderPlayState(ZENg zEngine) {
     for (Uint64 i = 0; i < zEngine->gEcs->components[RENDER_COMPONENT].denseSize; i++) {
         RenderComponent *render = (RenderComponent *)(zEngine->gEcs->components[RENDER_COMPONENT].dense[i]);
         if (render) {
-            SDL_RenderCopy(zEngine->display->renderer, render->texture, NULL, render->destRect);
+            double angle = 0.0;
+            Entity owner = zEngine->gEcs->components[RENDER_COMPONENT].denseToEntity[i];
+            Uint64 ownerPage = owner / PAGE_SIZE;
+            Uint64 ownerPageIdx = owner % PAGE_SIZE;
+            Uint64 ownerDenseIdx = zEngine->gEcs->components[DIRECTION_COMPONENT].sparse[ownerPage][ownerPageIdx];
+            DirectionComponent *dirComp = (DirectionComponent *)(zEngine->gEcs->components[DIRECTION_COMPONENT].dense[ownerDenseIdx]);
+
+            if ((*dirComp).x == 0.0 && (*dirComp).y == -1.0) {
+                angle = 0.0;
+            } else if ((*dirComp).x == 0.0 && (*dirComp).y == 1.0) {
+                angle = 180.0;
+            } else if ((*dirComp).x == -1.0 && (*dirComp).y == 0.0) {
+                angle = 270.0;
+            } else if ((*dirComp).x == 1.0 && (*dirComp).y == 0.0) {
+                angle = 90.0;
+            }
+
+            SDL_RenderCopyEx(zEngine->display->renderer, render->texture, NULL, render->destRect, angle, NULL, SDL_FLIP_NONE);
         }
     }
 }

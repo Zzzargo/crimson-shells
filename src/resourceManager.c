@@ -213,6 +213,8 @@ void preloadResources(ResourceManager resMng, SDL_Renderer *renderer) {
     getOrLoadResource(resMng, renderer, "assets/fonts/ByteBounce.ttf", RESOURCE_FONT);
     getOrLoadResource(resMng, renderer, "assets/textures/adele.png", RESOURCE_TEXTURE);
     getOrLoadResource(resMng, renderer, "assets/textures/mira.png", RESOURCE_TEXTURE);
+    getOrLoadResource(resMng, renderer, "assets/textures/tank.png", RESOURCE_TEXTURE);
+    getOrLoadResource(resMng, renderer, "assets/textures/bullet.png", RESOURCE_TEXTURE);
 }
 
 /**

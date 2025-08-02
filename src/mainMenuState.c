@@ -1,63 +1,77 @@
 #include "include/stateManager.h"
 
 void onEnterMainMenu(ZENg zEngine) {
-    // add the entities(text) with render components to the UI ECS
-    Uint8 orderIdx = 0;  // counts the inserted texts
+    int screenW = zEngine->display->currentMode.w;
+    int screenH = zEngine->display->currentMode.h;
 
-    // Create the title text component
+    // Percentages from the top of the screen
+    double titlePos = 0.3;
+    double footerPos = 0.8;
+    double listStartPos = 0.45;
+    double listItemsSpacing = 0.08;
+
+    // Create buttons with evenly spaced positions
+    char* buttonLabels[] = {
+        "Play", "Options", "Exit"
+    };
+    // this is amazing
+    void (*buttonActions[])(ZENg) = {
+        &mMenuToPlay, &mMenuToOptions, &prepareExit
+    };
+
+    // Create the title text component first
     TextComponent *title = createTextComponent(
         zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf"),
         strdup("Adele's Adventure"), COLOR_WHITE, 1
     );
-    title->destRect->x = (zEngine->display->currentMode.w - title->destRect->w) / 2;
-    title->destRect->y = (zEngine->display->currentMode.h - title->destRect->h) / 3;
+    title->destRect->x = (screenW - title->destRect->w) / 2;
+    title->destRect->y = screenH * titlePos;
 
     Entity id = createEntity(zEngine->uiEcs);
     addComponent(zEngine->uiEcs, id, TEXT_COMPONENT, (void *)title);
 
-    // "Play" option
-    ButtonComponent *play = createButtonComponent(
-        zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf"),
-        strdup("Play"), COLOR_YELLOW, &mMenuToPlay, 1, orderIdx++
+    for (Uint8 orderIdx = 0; orderIdx < (sizeof(buttonLabels) / sizeof(buttonLabels[0])); orderIdx++) {
+        ButtonComponent *button = createButtonComponent(
+            zEngine->display->renderer, 
+            getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf"),
+            strdup(buttonLabels[orderIdx]), 
+            orderIdx == 0 ? COLOR_YELLOW : COLOR_WHITE, // First button selected (color)
+            buttonActions[orderIdx], 
+            orderIdx == 0 ? 1 : 0,  // First button selected (field flag)
+            orderIdx
+        );
+        
+        button->destRect->x = (screenW - button->destRect->w) / 2;
+        button->destRect->y = screenH * (listStartPos + orderIdx * listItemsSpacing);
+        
+        id = createEntity(zEngine->uiEcs);
+        addComponent(zEngine->uiEcs, id, BUTTON_COMPONENT, (void *)button);
+    }
+
+    char *instrText = calloc(64, sizeof(char));
+    if (!instrText) {
+        printf("Failed to allocate memory for the instructions text\n");
+        exit(EXIT_FAILURE);
+    }
+    snprintf(
+        instrText, 64, "Use %s/%s to navigate, %s to select",
+        getHRKeyFromInputAction(zEngine->inputMng, INPUT_MOVE_UP),
+        getHRKeyFromInputAction(zEngine->inputMng, INPUT_MOVE_DOWN),
+        getHRKeyFromInputAction(zEngine->inputMng, INPUT_SELECT)
     );
-    play->destRect->x = (zEngine->display->currentMode.w - play->destRect->w) / 2;
-    play->destRect->y = (zEngine->display->currentMode.h - play->destRect->h) / 2;
 
-    id = createEntity(zEngine->uiEcs);  // get a new entity's ID
-    addComponent(zEngine->uiEcs, id, BUTTON_COMPONENT, (void *)play);
-
-    // "options" option
-    ButtonComponent *options = createButtonComponent(
-        zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf"),
-        strdup("Options"), COLOR_WHITE, &mMenuToOptions, 0, orderIdx++
-    );
-    options->destRect->x = (zEngine->display->currentMode.w - options->destRect->w) / 2;
-    options->destRect->y = (zEngine->display->currentMode.h - options->destRect->h) * 4 / 7;
-
-    id = createEntity(zEngine->uiEcs);  // get a new entity's ID
-    addComponent(zEngine->uiEcs, id, BUTTON_COMPONENT, (void *)options);
-
-    // "Exit" option
-    ButtonComponent *exitOpt = createButtonComponent(
-        zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf"),
-        strdup("Exit"), COLOR_WHITE, &prepareExit, 0, orderIdx++
-    );
-    exitOpt->destRect->x = (zEngine->display->currentMode.w - exitOpt->destRect->w) / 2;
-    exitOpt->destRect->y = (zEngine->display->currentMode.h - exitOpt->destRect->h) * 5 / 7;
-
-    id = createEntity(zEngine->uiEcs);  // get a new entity's ID
-    addComponent(zEngine->uiEcs, id, BUTTON_COMPONENT, (void *)exitOpt);
-
-    // Instructions
+    // Instructions cause I want to flex the input manager
     TextComponent *instructions = createTextComponent(
         zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf"),
-        strdup("Use W/S or arrow keys to navigate, Enter/Space to select"), COLOR_WHITE_TRANSPARENT, 1
+        instrText, COLOR_WHITE_TRANSPARENT, 1
     );
-    instructions->destRect->x = (zEngine->display->currentMode.w - instructions->destRect->w) / 2;
-    instructions->destRect->y = (zEngine->display->currentMode.h - instructions->destRect->h) * 6 / 7;
+    instructions->destRect->x = (screenW - instructions->destRect->w) / 2;
+    instructions->destRect->y = screenH * footerPos;
 
     id = createEntity(zEngine->uiEcs);  // get a new entity's ID
     addComponent(zEngine->uiEcs, id, TEXT_COMPONENT, (void *)instructions);
+
+    renderMenu(zEngine);  // render the menu one time
 }
 
 void onExitMainMenu(ZENg zEngine) {
@@ -102,24 +116,6 @@ Uint8 handleMenuNavigation(SDL_Event *event, ZENg zEngine, char *firstItem, char
         if (event->key.keysym.sym == SDLK_F11) {
             // test feature - fullscreen switch
             toggleFullscreen(zEngine->display);
-            return 1;
-        }
-
-        if (event->key.keysym.sym == SDLK_F10) {
-            SDL_DisplayMode mode = {
-                .w = 1600,
-                .h = 900,
-                .format = SDL_PIXELFORMAT_RGBA8888,
-                .refresh_rate = 60,
-                .driverdata = NULL
-            };
-
-            int modeCount = 0;
-            SDL_DisplayMode *availableModes = getAvailableDisplayModes(zEngine->display, &modeCount);
-            for (int i = 0; i < modeCount; i++) {
-                printf("Available mode %d: %dx%d @ %dHz\n", i, availableModes[i].w, availableModes[i].h, availableModes[i].refresh_rate);
-            }
-            setDisplayMode(zEngine->display, &mode);
             return 1;
         }
 
@@ -289,7 +285,6 @@ void mMenuToOptions(ZENg zEngine) {
     optionsState->update = NULL;  // no game logic update
     optionsState->render = NULL;  // rendering is done only when needed
     pushState(zEngine, optionsState);
-    renderMenu(zEngine);  // render the options menu once
 }
 
 /**

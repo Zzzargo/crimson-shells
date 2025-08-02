@@ -45,54 +45,19 @@ Uint8 handleMenuNavigation(SDL_Event *event, ZENg zEngine, char *firstItem, char
 /**
  * 
  */
+void prepareExit(ZENg zEngine);
+
+// ============================================ MAIN MENU STATE ========================================================
+
+/**
+ * 
+ */
 void mMenuToPlay(ZENg zEngine);
 
 /**
  * 
  */
 void mMenuToOptions(ZENg zEngine);
-
-/**
- * 
- */
-void optionsToGameOpt(ZENg zEngine);
-
-/**
- * 
- */
-void optionsToAudioOpt(ZENg zEngine);
-
-/**
- * 
- */
-void optionsToVideoOpt(ZENg zEngine);
-
-/**
- * 
- */
-void optionsToControlsOpt(ZENg zEngine);
-
-/**
- * 
- */
-void pauseToPlay(ZENg zEngine);
-
-/**
- * 
- */
-void pauseToPlay(ZENg zEngine);
-
-/**
- * 
- */
-void pauseToMMenu(ZENg zEngine);
-
-/**
- * 
- */
-void prepareExit(ZENg zEngine);
-
-// ============================================ MAIN MENU STATE ========================================================
 
 /**
  * Loads the main menu UI components into the UI ECS
@@ -120,7 +85,32 @@ void updateMenuUI(ZENg zEngine);
  */
 Uint8 handleMainMenuEvents(SDL_Event *event, ZENg zEngine);
 
-// ================================================ OPTIONS STATE =========================================================
+// ============================================= OPTIONS STATE =========================================================
+
+/**
+ * 
+ */
+void optionsToGameOpt(ZENg zEngine);
+
+/**
+ * 
+ */
+void optionsToAudioOpt(ZENg zEngine);
+
+/**
+ * 
+ */
+void optionsToVideoOpt(ZENg zEngine);
+
+/**
+ * 
+ */
+void optionsToControlsOpt(ZENg zEngine);
+
+/**
+ * 
+ */
+void optionsToMMenu(ZENg zEngine);
 
 // Loads the options menu UI components into the ECS
 void onEnterOptionsMenu(ZENg zEngine);
@@ -128,14 +118,30 @@ void onEnterOptionsMenu(ZENg zEngine);
 // Clears the options menu UI components from the ECS
 void onExitOptionsMenu(ZENg zEngine);
 
-// Updates the components in the UI ECS
-void updateOptionsMenuUI(ZENg zEngine);
-
 // Takes care of the events in the options menu
 Uint8 handleOptionsMenuEvents(SDL_Event *event, ZENg zEngine);
 
-// Takes care of the rendering part in the options menu
-void renderOptionsMenu(ZENg zEngine);
+// ============================================= VIDEO OPTIONS STATE ===================================================
+
+/**
+ * 
+ */
+void onEnterVideoOptions(ZENg zEngine);
+
+/**
+ * 
+ */
+void onExitVideoOptions(ZENg zEngine);
+
+/**
+ * 
+ */
+Uint8 handleVideoOptionsEvents(SDL_Event *event, ZENg zEngine);
+
+/**
+ * 
+ */
+void videoOptToOpt(ZENg zEngine);
 
 // ================================================ PLAY STATE =========================================================
 
@@ -166,6 +172,16 @@ void updatePlayStateLogic(ZENg zEngine, double_t deltaTime);
 void renderPlayState(ZENg zEngine);
 
 // ================================================ PAUSE STATE ========================================================
+
+/**
+ * 
+ */
+void pauseToPlay(ZENg zEngine);
+
+/**
+ * 
+ */
+void pauseToMMenu(ZENg zEngine);
 
 // Updates the pause menu UI components
 void updatePauseUI(ZENg zEngine);

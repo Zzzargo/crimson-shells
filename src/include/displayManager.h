@@ -29,6 +29,7 @@ void toggleFullscreen(DisplayManager mgr);
  * @param mgr pointer to the display manager
  * @param count pointer to an integer to store the number of modes
  * @return array of SDL_DisplayMode structs or NULL on failure
+ * @note the memory for the returned array is allocated inside the function
  */
 SDL_DisplayMode* getAvailableDisplayModes(DisplayManager mgr, int *count);
 

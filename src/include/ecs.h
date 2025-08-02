@@ -52,12 +52,12 @@ typedef struct {
     Uint8 active;
 } VelocityComponent;
 
-// Moving directions
+// Moving directions - pay attention to the direction of the Y axis in SDL
 
-#define DIR_LEFT (Vec2){-1.0, 0.0};
-#define DIR_RIGHT (Vec2){1.0, 0.0};
-#define DIR_UP (Vec2){0.0, -1.0};
-#define DIR_DOWN (Vec2){0.0, 1.0};
+#define DIR_LEFT (Vec2){-1.0, 0.0}
+#define DIR_RIGHT (Vec2){1.0, 0.0}
+#define DIR_UP (Vec2){0.0, -1.0}
+#define DIR_DOWN (Vec2){0.0, 1.0}
 
 typedef Vec2 DirectionComponent;
 
@@ -177,6 +177,22 @@ ButtonComponent* createButtonComponent(
     SDL_Renderer *rdr, TTF_Font *font, char *text, SDL_Color color,
     void (*onClick)(ZENg), Uint8 selected, Uint8 orderIdx
 );
+
+/**
+ * 
+ */
+DirectionComponent* createDirectionComponent(DirectionComponent dir);
+
+/**
+ * 
+ */
+
+VelocityComponent* createVelocityComponent(Vec2 velocity, double_t maxVelocity, Uint8 active);
+
+/**
+ * 
+ */
+HealthComponent* createHealthComponent(Int32 maxHealth, Int32 currentHealth, Uint8 active);
 
 /**
  * Adds a component to an entity in an ECS

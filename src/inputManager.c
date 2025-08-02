@@ -69,3 +69,19 @@ InputAction scancodeToAction(InputManager inputMng, SDL_Scancode scancode) {
     }
     return INPUT_UNKNOWN;  // no matching action
 }
+
+const char* getHRKeyFromInputAction(InputManager inputMng, InputAction action) {
+    if (!inputMng || action < 0 || action >= INPUT_ACTION_COUNT) {
+        return "Unknown";
+    }
+    
+    SDL_Scancode scancode = inputMng->bindings[action];
+    const char* keyHRName = SDL_GetKeyName(SDL_GetKeyFromScancode(scancode));
+    
+    // If empty string returned, provide a fallback
+    if (!keyHRName || keyHRName[0] == '\0') {
+        return "Unknown";
+    }
+
+    return keyHRName;
+}

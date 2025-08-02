@@ -104,11 +104,12 @@ void loadSettings(ZENg zEngine, const char *filePath) {
                 } else {
                     printf("Unknown DISPLAY setting: %s\n", setting);
                 }
+                break;
             }
             case SECTION_BINDINGS: {
                 SDL_Scancode scancode = SDL_GetScancodeFromName(value);
                 if (scancode == SDL_SCANCODE_UNKNOWN) {
-                    printf("Unknown value '%s' for setting '%s'\n", value, setting);
+                    printf("Unknown value '%s' for action '%s'\n", value, setting);
                     continue;
                 }
                 if (strcmp(setting, "MOVE_UP") == 0) {
@@ -130,8 +131,9 @@ void loadSettings(ZENg zEngine, const char *filePath) {
                 } else if (strcmp(setting, "SPECIAL") == 0) {
                     zEngine->inputMng->bindings[INPUT_SPECIAL] = scancode;
                 } else {
-                    printf("Unknown setting '%s'\n", setting);
+                    printf("Unknown action '%s'\n", setting);
                 }
+                break;
             }
         }
     }
@@ -205,7 +207,6 @@ ZENg initGame() {
     mainMenuState->handleEvents = &handleMainMenuEvents;
     mainMenuState->render = NULL;  // rendering is done only when needed
     pushState(zEngine, mainMenuState);
-    renderMenu(zEngine);  // render the main menu once
 
     return zEngine;
 }

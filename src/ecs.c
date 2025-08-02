@@ -274,6 +274,52 @@ ButtonComponent* createButtonComponent(
  * =====================================================================================================================
  */
 
+DirectionComponent* createDirectionComponent(DirectionComponent dir) {
+    DirectionComponent *comp = calloc(1, sizeof(DirectionComponent));
+    if (!comp) {
+        printf("Failed to allocate memory for direction component\n");
+        exit(EXIT_FAILURE);
+    }
+    *comp = dir;
+    return comp;
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+VelocityComponent* createVelocityComponent(Vec2 velocity, double_t maxVelocity, Uint8 active) {
+    VelocityComponent *comp = calloc(1, sizeof(VelocityComponent));
+    if (!comp) {
+        printf("Failed to allocate memory for velocity component\n");
+        exit(EXIT_FAILURE);
+    }
+    comp->currVelocity = velocity;
+    comp->maxVelocity = maxVelocity;
+    comp->active = active;
+    return comp;
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+HealthComponent* createHealthComponent(Int32 maxHealth, Int32 currentHealth, Uint8 active) {
+    HealthComponent *comp = calloc(1, sizeof(HealthComponent));
+    if (!comp) {
+        printf("Failed to allocate memory for health component\n");
+        exit(EXIT_FAILURE);
+    }
+    comp->maxHealth = maxHealth;
+    comp->currentHealth = currentHealth;
+    comp->active = active;
+    return comp;
+}
+
+/**
+ * =====================================================================================================================
+ */
+
 void addComponent(ECS ecs, Entity id, ComponentType compType, void *component) {
     Uint64 page = id / PAGE_SIZE;  // determine the page for the entity
     Uint64 index = id % PAGE_SIZE;  // determine the index within the page

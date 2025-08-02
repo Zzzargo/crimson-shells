@@ -31,29 +31,70 @@ void toggleFullscreen(DisplayManager mgr) {
 SDL_DisplayMode* getAvailableDisplayModes(DisplayManager mgr, int *count) {
     if (!mgr || !count) return NULL;
 
-    SDL_DisplayMode *modes = NULL;
+    SDL_DisplayMode *availableModes = NULL;
     int modeCount = SDL_GetNumDisplayModes(0);  // 0 for the primary display
     if (modeCount < 0) {
         printf("SDL_GetNumDisplayModes failed: %s\n", SDL_GetError());
         return NULL;
     }
 
-    modes = malloc(modeCount * sizeof(SDL_DisplayMode));
-    if (!modes) {
-        printf("Failed to allocate memory for display modes\n");
+    typedef struct {
+        int w, h;
+    } Resolution;  // helper struct to store resolutions
+
+    Resolution neededResolutions[] = {
+        {3840, 2160},
+        {3200, 1200},
+        {2560, 1440},
+        {1920, 1080},
+        {1600, 900},
+        {1366, 768},
+        {1280, 720},
+        {1024, 576}
+    };
+    int neededCount = sizeof(neededResolutions) / sizeof(Resolution);
+    *count = 0;
+    SDL_DisplayMode *neededModes = calloc(neededCount, sizeof(SDL_DisplayMode));
+    if (!neededModes) {
+        printf("Failed to allocate memory for display neededModes\n");
+        return NULL;
+    }
+
+    availableModes = malloc(modeCount * sizeof(SDL_DisplayMode));
+    if (!availableModes) {
+        printf("Failed to allocate memory for display availableModes\n");
         return NULL;
     }
 
     for (int i = 0; i < modeCount; i++) {
-        if (SDL_GetDisplayMode(0, i, &modes[i]) != 0) {
+        if (SDL_GetDisplayMode(0, i, &availableModes[i]) != 0) {
             printf("SDL_GetDisplayMode failed: %s\n", SDL_GetError());
-            free(modes);
+            free(availableModes);
+            free(neededModes);
+            return NULL;
+        }
+        if (
+            (double)availableModes[i].w / availableModes[i].h < 1.8
+            && (double)availableModes[i].w / availableModes[i].h > 1.7
+        ) {
+            // 16:9 ratio with a big enough decimal tolerance
+            neededModes[(*count)++] = availableModes[i];
+        }
+        if ((availableModes[i].w <= 1024) && (availableModes[i].h <= 576)) {
+            // Skip availableModes that are too small
+            break;
+        }
+    }
+    if (neededCount != *count) {
+        neededModes = realloc(neededModes, *count * sizeof(SDL_DisplayMode));
+        if (!neededModes) {
+            printf("Failed to reallocate memory for neededModes\n");
+            free(availableModes);
             return NULL;
         }
     }
-
-    *count = modeCount;
-    return modes;
+    free(availableModes);
+    return neededModes;
 }
 
 void setDisplayMode(DisplayManager mgr, const SDL_DisplayMode *mode) {

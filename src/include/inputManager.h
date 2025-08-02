@@ -54,4 +54,9 @@ Uint8 isActionPressed(InputManager inputMng, InputAction action);
  */
 InputAction scancodeToAction(InputManager inputMng, SDL_Scancode scancode);
 
+/**
+ * 
+ */
+const char* getHRKeyFromInputAction(InputManager inputMng, InputAction action);
+
 #endif

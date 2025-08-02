@@ -64,5 +64,4 @@ void pauseToPlay(ZENg zEngine) {
 void pauseToMMenu(ZENg zEngine) {
     popState(zEngine);  // -> play
     popState(zEngine);  // -> Menu
-    renderMenu(zEngine);  // Render main menu once
 }
