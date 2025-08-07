@@ -49,6 +49,7 @@ typedef Vec2 PositionComponent;  // Position in 2D space
 typedef struct {
     Vec2 currVelocity;  // Current velocity
     double_t maxVelocity;  // Maximum speed of the entity
+    Axis prevAxis;  // The last axis the entity moved on
     PositionComponent predictedPos;  // holds the predicted position based on the current velocity and direction
     Uint8 active;
 } VelocityComponent;
@@ -193,7 +194,9 @@ PositionComponent* createPositionComponent(PositionComponent pos);
  * 
  */
 
-VelocityComponent* createVelocityComponent(Vec2 velocity, double_t maxVelocity, PositionComponent predictedPos, Uint8 active);
+VelocityComponent* createVelocityComponent(
+    Vec2 velocity, double_t maxVelocity, PositionComponent predictedPos, Axis lastAxis, Uint8 active
+);
 
 /**
  * 

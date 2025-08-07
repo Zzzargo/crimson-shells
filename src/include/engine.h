@@ -43,6 +43,12 @@ void initLevel(ZENg zEngine, const char *levelFilePath);
 ZENg initGame();
 
 /**
+ * Ensures the entities are aligned to the grid
+ * @param zEngine pointer to the engine
+ */
+void positionSystem(ZENg zEngine);
+
+/**
  * Updates the entities' positions based on their velocity
  * @param zEngine pointer to the engine
  * @param deltaTime time since the last frame in seconds

@@ -23,7 +23,7 @@ void onEnterPlayState(ZENg zEngine) {
 
     VelocityComponent *speedComp = createVelocityComponent(
         (Vec2){0.0, 0.0},
-        300.0, *posComp, 1
+        250.0, *posComp, AXIS_NONE, 1
     );
     addComponent(zEngine->gEcs, id, VELOCITY_COMPONENT, (void *)speedComp);
 
@@ -238,7 +238,7 @@ void spawnBulletProjectile(ZENg zEngine, Entity shooter) {
 
     VelocityComponent *bulletSpeed = createVelocityComponent(
         (Vec2) {bulletDir->x * 500, bulletDir->y * 500},
-        500.0, *bulletPos, 1
+        500.0, *bulletPos, AXIS_NONE, 1
     );
     addComponent(zEngine->gEcs, bulletID, VELOCITY_COMPONENT, (void *)bulletSpeed);
 
@@ -358,18 +358,22 @@ void handlePlayStateInput(ZENg zEngine) {
     Uint8 moving = 0;  // flag to check if the player is moving
     if (isActionPressed(zEngine->inputMng, INPUT_MOVE_UP)) {
         *playerDir = DIR_UP;
+        playerSpeed->prevAxis = AXIS_Y;
         moving = 1;
     }
     if (isActionPressed(zEngine->inputMng, INPUT_MOVE_DOWN)) {
         *playerDir = DIR_DOWN;
+        playerSpeed->prevAxis = AXIS_Y;
         moving = 1;
     }
     if (isActionPressed(zEngine->inputMng, INPUT_MOVE_LEFT)) {
         *playerDir = DIR_LEFT;
+        playerSpeed->prevAxis = AXIS_X;
         moving = 1;
     }
     if (isActionPressed(zEngine->inputMng, INPUT_MOVE_RIGHT)) {
         *playerDir = DIR_RIGHT;
+        playerSpeed->prevAxis = AXIS_X;
         moving = 1;
     }
 
@@ -386,6 +390,7 @@ void handlePlayStateInput(ZENg zEngine) {
 void updatePlayStateLogic(ZENg zEngine, double_t deltaTime) {
     lifetimeSystem(zEngine, deltaTime);  // Deletes expired entities
     velocitySystem(zEngine, deltaTime);  // Updates predicted positions
+    positionSystem(zEngine);  // Snaps entities to the grid when needed
     worldCollisionSystem(zEngine, deltaTime);  // Handles world collisions based on predicted positions
     entityCollisionSystem(zEngine);  // Handles entities collisions based on predicted positions and validates them
     healthSystem(zEngine);  // Deletes entities with <= health

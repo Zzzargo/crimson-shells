@@ -303,7 +303,7 @@ PositionComponent* createPositionComponent(PositionComponent pos) {
  * =====================================================================================================================
  */
 
-VelocityComponent* createVelocityComponent(Vec2 velocity, double_t maxVelocity, PositionComponent predictedPos, Uint8 active) {
+VelocityComponent* createVelocityComponent(Vec2 velocity, double_t maxVelocity, PositionComponent predictedPos, Axis lastAxis, Uint8 active) {
     VelocityComponent *comp = calloc(1, sizeof(VelocityComponent));
     if (!comp) {
         printf("Failed to allocate memory for velocity component\n");
@@ -312,6 +312,7 @@ VelocityComponent* createVelocityComponent(Vec2 velocity, double_t maxVelocity, 
     comp->currVelocity = velocity;
     comp->maxVelocity = maxVelocity;
     comp->predictedPos = predictedPos;
+    comp->prevAxis = lastAxis;
     comp->active = active;
     return comp;
 }

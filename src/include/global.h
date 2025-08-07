@@ -22,4 +22,14 @@ typedef int64_t Int64;
 #define CMP_COLORS(c1, c2) \
     ((c1).r == (c2).r && (c1).g == (c2).g && (c1).b == (c2).b && (c1).a == (c2).a)
 
+// Coordinate system axis
+typedef enum {
+    AXIS_NONE,  // For initializations
+    AXIS_X,
+    AXIS_Y
+} Axis;
+
+// A small enough value to be considered zero with floating point tolerance
+#define EPSILON 0.001
+
 #endif // GLOBAL_H

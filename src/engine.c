@@ -295,6 +295,35 @@ void velocitySystem(ZENg zEngine, double_t deltaTime) {
  * =====================================================================================================================
  */
 
+void positionSystem(ZENg zEngine) {
+    for (Uint64 i = 0; i < zEngine->gEcs->components[VELOCITY_COMPONENT].denseSize; i++) {
+        if ((zEngine->gEcs->componentsFlags[i] & (1 << HEALTH_COMPONENT)) == 0) {
+            // Only actors can have health (at least for now)
+            // And only actors obey the snap rule
+            continue;
+        }
+        VelocityComponent *velComp = (VelocityComponent *)(zEngine->gEcs->components[VELOCITY_COMPONENT].dense[i]);
+        Entity owner = zEngine->gEcs->components[VELOCITY_COMPONENT].denseToEntity[i];
+
+        Uint8 movingX = fabs(velComp->currVelocity.x) > EPSILON;
+        Uint8 movingY = fabs(velComp->currVelocity.y) > EPSILON;
+
+        if ((movingX && velComp->prevAxis) != AXIS_X) {
+            // Axis change -> snap the position to a tile
+            velComp->predictedPos.x = round(velComp->predictedPos.x / TILE_SIZE) * TILE_SIZE;
+            velComp->prevAxis = AXIS_X;
+        } else if ((movingY && velComp->prevAxis) != AXIS_Y) {
+            // Axis change -> snap the position to a tile
+            velComp->predictedPos.y = round(velComp->predictedPos.y / TILE_SIZE) * TILE_SIZE;
+            velComp->prevAxis = AXIS_Y;
+        }
+    }
+}
+
+/**
+ * =====================================================================================================================
+ */
+
 void lifetimeSystem(ZENg zEngine, double_t deltaTime) {
     for (Uint64 i = 0; i < zEngine->gEcs->components[LIFETIME_COMPONENT].denseSize; i++) {
         LifetimeComponent *lifeComp = (LifetimeComponent *)(zEngine->gEcs->components[LIFETIME_COMPONENT].dense[i]);
@@ -355,6 +384,44 @@ void handleEntitiesCollision(ZENg zEngine, CollisionComponent *AColComp, Collisi
  * =====================================================================================================================
  */
 
+Uint8 checkEntityCollision(ZENg zEngine, SDL_Rect *hitbox, SDL_Rect *result) {
+
+    // For entities bigger than one tile. consider the base the top-left tile
+    Uint32 tileX = (Uint32)(hitbox->x / TILE_SIZE);
+    Uint32 tileY = (Uint32)(hitbox->y / TILE_SIZE);
+    int eWidth = hitbox->w / TILE_SIZE;
+    int eHeight = hitbox->h / TILE_SIZE;
+    Int32 dxMax = eWidth + 1;
+    Int32 dyMax = eHeight + 1;
+
+    for (Int32 dx = -1; dx < dxMax; dx++) {
+        for (Int32 dy = -1; dy < dyMax; dy++) {
+            Uint32 neighX = (Int32)tileX + dx;
+            Uint32 neighY = (Int32)tileY + dy;
+
+            if (neighX > 0 && neighX < ARENA_WIDTH && neighY > 0 && neighY < ARENA_HEIGHT) {
+                Tile *neighTile = &zEngine->map->tiles[neighX][neighY];
+                SDL_Rect neighTileRect = {
+                    .x = neighX * TILE_SIZE,
+                    .y = neighY * TILE_SIZE,
+                    .w = TILE_SIZE,
+                    .h = TILE_SIZE
+                };
+
+                if (neighTile->isSolid && SDL_HasIntersection(hitbox, &neighTileRect)) {
+                    *result = neighTileRect;
+                    return 1;  // Collision detected
+                }
+            }
+        }
+    }
+    return 0;  // No collision
+}
+
+/**
+ * =====================================================================================================================
+ */
+
 void entityCollisionSystem(ZENg zEngine) {
     for (Uint64 i = 0; i < zEngine->gEcs->components[COLLISION_COMPONENT].denseSize; i++) {
         CollisionComponent *AColComp = (CollisionComponent *)(zEngine->gEcs->components[COLLISION_COMPONENT].dense[i]);
@@ -377,7 +444,12 @@ void entityCollisionSystem(ZENg zEngine) {
             continue;  // skip to the next entity
         }
 
-        // Check collisions with other entities
+        // TODO: REDUCE O(N^2) COMPLEXITY BY CHECKING ONLY NEIGHBORING ENTITIES
+        // quadtrees or spatial partitioning
+
+
+
+        // Check collisions with other entities in the vicinity
         for (Uint64 j = i + 1; j < zEngine->gEcs->components[COLLISION_COMPONENT].denseSize; j++) {
             CollisionComponent *BColComp = (CollisionComponent *)(zEngine->gEcs->components[COLLISION_COMPONENT].dense[j]);
             Entity BOwner = zEngine->gEcs->components[COLLISION_COMPONENT].denseToEntity[j];
@@ -442,8 +514,8 @@ Uint8 checkWorldCollision(ZENg zEngine, SDL_Rect *hitbox, SDL_Rect *result) {
     Int32 dxMax = eWidth + 1;
     Int32 dyMax = eHeight + 1;
 
-    for (Int32 dx = -1; dx < dxMax; dx++) {
-        for (Int32 dy = -1; dy < dyMax; dy++) {
+    for (Int32 dx = -1; dx <= dxMax; dx++) {
+        for (Int32 dy = -1; dy <= dyMax; dy++) {
             Uint32 neighX = (Int32)tileX + dx;
             Uint32 neighY = (Int32)tileY + dy;
 
@@ -510,6 +582,7 @@ void worldCollisionSystem(ZENg zEngine, double_t deltaTime) {
         eColComp->hitbox->x = eVelComp->predictedPos.x;
 
         if (checkWorldCollision(zEngine, eColComp->hitbox, &collidedTile)) {
+            
             if (moveX > 0) {
                 eColComp->hitbox->x = collidedTile.x - eColComp->hitbox->w;
             } else if (moveX < 0) {
@@ -524,6 +597,7 @@ void worldCollisionSystem(ZENg zEngine, double_t deltaTime) {
         eColComp->hitbox->y = eVelComp->predictedPos.y;
 
         if (checkWorldCollision(zEngine, eColComp->hitbox, &collidedTile)) {
+
             if (moveY > 0) {
                 eColComp->hitbox->y = collidedTile.y - eColComp->hitbox->h;
             } else if (moveY < 0) {
