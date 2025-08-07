@@ -5,18 +5,20 @@
 #include "inputManager.h"
 #include "resourceManager.h"
 #include "displayManager.h"
+#include "arena.h"
 
 struct statemng;  // forward declaration
 typedef struct statemng *StateManager;
 
 // Engine structure definition
 typedef struct engine {
-    DisplayManager display;
-    ResourceManager resources;
-    InputManager inputMng;
-    StateManager stateMng;
-    ECS uiEcs;
-    ECS gEcs;
+    DisplayManager display;  // Pointer to the display manager
+    ResourceManager resources;  // Pointer to the resource manager
+    InputManager inputMng;  // Pointer to the input manager
+    StateManager stateMng;  // Pointer to the state manager
+    ECS uiEcs;  // Pointer to the UI ECS
+    ECS gEcs;  // Pointer to the game ECS
+    Arena map;  // Pointer to the arena structure
 } *ZENg;
 
 #include "stateManager.h"  // stateManager needs the engine definition
@@ -28,6 +30,11 @@ typedef struct engine {
  * @note The function loads the settings into the engine's display manager and input manager
  */
 void loadSettings(ZENg zEngine, const char *filePath);
+
+/**
+ * Initializes a level arena from a file
+ */
+void initLevel(ZENg zEngine, const char *levelFilePath);
 
 /**
  * Initialises the game engine
@@ -57,13 +64,29 @@ void lifetimeSystem(ZENg zEngine, double_t deltaTime);
  * @param AOwner the owner entity of the first collision component
  * @param BOwner the owner entity of the second collision component
  */
-void handleCollision(ZENg zEngine, CollisionComponent *AColComp, CollisionComponent *BColComp, Entity AOwner, Entity BOwner);
+void handleEntitiesCollision(ZENg zEngine, CollisionComponent *AColComp, CollisionComponent *BColComp, Entity AOwner, Entity BOwner);
 
 /**
  * Passes the collision components to the collision handler
  * @param zEngine pointer to the engine
  */
-void collisionSystem(ZENg zEngine);
+void entityCollisionSystem(ZENg zEngine);
+
+/**
+ * Checks whether a SDL_Rect (usually a hitbox) collides with the world (walls)
+ * @param zEngine pointer to the engine
+ * @param hitbox pointer to a SDL_Rect
+ * @param result a pointer to a SDL_Rect representing the world part with which the entity collided, or NULL
+ * @return 1 if a collision was detected, 0 otherwise
+ * @note the result must be allocated before calling the function
+ */
+Uint8 checkWorldCollision(ZENg zEngine, SDL_Rect *hitbox, SDL_Rect *result);
+
+/**
+ * Passes the collision components to the collision handler
+ * @param zEngine pointer to the engine
+ */
+void worldCollisionSystem(ZENg zEngine, double_t deltaTime);
 
 /**
  * Updates entities based on their health

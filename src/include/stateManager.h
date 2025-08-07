@@ -162,13 +162,24 @@ void spawnBulletProjectile(ZENg zEngine, Entity owner);
  */
 Uint8 handlePlayStateEvents(SDL_Event *e, ZENg zEngine);
 
-// Game logic driven through continuous input
+/**
+ * Game logic driven through continuous input
+ */
 void handlePlayStateInput(ZENg zEngine);
 
-// Updates the game logic
+/**
+ * Updates the game logic
+ */
 void updatePlayStateLogic(ZENg zEngine, double_t deltaTime);
 
-// Renders the in-game entities
+/**
+ * Renders the game arena
+ */
+void renderArena(ZENg zEngine);
+
+/**
+ * Renders the in-game entities
+ */
 void renderPlayState(ZENg zEngine);
 
 // ================================================ PAUSE STATE ========================================================

@@ -288,7 +288,22 @@ DirectionComponent* createDirectionComponent(DirectionComponent dir) {
  * =====================================================================================================================
  */
 
-VelocityComponent* createVelocityComponent(Vec2 velocity, double_t maxVelocity, Uint8 active) {
+PositionComponent* createPositionComponent(PositionComponent pos) {
+    PositionComponent *comp = calloc(1, sizeof(PositionComponent));
+    if (!comp) {
+        printf("Failed to allocate memory for position component\n");
+        exit(EXIT_FAILURE);
+    }
+    *comp = pos;
+    return comp;
+}
+
+
+/**
+ * =====================================================================================================================
+ */
+
+VelocityComponent* createVelocityComponent(Vec2 velocity, double_t maxVelocity, PositionComponent predictedPos, Uint8 active) {
     VelocityComponent *comp = calloc(1, sizeof(VelocityComponent));
     if (!comp) {
         printf("Failed to allocate memory for velocity component\n");
@@ -296,6 +311,7 @@ VelocityComponent* createVelocityComponent(Vec2 velocity, double_t maxVelocity, 
     }
     comp->currVelocity = velocity;
     comp->maxVelocity = maxVelocity;
+    comp->predictedPos = predictedPos;
     comp->active = active;
     return comp;
 }
@@ -313,6 +329,60 @@ HealthComponent* createHealthComponent(Int32 maxHealth, Int32 currentHealth, Uin
     comp->maxHealth = maxHealth;
     comp->currentHealth = currentHealth;
     comp->active = active;
+    return comp;
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+CollisionComponent* createCollisionComponent(int x, int y, int w, int h, Uint8 isSolid, CollisionRole role) {
+    CollisionComponent *comp = calloc(1, sizeof(CollisionComponent));
+    if (!comp) {
+        printf("Failed to allocate memory for collision component\n");
+        exit(EXIT_FAILURE);
+    }
+    comp->hitbox = calloc(1, sizeof(SDL_Rect));
+    if (!comp->hitbox) {
+        printf("Failed to allocate memory for collision hitbox\n");
+        exit(EXIT_FAILURE);
+    }
+    comp->hitbox->x = x;
+    comp->hitbox->y = y;
+    comp->hitbox->w = w;
+    comp->hitbox->h = h;
+    comp->isSolid = isSolid;
+    comp->role = role;
+    return comp;
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+RenderComponent* createRenderComponent(SDL_Texture *texture, int x, int y, int w, int h, Uint8 active, Uint8 selected) {
+    RenderComponent *comp = calloc(1, sizeof(RenderComponent));
+    if (!comp) {
+        printf("Failed to allocate memory for render component\n");
+        exit(EXIT_FAILURE);
+    }
+    comp->texture = texture;
+    comp->active = active;
+    comp->selected = selected;
+
+    comp->destRect = calloc(1, sizeof(SDL_Rect));
+    if (!comp->destRect) {
+        printf("Failed to allocate memory for render destination rectangle\n");
+        exit(EXIT_FAILURE);
+    }
+
+    *comp->destRect = (SDL_Rect) {
+        .x = x,
+        .y = y,
+        .w = w,
+        .h = h
+    };
+
     return comp;
 }
 

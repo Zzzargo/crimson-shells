@@ -215,6 +215,7 @@ void preloadResources(ResourceManager resMng, SDL_Renderer *renderer) {
     getOrLoadResource(resMng, renderer, "assets/textures/mira.png", RESOURCE_TEXTURE);
     getOrLoadResource(resMng, renderer, "assets/textures/tank.png", RESOURCE_TEXTURE);
     getOrLoadResource(resMng, renderer, "assets/textures/bullet.png", RESOURCE_TEXTURE);
+    getOrLoadResource(resMng, renderer, "assets/textures/brick.jpg", RESOURCE_TEXTURE);
 }
 
 /**

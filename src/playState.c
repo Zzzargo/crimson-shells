@@ -8,17 +8,14 @@ void onEnterPlayState(ZENg zEngine) {
     HealthComponent *healthComp = createHealthComponent(100, 100, 1);
     addComponent(zEngine->gEcs, id, HEALTH_COMPONENT, (void *)healthComp);
 
-    PositionComponent *posComp = calloc(1, sizeof(PositionComponent));
-    if (!posComp) {
-        printf("Failed to allocate memory for position component\n");
-        exit(EXIT_FAILURE);
-    }
+
+    Uint32 playerStartTileX = 28;
+    Uint32 playerStartTileY = ARENA_HEIGHT - 2;  // bottom row
+    Int32 playerStartTile = playerStartTileY * ARENA_WIDTH + playerStartTileX;
     int wW, wH;
     SDL_GetWindowSize(zEngine->display->window, &wW, &wH);
-    *posComp = (PositionComponent) {
-        wW / 2.0,
-        wH / 2.0
-    };
+
+    PositionComponent *posComp = createPositionComponent(tileToWorld(playerStartTile));
     addComponent(zEngine->gEcs, id, POSITION_COMPONENT, (void *)posComp);
 
     DirectionComponent *dirComp = createDirectionComponent(DIR_UP);
@@ -26,100 +23,41 @@ void onEnterPlayState(ZENg zEngine) {
 
     VelocityComponent *speedComp = createVelocityComponent(
         (Vec2){0.0, 0.0},
-        300.0, 1
+        300.0, *posComp, 1
     );
     addComponent(zEngine->gEcs, id, VELOCITY_COMPONENT, (void *)speedComp);
 
-    CollisionComponent *colComp = calloc(1, sizeof(CollisionComponent));
-    if (!colComp) {
-        printf("Failed to allocate memory for collision component\n");
-        exit(EXIT_FAILURE);
-    }
-    colComp->hitbox = calloc(1, sizeof(SDL_Rect));
-    if (!colComp->hitbox) {
-        printf("Failed to allocate memory for collision hitbox\n");
-        exit(EXIT_FAILURE);
-    }
-    colComp->hitbox->x = posComp->x;
-    colComp->hitbox->y = posComp->y;
-    colComp->hitbox->w = wH / 20;  // size of the hitbox
-    colComp->hitbox->h = wH / 20;
-    colComp->isSolid = 1;  // player is sure solid
-    colComp->role = COL_ACTOR;  // player is an actor in the game
+    CollisionComponent *colComp = createCollisionComponent(
+        posComp->x, posComp->y, TILE_SIZE * 2, TILE_SIZE * 2,
+        1, COL_ACTOR
+    );
     addComponent(zEngine->gEcs, id, COLLISION_COMPONENT, (void *)colComp);
 
-    RenderComponent *renderComp = calloc(1, sizeof(RenderComponent));
-    if (!renderComp) {
-        printf("Failed to allocate memory for render component\n");
-        exit(EXIT_FAILURE);
-    }
-    renderComp->active = 1;
-    renderComp->selected = 0;
-
-    renderComp->destRect = calloc(1, sizeof(SDL_Rect));
-    if (!renderComp->destRect) {
-        printf("Failed to allocate memory for dot rectangle\n");
-        exit(EXIT_FAILURE);
-    }
-    // Initial position and size of the dot
-    *renderComp->destRect = (SDL_Rect){
-        .x = posComp->x,  // Centered horizontally
-        .y = posComp->y,  // Centered vertically
-        .w = wH / 20,
-        .h = wH / 20
-    };
-
-    renderComp->texture = getTexture(zEngine->resources, "assets/textures/tank.png");
-    if (!renderComp->texture) {
-        printf("Failed to create dot texture: %s\n", SDL_GetError());
-        exit(EXIT_FAILURE);
-    }
-
+    RenderComponent *renderComp = createRenderComponent(
+        getTexture(zEngine->resources, "assets/textures/tank.png"),
+        posComp->x, posComp->y, TILE_SIZE * 2, TILE_SIZE * 2,
+        1, 0
+    );
     addComponent(zEngine->gEcs, id, RENDER_COMPONENT, (void *)renderComp);
-
-    SDL_SetRenderTarget(zEngine->display->renderer, renderComp->texture);  // draw only to the dot texture
-    SDL_SetRenderDrawColor(zEngine->display->renderer, 255, 255, 255, 255);  // White color for the dot
-    SDL_RenderFillRect(zEngine->display->renderer, NULL);  // Fill the rectangle with white color
 
     // prepare the pause menu
 
     // continue option
-    ButtonComponent *cont = calloc(1, sizeof(ButtonComponent));
-    if (!cont) {
-        printf("Failed to allocate memory for continue text component\n");
-        exit(EXIT_FAILURE);
-    }
-    
-    cont->selected = 1;  // "Continue" is selected by default
-    cont->orderIdx = 0;
-    cont->font = getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf");
-    cont->text = strdup("Continue");
-    cont->color = COLOR_YELLOW;  // highlighted color
-    cont->onClick = &pauseToPlay;
+    ButtonComponent *cont = createButtonComponent(
+        zEngine->display->renderer,
+        getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf"),
+        "Continue",
+        COLOR_YELLOW,
+        &pauseToPlay,
+        1, 0
+    );
 
-    SDL_Surface *contSurface = TTF_RenderText_Solid(cont->font, cont->text, cont->color);
-    if (!contSurface) {
-        printf("Failed to create text surface: %s\n", TTF_GetError());
-        exit(EXIT_FAILURE);
-    }
-    cont->texture = SDL_CreateTextureFromSurface(zEngine->display->renderer, contSurface);
-    if (!cont->texture){
-        printf("Failed to create text texture: %s\n", SDL_GetError());
-        exit(EXIT_FAILURE);
-    }
-    cont->destRect = calloc(1, sizeof(SDL_Rect));
-    if (!cont->destRect) {
-        printf("Failed to allocate memory for continue rectangle\n");
-        exit(EXIT_FAILURE);
-    }
     *cont->destRect = (SDL_Rect){
-        .x = (wW - contSurface->w) / 2,
-        .y = (wH - contSurface->h) * 4 / 9,
-        .w = contSurface->w,
-        contSurface->h
+        .x = (wW - cont->destRect->w) / 2,
+        .y = (wH - cont->destRect->h) * 4 / 9,
+        .w = cont->destRect->w,
+        .h = cont->destRect->h
     };
-    SDL_FreeSurface(contSurface);
-
     id = createEntity(zEngine->uiEcs);  // get a new entity's ID
     addComponent(zEngine->uiEcs, id, BUTTON_COMPONENT, (void *)cont);
 
@@ -164,9 +102,6 @@ void onEnterPlayState(ZENg zEngine) {
     addComponent(zEngine->uiEcs, id, BUTTON_COMPONENT, (void *)exitToMMenu);
 
     SDL_SetRenderTarget(zEngine->display->renderer, NULL);  // Reset the render target
-
-
-
 
     // test entity
     id = createEntity(zEngine->gEcs);
@@ -246,6 +181,8 @@ void onEnterPlayState(ZENg zEngine) {
     SDL_SetRenderDrawColor(zEngine->display->renderer, 255, 255, 255, 255);  // White color for the dot
     SDL_RenderFillRect(zEngine->display->renderer, NULL);  // Fill the rectangle with white color
     SDL_SetRenderTarget(zEngine->display->renderer, NULL);  // Reset the render target
+
+    initLevel(zEngine, "null for now");
 }
 
 void onExitPlayState(ZENg zEngine) {
@@ -301,7 +238,7 @@ void spawnBulletProjectile(ZENg zEngine, Entity shooter) {
 
     VelocityComponent *bulletSpeed = createVelocityComponent(
         (Vec2) {bulletDir->x * 500, bulletDir->y * 500},
-        500.0, 1
+        500.0, *bulletPos, 1
     );
     addComponent(zEngine->gEcs, bulletID, VELOCITY_COMPONENT, (void *)bulletSpeed);
 
@@ -447,17 +384,40 @@ void handlePlayStateInput(ZENg zEngine) {
 }
 
 void updatePlayStateLogic(ZENg zEngine, double_t deltaTime) {
-    lifetimeSystem(zEngine, deltaTime);
-    velocitySystem(zEngine, deltaTime);
-    collisionSystem(zEngine);
-    healthSystem(zEngine);
-    transformSystem(zEngine->gEcs);
+    lifetimeSystem(zEngine, deltaTime);  // Deletes expired entities
+    velocitySystem(zEngine, deltaTime);  // Updates predicted positions
+    worldCollisionSystem(zEngine, deltaTime);  // Handles world collisions based on predicted positions
+    entityCollisionSystem(zEngine);  // Handles entities collisions based on predicted positions and validates them
+    healthSystem(zEngine);  // Deletes entities with <= health
+    transformSystem(zEngine->gEcs);  // Updates the screen textures of entities based on their virtual positions
+}
+
+void renderArena(ZENg zEngine) {
+    SDL_SetRenderDrawColor(zEngine->display->renderer, 20, 20, 20, 200);  // background color - grey
+    SDL_RenderClear(zEngine->display->renderer);
+
+    for (Uint64 y = 0; y < ARENA_HEIGHT; y++) {
+        for (Uint64 x = 0; x < ARENA_WIDTH; x++) {
+            SDL_Rect tileRect = {
+                .x = x * TILE_SIZE,
+                .y = y * TILE_SIZE,
+                .w = TILE_SIZE,
+                .h = TILE_SIZE
+            };
+            if (zEngine->map->tiles[x][y].texture) {
+                SDL_RenderCopy(
+                    zEngine->display->renderer,
+                    zEngine->map->tiles[x][y].texture,
+                    NULL,
+                    &tileRect
+                );
+            }
+        }
+    }
 }
 
 void renderPlayState(ZENg zEngine) {
-    // Clear the screen
-    SDL_SetRenderDrawColor(zEngine->display->renderer, 20, 20, 20, 200);  // background color - grey
-    SDL_RenderClear(zEngine->display->renderer);
+    renderArena(zEngine);
 
     // Render game entities
     for (Uint64 i = 0; i < zEngine->gEcs->components[RENDER_COMPONENT].denseSize; i++) {
@@ -468,19 +428,25 @@ void renderPlayState(ZENg zEngine) {
             Uint64 ownerPage = owner / PAGE_SIZE;
             Uint64 ownerPageIdx = owner % PAGE_SIZE;
             Uint64 ownerDenseIdx = zEngine->gEcs->components[DIRECTION_COMPONENT].sparse[ownerPage][ownerPageIdx];
-            DirectionComponent *dirComp = (DirectionComponent *)(zEngine->gEcs->components[DIRECTION_COMPONENT].dense[ownerDenseIdx]);
 
-            if ((*dirComp).x == 0.0 && (*dirComp).y == -1.0) {
-                angle = 0.0;
-            } else if ((*dirComp).x == 0.0 && (*dirComp).y == 1.0) {
-                angle = 180.0;
-            } else if ((*dirComp).x == -1.0 && (*dirComp).y == 0.0) {
-                angle = 270.0;
-            } else if ((*dirComp).x == 1.0 && (*dirComp).y == 0.0) {
-                angle = 90.0;
+            // Check if the entity has a direction component
+            bitset hasDirection = 1 << DIRECTION_COMPONENT;
+            if (zEngine->gEcs->componentsFlags[owner] & hasDirection) {
+                DirectionComponent *dirComp = (DirectionComponent *)(zEngine->gEcs->components[DIRECTION_COMPONENT].dense[ownerDenseIdx]);
+
+                if (VEC2_EQUAL(*dirComp, DIR_UP)) {
+                    angle = 0.0;
+                } else if (VEC2_EQUAL(*dirComp, DIR_DOWN)) {
+                    angle = 180.0;
+                } else if (VEC2_EQUAL(*dirComp, DIR_LEFT)) {
+                    angle = 270.0;
+                } else if (VEC2_EQUAL(*dirComp, DIR_RIGHT)) {
+                    angle = 90.0;
+                }
             }
 
             SDL_RenderCopyEx(zEngine->display->renderer, render->texture, NULL, render->destRect, angle, NULL, SDL_FLIP_NONE);
         }
     }
+    renderDebugCollision(zEngine);
 }

@@ -49,6 +49,7 @@ typedef Vec2 PositionComponent;  // Position in 2D space
 typedef struct {
     Vec2 currVelocity;  // Current velocity
     double_t maxVelocity;  // Maximum speed of the entity
+    PositionComponent predictedPos;  // holds the predicted position based on the current velocity and direction
     Uint8 active;
 } VelocityComponent;
 
@@ -186,13 +187,28 @@ DirectionComponent* createDirectionComponent(DirectionComponent dir);
 /**
  * 
  */
+PositionComponent* createPositionComponent(PositionComponent pos);
 
-VelocityComponent* createVelocityComponent(Vec2 velocity, double_t maxVelocity, Uint8 active);
+/**
+ * 
+ */
+
+VelocityComponent* createVelocityComponent(Vec2 velocity, double_t maxVelocity, PositionComponent predictedPos, Uint8 active);
 
 /**
  * 
  */
 HealthComponent* createHealthComponent(Int32 maxHealth, Int32 currentHealth, Uint8 active);
+
+/**
+ * 
+ */
+CollisionComponent* createCollisionComponent(int x, int y, int w, int h, Uint8 isSolid, CollisionRole role);
+
+/**
+ * 
+ */
+RenderComponent* createRenderComponent(SDL_Texture *texture, int x, int y, int w, int h, Uint8 active, Uint8 selected);
 
 /**
  * Adds a component to an entity in an ECS
