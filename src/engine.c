@@ -296,26 +296,48 @@ void velocitySystem(ZENg zEngine, double_t deltaTime) {
  */
 
 void positionSystem(ZENg zEngine) {
-    for (Uint64 i = 0; i < zEngine->gEcs->components[VELOCITY_COMPONENT].denseSize; i++) {
-        if ((zEngine->gEcs->componentsFlags[i] & (1 << HEALTH_COMPONENT)) == 0) {
+    for (Uint64 i = 0; i  < zEngine->gEcs->components[POSITION_COMPONENT].denseSize; i++) {
+        PositionComponent *posComp = (PositionComponent *)(zEngine->gEcs->components[POSITION_COMPONENT].dense[i]);
+        Entity owner = zEngine->gEcs->components[POSITION_COMPONENT].denseToEntity[i];
+        Uint64 page = owner / PAGE_SIZE;
+        Uint64 idx = owner % PAGE_SIZE;
+
+        if ((zEngine->gEcs->componentsFlags[owner] & (1 << HEALTH_COMPONENT)) == 0) {
             // Only actors can have health (at least for now)
             // And only actors obey the snap rule
             continue;
         }
-        VelocityComponent *velComp = (VelocityComponent *)(zEngine->gEcs->components[VELOCITY_COMPONENT].dense[i]);
-        Entity owner = zEngine->gEcs->components[VELOCITY_COMPONENT].denseToEntity[i];
+        if ((zEngine->gEcs->componentsFlags[owner] & (1 << VELOCITY_COMPONENT)) == 0) {
+            // Only entities with a velocity component can be snapped
+            continue;
+        }
+        Uint64 velDenseIdx = zEngine->gEcs->components[VELOCITY_COMPONENT].sparse[page][idx];
+        VelocityComponent *velComp = (VelocityComponent *)(zEngine->gEcs->components[VELOCITY_COMPONENT].dense[velDenseIdx]);
 
         Uint8 movingX = fabs(velComp->currVelocity.x) > EPSILON;
         Uint8 movingY = fabs(velComp->currVelocity.y) > EPSILON;
-
-        if ((movingX && velComp->prevAxis) != AXIS_X) {
+        
+        Int32 currTileIdx = worldToTile(*posComp);
+        Uint32 currTileX = currTileIdx % ARENA_WIDTH;
+        Uint32 currTileY = currTileIdx / ARENA_WIDTH;
+        
+        if (movingX && (velComp->prevAxis != AXIS_X)) {
             // Axis change -> snap the position to a tile
-            velComp->predictedPos.x = round(velComp->predictedPos.x / TILE_SIZE) * TILE_SIZE;
+            posComp->y = round(posComp->y / TILE_SIZE) * TILE_SIZE;
             velComp->prevAxis = AXIS_X;
-        } else if ((movingY && velComp->prevAxis) != AXIS_Y) {
+        } else if (movingY && (velComp->prevAxis != AXIS_Y)) {
             // Axis change -> snap the position to a tile
-            velComp->predictedPos.y = round(velComp->predictedPos.y / TILE_SIZE) * TILE_SIZE;
+            posComp->x = round(posComp->x / TILE_SIZE) * TILE_SIZE;
             velComp->prevAxis = AXIS_Y;
+        } else {
+            // Last case can happen when the collision system changed the velocity
+            if ((zEngine->gEcs->componentsFlags[owner] & (1 << DIRECTION_COMPONENT)) != 0) {
+                // If the current direction is on a different axis than the prevAxis - snap
+                Uint64 dirDenseIdx = zEngine->gEcs->components[DIRECTION_COMPONENT].sparse[page][idx];
+                DirectionComponent *dirComp = (DirectionComponent *)(zEngine->gEcs->components[DIRECTION_COMPONENT].dense[dirDenseIdx]);
+
+                // TODO
+            }
         }
     }
 }
@@ -639,6 +661,7 @@ void transformSystem(ECS ecs) {
             // if the entity has also the render component
             Uint64 page = entitty / PAGE_SIZE;  // determine the page for the entity
             Uint64 index = entitty % PAGE_SIZE;  // determine the index within the page
+
             Uint64 denseIndex = ecs->components[RENDER_COMPONENT].sparse[page][index];
             if (denseIndex >= ecs->components[RENDER_COMPONENT].denseSize) {
                 printf("Warning: Entity %ld has a render component with invalid dense index %lu\n", entitty, denseIndex);

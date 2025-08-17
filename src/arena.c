@@ -10,8 +10,8 @@ Vec2 tileToWorld(Int32 idx) {
 }
 
 Int32 worldToTile(Vec2 pos) {
-    Int32 x = (Int32)(pos.x / TILE_SIZE);
-    Int32 y = (Int32)(pos.y / TILE_SIZE);
+    Int32 x = (Int32)(round(pos.x / TILE_SIZE));
+    Int32 y = (Int32)(round(pos.y / TILE_SIZE));
     
     // Ensure the coordinates are within bounds
     if (x < 0 || x >= ARENA_WIDTH || y < 0 || y >= ARENA_HEIGHT) {

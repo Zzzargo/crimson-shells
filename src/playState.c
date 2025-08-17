@@ -8,8 +8,7 @@ void onEnterPlayState(ZENg zEngine) {
     HealthComponent *healthComp = createHealthComponent(100, 100, 1);
     addComponent(zEngine->gEcs, id, HEALTH_COMPONENT, (void *)healthComp);
 
-
-    Uint32 playerStartTileX = 28;
+    Uint32 playerStartTileX = ARENA_WIDTH / 2;
     Uint32 playerStartTileY = ARENA_HEIGHT - 2;  // bottom row
     Int32 playerStartTile = playerStartTileY * ARENA_WIDTH + playerStartTileX;
     int wW, wH;
@@ -41,7 +40,7 @@ void onEnterPlayState(ZENg zEngine) {
     addComponent(zEngine->gEcs, id, RENDER_COMPONENT, (void *)renderComp);
 
     // prepare the pause menu
-
+    Uint32 orderIdx = 0;
     // continue option
     ButtonComponent *cont = createButtonComponent(
         zEngine->display->renderer,
@@ -49,7 +48,7 @@ void onEnterPlayState(ZENg zEngine) {
         "Continue",
         COLOR_YELLOW,
         &pauseToPlay,
-        1, 0
+        1, orderIdx++
     );
 
     *cont->destRect = (SDL_Rect){
@@ -62,125 +61,48 @@ void onEnterPlayState(ZENg zEngine) {
     addComponent(zEngine->uiEcs, id, BUTTON_COMPONENT, (void *)cont);
 
     // exit to main menu option
-    ButtonComponent *exitToMMenu = calloc(1, sizeof(ButtonComponent));
-    if (!exitToMMenu) {
-        printf("Failed to allocate memory for exit to main menu text component\n");
-        exit(EXIT_FAILURE);
-    }
-    
-    exitToMMenu->selected = 0;
-    exitToMMenu->orderIdx = 1;
-    exitToMMenu->font = getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf");
-    exitToMMenu->text = strdup("Exit to main menu");
-    exitToMMenu->color = COLOR_WHITE;
-    exitToMMenu->onClick = &pauseToMMenu;
-
-    SDL_Surface *exitSurf = TTF_RenderText_Solid(exitToMMenu->font, exitToMMenu->text, exitToMMenu->color);
-    if (!exitSurf) {
-        printf("Failed to create text surface: %s\n", TTF_GetError());
-        exit(EXIT_FAILURE);
-    }
-    exitToMMenu->texture = SDL_CreateTextureFromSurface(zEngine->display->renderer, exitSurf);
-    if (!exitToMMenu->texture){
-        printf("Failed to create text texture: %s\n", SDL_GetError());
-        exit(EXIT_FAILURE);
-    }
-    exitToMMenu->destRect = calloc(1, sizeof(SDL_Rect));
-    if (!exitToMMenu->destRect) {
-        printf("Failed to allocate memory for exit to main menu rectangle\n");
-        exit(EXIT_FAILURE);
-    }
+    ButtonComponent *exitToMMenu = createButtonComponent(
+        zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf"),
+        strdup("Exit to main menu"), COLOR_WHITE, &pauseToMMenu, 0, orderIdx++
+    );
     *exitToMMenu->destRect = (SDL_Rect){
-        .x = (wW - exitSurf->w) / 2,
-        .y = (wH - exitSurf->h) * 4 / 7,
-        .w = exitSurf->w,
-        exitSurf->h
+        .x = (wW - exitToMMenu->destRect->w) / 2,
+        .y = (wH - exitToMMenu->destRect->h) * 4 / 7,
+        .w = exitToMMenu->destRect->w,
+        .h = exitToMMenu->destRect->h
     };
-    SDL_FreeSurface(exitSurf);
 
     id = createEntity(zEngine->uiEcs);  // get a new entity's ID
     addComponent(zEngine->uiEcs, id, BUTTON_COMPONENT, (void *)exitToMMenu);
 
-    SDL_SetRenderTarget(zEngine->display->renderer, NULL);  // Reset the render target
-
     // test entity
+    Int32 testEStartTileX = playerStartTileX + 5;
+    Int32 testEStartTileY = playerStartTileY - 5;
+    Int32 testEStartTileIdx = testEStartTileY * ARENA_WIDTH + testEStartTileX;
+
     id = createEntity(zEngine->gEcs);
-    HealthComponent *ThealthComp = calloc(1, sizeof(HealthComponent));
-    if (!ThealthComp) {
-        printf("Failed to allocate memory for health component\n");
-        exit(EXIT_FAILURE);
-    }
-    *ThealthComp = (HealthComponent) {100, 100, 1};  // current, max, active
+    HealthComponent *ThealthComp = createHealthComponent(
+        100, 100, 1
+    );
     addComponent(zEngine->gEcs, id, HEALTH_COMPONENT, (void *)ThealthComp);
 
-    PositionComponent *TposComp = calloc(1, sizeof(PositionComponent));
-    if (!TposComp) {
-        printf("Failed to allocate memory for position component\n");
-        exit(EXIT_FAILURE);
-    }
-    *TposComp = (PositionComponent) {
-        wW / 2.0 + 500,
-        wH / 2.0
-    };
+    PositionComponent *TposComp = createPositionComponent(
+        tileToWorld(testEStartTileIdx)
+    );
     addComponent(zEngine->gEcs, id, POSITION_COMPONENT, (void *)TposComp);
 
-    CollisionComponent *TcolComp = calloc(1, sizeof(CollisionComponent));
-    if (!TcolComp) {
-        printf("Failed to allocate memory for collision component\n");
-        exit(EXIT_FAILURE);
-    }
-    TcolComp->hitbox = calloc(1, sizeof(SDL_Rect));
-    if (!TcolComp->hitbox) {
-        printf("Failed to allocate memory for collision hitbox\n");
-        exit(EXIT_FAILURE);
-    }
-    TcolComp->hitbox->x = TposComp->x;
-    TcolComp->hitbox->y = TposComp->y;
-    TcolComp->hitbox->w = wH / 20;  // size of the hitbox
-    TcolComp->hitbox->h = wH / 20;
-    TcolComp->isSolid = 1;  // player is sure solid
-    TcolComp->role = COL_ACTOR;
+    CollisionComponent *TcolComp = createCollisionComponent(
+        TposComp->x, TposComp->y,
+        TILE_SIZE * 2, TILE_SIZE * 2, 1, COL_ACTOR
+    );
     addComponent(zEngine->gEcs, id, COLLISION_COMPONENT, (void *)TcolComp);
 
-    RenderComponent *TrenderComp = calloc(1, sizeof(RenderComponent));
-    if (!TrenderComp) {
-        printf("Failed to allocate memory for render component\n");
-        exit(EXIT_FAILURE);
-    }
-    TrenderComp->active = 1;
-    TrenderComp->selected = 0;
-
-    TrenderComp->destRect = calloc(1, sizeof(SDL_Rect));
-    if (!TrenderComp->destRect) {
-        printf("Failed to allocate memory for dot rectangle\n");
-        exit(EXIT_FAILURE);
-    }
-    // Initial position and size of the dot
-    *TrenderComp->destRect = (SDL_Rect) {
-        .x = TposComp->x,  // Centered horizontally
-        .y = TposComp->y,  // Centered vertically
-        .w = wH / 20,
-        .h = wH / 20
-    };
-
-    TrenderComp->texture = SDL_CreateTexture(
-        zEngine->display->renderer,
-        SDL_PIXELFORMAT_RGBA8888,
-        SDL_TEXTUREACCESS_TARGET,
-        TrenderComp->destRect->w,
-        TrenderComp->destRect->h
+    RenderComponent *TrenderComp = createRenderComponent(
+        getTexture(zEngine->resources, "assets/textures/adele.png"),
+        TposComp->x, TposComp->y, TILE_SIZE * 2, TILE_SIZE * 2,
+        1, 0
     );
-    if (!TrenderComp->texture) {
-        printf("Failed to create dot texture: %s\n", SDL_GetError());
-        exit(EXIT_FAILURE);
-    }
-
     addComponent(zEngine->gEcs, id, RENDER_COMPONENT, (void *)TrenderComp);
-
-    SDL_SetRenderTarget(zEngine->display->renderer, TrenderComp->texture);  // draw only to the dot texture
-    SDL_SetRenderDrawColor(zEngine->display->renderer, 255, 255, 255, 255);  // White color for the dot
-    SDL_RenderFillRect(zEngine->display->renderer, NULL);  // Fill the rectangle with white color
-    SDL_SetRenderTarget(zEngine->display->renderer, NULL);  // Reset the render target
 
     initLevel(zEngine, "null for now");
 }
@@ -358,22 +280,18 @@ void handlePlayStateInput(ZENg zEngine) {
     Uint8 moving = 0;  // flag to check if the player is moving
     if (isActionPressed(zEngine->inputMng, INPUT_MOVE_UP)) {
         *playerDir = DIR_UP;
-        playerSpeed->prevAxis = AXIS_Y;
         moving = 1;
     }
     if (isActionPressed(zEngine->inputMng, INPUT_MOVE_DOWN)) {
         *playerDir = DIR_DOWN;
-        playerSpeed->prevAxis = AXIS_Y;
         moving = 1;
     }
     if (isActionPressed(zEngine->inputMng, INPUT_MOVE_LEFT)) {
         *playerDir = DIR_LEFT;
-        playerSpeed->prevAxis = AXIS_X;
         moving = 1;
     }
     if (isActionPressed(zEngine->inputMng, INPUT_MOVE_RIGHT)) {
         *playerDir = DIR_RIGHT;
-        playerSpeed->prevAxis = AXIS_X;
         moving = 1;
     }
 
@@ -390,9 +308,9 @@ void handlePlayStateInput(ZENg zEngine) {
 void updatePlayStateLogic(ZENg zEngine, double_t deltaTime) {
     lifetimeSystem(zEngine, deltaTime);  // Deletes expired entities
     velocitySystem(zEngine, deltaTime);  // Updates predicted positions
-    positionSystem(zEngine);  // Snaps entities to the grid when needed
     worldCollisionSystem(zEngine, deltaTime);  // Handles world collisions based on predicted positions
     entityCollisionSystem(zEngine);  // Handles entities collisions based on predicted positions and validates them
+    positionSystem(zEngine);  // Snaps entities to the grid when needed
     healthSystem(zEngine);  // Deletes entities with <= health
     transformSystem(zEngine->gEcs);  // Updates the screen textures of entities based on their virtual positions
 }
@@ -421,8 +339,31 @@ void renderArena(ZENg zEngine) {
     }
 }
 
+void renderDebugGrid(ZENg zEngine) {
+    SDL_SetRenderDrawColor(zEngine->display->renderer, 100, 100, 100, 50);
+    
+    // Draw vertical grid lines
+    for (int x = 0; x <= ARENA_WIDTH; x++) {
+        SDL_RenderDrawLine(
+            zEngine->display->renderer,
+            x * TILE_SIZE, 0,
+            x * TILE_SIZE, zEngine->display->currentMode.h
+        );
+    }
+    
+    // Draw horizontal grid lines
+    for (int y = 0; y <= ARENA_HEIGHT; y++) {
+        SDL_RenderDrawLine(
+            zEngine->display->renderer,
+            0, y * TILE_SIZE,
+            zEngine->display->currentMode.w, y * TILE_SIZE
+        );
+    }
+}
+
 void renderPlayState(ZENg zEngine) {
     renderArena(zEngine);
+    renderDebugGrid(zEngine);
 
     // Render game entities
     for (Uint64 i = 0; i < zEngine->gEcs->components[RENDER_COMPONENT].denseSize; i++) {

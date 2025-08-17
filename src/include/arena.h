@@ -3,8 +3,8 @@
 
 #include "global.h"
 
-#define ARENA_WIDTH 64
-#define ARENA_HEIGHT 36
+#define ARENA_WIDTH 48
+#define ARENA_HEIGHT 27
 extern Uint32 TILE_SIZE;  // Size of a tile, will be initialized once the display is initialized
 
 typedef enum {
