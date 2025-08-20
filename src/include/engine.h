@@ -78,6 +78,14 @@ void handleEntitiesCollision(ZENg zEngine, CollisionComponent *AColComp, Collisi
  */
 void entityCollisionSystem(ZENg zEngine);
 
+#ifdef DEBUG
+/**
+ * Renders lines on margins of entities' hitboxes to visualize the collisions
+ * @param zEngine pointer to the engine
+ */
+void renderDebugCollision(ZENg zEngine);
+#endif
+
 /**
  * Checks whether a SDL_Rect (usually a hitbox) collides with the world (walls)
  * @param zEngine pointer to the engine
@@ -102,7 +110,7 @@ void healthSystem(ZENg zEngine);
 
 /**
  * Updates the rendered entities based on their position
- * @param ecs pointer to the ECS
+ * @param ecs pointer to the ECS (game ECS)
  */
 void transformSystem(ECS ecs);
 

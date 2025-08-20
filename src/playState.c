@@ -40,40 +40,41 @@ void onEnterPlayState(ZENg zEngine) {
     addComponent(zEngine->gEcs, id, RENDER_COMPONENT, (void *)renderComp);
 
     // prepare the pause menu
-    Uint32 orderIdx = 0;
-    // continue option
-    ButtonComponent *cont = createButtonComponent(
-        zEngine->display->renderer,
-        getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf"),
-        "Continue",
-        COLOR_YELLOW,
-        &pauseToPlay,
-        1, orderIdx++
-    );
 
-    *cont->destRect = (SDL_Rect){
-        .x = (wW - cont->destRect->w) / 2,
-        .y = (wH - cont->destRect->h) * 4 / 9,
-        .w = cont->destRect->w,
-        .h = cont->destRect->h
+    int screenH = zEngine->display->currentMode.h;
+    int screenW = zEngine->display->currentMode.w;
+
+    // Percentages from the top of the screen
+    double titlePos = 0.3;
+    double listStartPos = 0.45;
+    double listItemsSpacing = 0.08;
+
+    // Create buttons with evenly spaced positions
+    char* buttonLabels[] = {
+        "Resume", "Exit to main menu"
     };
-    id = createEntity(zEngine->uiEcs);  // get a new entity's ID
-    addComponent(zEngine->uiEcs, id, BUTTON_COMPONENT, (void *)cont);
-
-    // exit to main menu option
-    ButtonComponent *exitToMMenu = createButtonComponent(
-        zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf"),
-        strdup("Exit to main menu"), COLOR_WHITE, &pauseToMMenu, 0, orderIdx++
-    );
-    *exitToMMenu->destRect = (SDL_Rect){
-        .x = (wW - exitToMMenu->destRect->w) / 2,
-        .y = (wH - exitToMMenu->destRect->h) * 4 / 7,
-        .w = exitToMMenu->destRect->w,
-        .h = exitToMMenu->destRect->h
+    // this is amazing
+    void (*buttonActions[])(ZENg) = {
+        &pauseToPlay, &pauseToMMenu
     };
 
-    id = createEntity(zEngine->uiEcs);  // get a new entity's ID
-    addComponent(zEngine->uiEcs, id, BUTTON_COMPONENT, (void *)exitToMMenu);
+    for (Uint8 orderIdx = 0; orderIdx < (sizeof(buttonLabels) / sizeof(buttonLabels[0])); orderIdx++) {
+        ButtonComponent *button = createButtonComponent (
+            zEngine->display->renderer, 
+            getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf"),
+            strdup(buttonLabels[orderIdx]), 
+            orderIdx == 0 ? COLOR_YELLOW : COLOR_WHITE, // First button selected (color)
+            buttonActions[orderIdx], 
+            orderIdx == 0 ? 1 : 0,  // First button selected (field flag)
+            orderIdx
+        );
+        
+        button->destRect->x = (screenW - button->destRect->w) / 2;
+        button->destRect->y = screenH * (listStartPos + orderIdx * listItemsSpacing);
+        
+        id = createEntity(zEngine->uiEcs);
+        addComponent(zEngine->uiEcs, id, BUTTON_COMPONENT, (void *)button);
+    }
 
     // test entity
     Int32 testEStartTileX = playerStartTileX + 5;
@@ -98,7 +99,7 @@ void onEnterPlayState(ZENg zEngine) {
     addComponent(zEngine->gEcs, id, COLLISION_COMPONENT, (void *)TcolComp);
 
     RenderComponent *TrenderComp = createRenderComponent(
-        getTexture(zEngine->resources, "assets/textures/adele.png"),
+        getTexture(zEngine->resources, "assets/textures/tank.png"),
         TposComp->x, TposComp->y, TILE_SIZE * 2, TILE_SIZE * 2,
         1, 0
     );
@@ -128,34 +129,32 @@ void spawnBulletProjectile(ZENg zEngine, Entity shooter) {
     // get the shooter components
     Uint64 shooterPage = shooter / PAGE_SIZE;
     Uint64 shooterPageIdx = shooter % PAGE_SIZE;
-    Uint64 shooterDenseIdx = zEngine->gEcs->components[RENDER_COMPONENT].sparse[shooterPage][shooterPageIdx];
-
+    
+    Uint64 shooterDirDenseIdx = zEngine->gEcs->components[DIRECTION_COMPONENT].sparse[shooterPage][shooterPageIdx];
     // Bullet inherits the shooter's direction
     DirectionComponent *bulletDir = createDirectionComponent(
-        *(DirectionComponent *)(zEngine->gEcs->components[DIRECTION_COMPONENT].dense[shooterDenseIdx])
+        *(DirectionComponent *)(zEngine->gEcs->components[DIRECTION_COMPONENT].dense[shooterDirDenseIdx])
     );
     addComponent(zEngine->gEcs, bulletID, DIRECTION_COMPONENT, (void *)bulletDir);
 
-    SDL_Rect *shooterRect = (*(RenderComponent *)(zEngine->gEcs->components[RENDER_COMPONENT].dense[shooterDenseIdx])).destRect;
-    PositionComponent *shooterPos = (PositionComponent *)(zEngine->gEcs->components[POSITION_COMPONENT].dense[shooterDenseIdx]);
+    Uint64 shooterRdrDenseIdx = zEngine->gEcs->components[RENDER_COMPONENT].sparse[shooterPage][shooterPageIdx];
+    SDL_Rect *shooterRect = (*(RenderComponent *)(zEngine->gEcs->components[RENDER_COMPONENT].dense[shooterRdrDenseIdx])).destRect;
 
-    double playerCenterX = shooterPos->x + shooterRect->w / 2.0;
-    double playerCenterY = shooterPos->y + shooterRect->h / 2.0;
+    Uint64 shooterPosDenseIdx = zEngine->gEcs->components[POSITION_COMPONENT].sparse[shooterPage][shooterPageIdx];
+    PositionComponent *shooterPos = (PositionComponent *)(zEngine->gEcs->components[POSITION_COMPONENT].dense[shooterPosDenseIdx]);
 
-    double bulletOffsetX = bulletDir->x * (shooterRect->w / 2.0 + bulletW / 2.0);
-    double bulletOffsetY = bulletDir->y * (shooterRect->h / 2.0 + bulletH / 2.0);
+    double_t playerCenterX = shooterPos->x + shooterRect->w / 2.0;
+    double_t playerCenterY = shooterPos->y + shooterRect->h / 2.0;
 
-    PositionComponent *bulletPos = calloc(1, sizeof(PositionComponent));
-    if (!bulletPos) {
-        printf("Failed to allocate memory for bullet position component\n");
-        exit(EXIT_FAILURE);
-    }
-    *bulletPos = (PositionComponent) {
-        // bullet starts at the edge of the player rect corresponding to the player's direction
-        playerCenterX + bulletOffsetX - bulletW / 2.0,
-        playerCenterY + bulletOffsetY - bulletH / 2.0
-    };
+    double_t bulletOffsetX = bulletDir->x * (shooterRect->w / 2.0 + bulletW / 2.0);
+    double_t bulletOffsetY = bulletDir->y * (shooterRect->h / 2.0 + bulletH / 2.0);
 
+    PositionComponent *bulletPos = createPositionComponent(
+        (Vec2) {
+            playerCenterX + bulletOffsetX - bulletW / 2.0,
+            playerCenterY + bulletOffsetY - bulletH / 2.0
+        }
+    );
     addComponent(zEngine->gEcs, bulletID, POSITION_COMPONENT, (void *)bulletPos);
 
     VelocityComponent *bulletSpeed = createVelocityComponent(
@@ -188,49 +187,17 @@ void spawnBulletProjectile(ZENg zEngine, Entity shooter) {
     };
     addComponent(zEngine->gEcs, bulletID, LIFETIME_COMPONENT, (void *)lifeComp);
 
-    CollisionComponent *bulletColl = calloc(1, sizeof(CollisionComponent));
-    if (!bulletColl) {
-        printf("Failed to allocate memory for bullet collision component\n");
-        exit(EXIT_FAILURE);
-    }
-    bulletColl->hitbox = calloc(1, sizeof(SDL_Rect));
-    if (!bulletColl->hitbox) {
-        printf("Failed to allocate memory for bullet collision hitbox\n");
-        exit(EXIT_FAILURE);
-    }
-    bulletColl->hitbox->x = (int)bulletPos->x;
-    bulletColl->hitbox->y = (int)bulletPos->y;
-    bulletColl->hitbox->w = 10;  // bullet size
-    bulletColl->hitbox->h = 10;
-    bulletColl->isSolid = 0;  // bullets can pass through each other
-    bulletColl->role = COL_BULLET;
+    CollisionComponent *bulletColl = createCollisionComponent(
+        (int)bulletPos->x, (int)bulletPos->y, bulletW, bulletH,
+        0, COL_BULLET
+    );
     addComponent(zEngine->gEcs, bulletID, COLLISION_COMPONENT, (void *)bulletColl);
 
-    RenderComponent *bulletRender = calloc(1, sizeof(RenderComponent));
-    if (!bulletRender) {
-        printf("Failed to allocate memory for bullet render component\n");
-        exit(EXIT_FAILURE);
-    }
-
-    bulletRender->active = 1;
-    bulletRender->selected = 0;
-    bulletRender->destRect = calloc(1, sizeof(SDL_Rect));
-    if (!bulletRender->destRect) {
-        printf("Failed to allocate memory for bullet rectangle\n");
-        exit(EXIT_FAILURE);
-    }
-    *bulletRender->destRect = (SDL_Rect){
-        .x = (int)bulletPos->x,
-        .y = (int)bulletPos->y,
-        .w = 10,  // bullet size
-        .h = 10
-    };
-    bulletRender->texture = getTexture(zEngine->resources, "assets/textures/bullet.png");
-    if (!bulletRender->texture) {
-        printf("Failed to create bullet texture: %s\n", SDL_GetError());
-        exit(EXIT_FAILURE);
-    }
-
+    RenderComponent *bulletRender = createRenderComponent(
+        getTexture(zEngine->resources, "assets/textures/bullet.png"),
+        (int)bulletPos->x, (int)bulletPos->y, bulletW, bulletH,
+        1, 0
+    );
     addComponent(zEngine->gEcs, bulletID, RENDER_COMPONENT, (void *)bulletRender);
 }
 
@@ -339,6 +306,7 @@ void renderArena(ZENg zEngine) {
     }
 }
 
+#ifdef DEBUG
 void renderDebugGrid(ZENg zEngine) {
     SDL_SetRenderDrawColor(zEngine->display->renderer, 100, 100, 100, 50);
     
@@ -360,25 +328,31 @@ void renderDebugGrid(ZENg zEngine) {
         );
     }
 }
+#endif
 
 void renderPlayState(ZENg zEngine) {
     renderArena(zEngine);
-    renderDebugGrid(zEngine);
+    #ifdef DEBUG
+        renderDebugGrid(zEngine);
+        printf("There are %lu entities with a dirty render component\n", zEngine->gEcs->components[RENDER_COMPONENT].dirtyCount);
+    #endif
 
-    // Render game entities
-    for (Uint64 i = 0; i < zEngine->gEcs->components[RENDER_COMPONENT].denseSize; i++) {
-        RenderComponent *render = (RenderComponent *)(zEngine->gEcs->components[RENDER_COMPONENT].dense[i]);
-        if (render) {
+    while (zEngine->gEcs->components[RENDER_COMPONENT].dirtyCount > 0) {
+        // Render only the dirty entities
+        Entity dirtyOwner = (zEngine->gEcs->components[RENDER_COMPONENT].dirtyEntities[0]);
+        Uint64 page = dirtyOwner / PAGE_SIZE;
+        Uint64 index = dirtyOwner % PAGE_SIZE;
+        Uint64 rdrDenseIdx = zEngine->gEcs->components[RENDER_COMPONENT].sparse[page][index];
+        RenderComponent *render = (RenderComponent *)(zEngine->gEcs->components[RENDER_COMPONENT].dense[rdrDenseIdx]);
+
+        if (render && render->destRect) {
             double angle = 0.0;
-            Entity owner = zEngine->gEcs->components[RENDER_COMPONENT].denseToEntity[i];
-            Uint64 ownerPage = owner / PAGE_SIZE;
-            Uint64 ownerPageIdx = owner % PAGE_SIZE;
-            Uint64 ownerDenseIdx = zEngine->gEcs->components[DIRECTION_COMPONENT].sparse[ownerPage][ownerPageIdx];
 
             // Check if the entity has a direction component
             bitset hasDirection = 1 << DIRECTION_COMPONENT;
-            if (zEngine->gEcs->componentsFlags[owner] & hasDirection) {
-                DirectionComponent *dirComp = (DirectionComponent *)(zEngine->gEcs->components[DIRECTION_COMPONENT].dense[ownerDenseIdx]);
+            if (zEngine->gEcs->componentsFlags[dirtyOwner] & hasDirection) {
+                Uint64 dirDenseIdx = zEngine->gEcs->components[DIRECTION_COMPONENT].sparse[page][index];
+                DirectionComponent *dirComp = (DirectionComponent *)(zEngine->gEcs->components[DIRECTION_COMPONENT].dense[dirDenseIdx]);
 
                 if (VEC2_EQUAL(*dirComp, DIR_UP)) {
                     angle = 0.0;
@@ -393,6 +367,10 @@ void renderPlayState(ZENg zEngine) {
 
             SDL_RenderCopyEx(zEngine->display->renderer, render->texture, NULL, render->destRect, angle, NULL, SDL_FLIP_NONE);
         }
+        unmarkComponentDirty(zEngine->gEcs, RENDER_COMPONENT);  // mark the render component as clean
     }
-    renderDebugCollision(zEngine);
+    
+    #ifdef DEBUG
+        renderDebugCollision(zEngine);
+    #endif
 }

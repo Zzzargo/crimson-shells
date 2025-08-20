@@ -53,6 +53,10 @@ void initGECS(ECS *gEcs) {
         (*gEcs)->components[i].pageCount = 0;
 
         (*gEcs)->components[i].type = i;
+
+        (*gEcs)->components[i].dirtyEntities = NULL;
+        (*gEcs)->components[i].dirtyCount = 0;
+        (*gEcs)->components[i].dirtyCapacity = 0;
     }
 }
 
@@ -108,6 +112,9 @@ void initUIECS(ECS *uiEcs) {
         (*uiEcs)->components[i].sparse = NULL;
         (*uiEcs)->components[i].pageCount = 0;
         (*uiEcs)->components[i].type = i;
+        (*uiEcs)->components[i].dirtyEntities = NULL;
+        (*uiEcs)->components[i].dirtyCount = 0;
+        (*uiEcs)->components[i].dirtyCapacity = 0;
     }
 }
 
@@ -126,7 +133,10 @@ Entity createEntity(ECS ecs) {
             // resize the ECS if needed
             Uint64 oldCapacity = ecs->capacity;
             ecs->capacity *= 2;
-            printf("Resizing ECS %s from %lu to %lu\n", ecs->name, oldCapacity, ecs->capacity);
+
+            #ifdef DEBUG
+                printf("Resizing ECS %s from %lu to %lu\n", ecs->name, oldCapacity, ecs->capacity);
+            #endif
 
             Entity *tmpActive = realloc(ecs->activeEntities, ecs->capacity * sizeof(Entity));
             if (!tmpActive) {
@@ -173,7 +183,11 @@ Entity createEntity(ECS ecs) {
 
     ecs->componentsFlags[entitty] = 0;  // the new entity has no components
     ecs->activeEntities[ecs->entityCount++] = entitty;  // add it to the active entities array
-    printf("Created entity with ID %ld in %s\n", entitty, ecs->name);
+
+    #ifdef DEBUG
+        printf("Created entity with ID %ld in %s\n", entitty, ecs->name);
+    #endif
+
     return entitty;
 }
 
@@ -402,7 +416,10 @@ void addComponent(ECS ecs, Entity id, ComponentType compType, void *component) {
 
     // Check if the page exists, if not, allocate it
     if (ecs->components[compType].sparse == NULL || ecs->components[compType].pageCount <= page) {
-        printf("Allocating memory for a page of the component %d's array\n", compType);
+        #ifdef DEBUG
+            printf("Allocating memory for a page of the component %d's array\n", compType);
+        #endif
+
         // Allocate memory for a new page
         ecs->components[compType].sparse = realloc(ecs->components[compType].sparse, (page + 1) * sizeof(Uint64 *));
         if (!ecs->components[compType].sparse) {
@@ -422,7 +439,10 @@ void addComponent(ECS ecs, Entity id, ComponentType compType, void *component) {
     
     // Check if the dense array exists, if not, allocate it
     if (ecs->components[compType].dense == NULL) {
-        printf("Allocating memory for the dense array of the component %d\n", compType);
+        #ifdef DEBUG
+            printf("Allocating memory for the dense array of the component %d\n", compType);
+        #endif
+
         // initially, it will have INIT_CAPACITY memory allocated
         ecs->components[compType].dense = calloc(ecs->capacity, sizeof(void *));
         ecs->components[compType].denseToEntity = calloc(ecs->capacity, sizeof(Entity));
@@ -434,7 +454,10 @@ void addComponent(ECS ecs, Entity id, ComponentType compType, void *component) {
 
     // Check if the entity ID will fit in the dense array
     if (id >= ecs->capacity) {
-        printf("Reallocating memory for the dense array of the component %d's array\n", compType);
+        #ifdef DEBUG
+            printf("Reallocating memory for the dense array of the component %d's array\n", compType);
+        #endif
+
         // Resize the dense array if needed
         void **tmpDense = realloc(ecs->components[compType].dense, ecs->capacity * sizeof(void *));
         Entity *tmpDenseToEntity = realloc(ecs->components[compType].denseToEntity, ecs->capacity * sizeof(Entity));
@@ -453,10 +476,78 @@ void addComponent(ECS ecs, Entity id, ComponentType compType, void *component) {
     ecs->components[compType].denseToEntity[denseIdx] = id;  // map the component to its entity ID
     ecs->components[compType].denseSize++;
 
-    // and set the corresponding bitmask
+    // And set the corresponding bitmask
     ecs->componentsFlags[id] |= (1 << compType);
-    printf("Added component %d to entity %ld from %s\n", compType, id, ecs->name);
+
+    const ComponentType fineGrainedType[] = {
+        HEALTH_COMPONENT,
+        RENDER_COMPONENT
+    };
+    const size_t fineGrainedCount = sizeof(fineGrainedType) / sizeof(ComponentType);
+    for (size_t i = 0; i < fineGrainedCount; i++) {
+        if (compType == fineGrainedType[i]) {
+            markComponentDirty(ecs, id, compType);  // Mark fine-grained components as dirty at creation
+            break;
+        }
+    }
+
+    #ifdef DEBUG
+        printf("Added component %d to entity %ld from %s\n", compType, id, ecs->name);
+    #endif
 }
+
+/**
+ * =====================================================================================================================
+ */
+
+void markComponentDirty(ECS ecs, Entity id, ComponentType compType) {
+    if (!ecs) {
+        fprintf(stderr, "ECS is NULL, cannot mark component dirty\n");
+        return;
+    }
+
+    if (id >= ecs->capacity || id < 0) {
+        printf("Warning: Attempting to mark component dirty for entity %ld which is out of bounds\n", id);
+        return;
+    }
+
+    if (ecs->components[compType].dirtyCount >= ecs->components[compType].dirtyCapacity) {
+        // Resize the dirty entities array if needed
+
+        // Double the capacity if it is full, begin with 4
+        ecs->components[compType].dirtyCapacity = ecs->components[compType].dirtyCapacity == 0 ? 4 : ecs->components[compType].dirtyCapacity * 2;
+        Entity *newDirtyEntities = realloc(
+            ecs->components[compType].dirtyEntities,
+            ecs->components[compType].dirtyCapacity * sizeof(Entity)
+        );
+        if (!newDirtyEntities) {
+            fprintf(stderr, "Failed to resize dirty entities array for component %d\n", compType);
+            return;
+        }
+        ecs->components[compType].dirtyEntities = newDirtyEntities;
+    }
+
+    ecs->components[compType].dirtyEntities[ecs->components[compType].dirtyCount++] = id;
+}
+
+void unmarkComponentDirty(ECS ecs, ComponentType compType) {
+    if (!ecs) {
+        fprintf(stderr, "ECS is NULL, cannot unmark component dirty\n");
+        return;
+    }
+
+    if (compType >= COMPONENT_COUNT) {
+        fprintf(stderr, "Invalid component type %d\n", compType);
+        return;
+    }
+
+    // The first entity becomes clean
+    ecs->components[compType].dirtyEntities[0] = ecs->components[compType].dirtyEntities[--ecs->components[compType].dirtyCount];
+}
+
+/**
+ * =====================================================================================================================
+ */
 
 /**
  * =====================================================================================================================
@@ -576,7 +667,9 @@ void deleteEntity(ECS ecs, Entity id) {
     ecs->freeEntities[ecs->freeEntityCount++] = id;
     ecs->entityCount--;
     
-    printf("Deleted entity with ID %ld from %s\n", id, ecs->name);
+    #ifdef DEBUG
+        printf("Deleted entity with ID %ld from %s\n", id, ecs->name);
+    #endif
 }
 
 /**

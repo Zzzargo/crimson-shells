@@ -1,6 +1,8 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
+// #define DEBUG
+
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <SDL2/SDL_image.h>
@@ -29,7 +31,5 @@ typedef enum {
     AXIS_Y
 } Axis;
 
-// A small enough value to be considered zero with floating point tolerance
-#define EPSILON 0.001
 
 #endif // GLOBAL_H

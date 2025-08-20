@@ -55,7 +55,10 @@ Uint8 isActionPressed(InputManager inputMng, InputAction action);
 InputAction scancodeToAction(InputManager inputMng, SDL_Scancode scancode);
 
 /**
- * 
+ * Translates an InputAction to a human-readable key name
+ * @param inputMng pointer to the input manager
+ * @param action InputAction enum value to translate
+ * @return a string representing the key name, or NULL if the action is unknown
  */
 const char* getHRKeyFromInputAction(InputManager inputMng, InputAction action);
 

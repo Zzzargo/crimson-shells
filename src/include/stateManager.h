@@ -43,19 +43,23 @@ void renderMenu(ZENg zEngine);
 Uint8 handleMenuNavigation(SDL_Event *event, ZENg zEngine, char *firstItem, char *lastItem, void (*renderFunc)(ZENg));
 
 /**
- * 
+ * Exits the game
+ * @param zEngine pointer to the engine
+ * @note This function just sets the current state to STATE_EXIT
  */
 void prepareExit(ZENg zEngine);
 
 // ============================================ MAIN MENU STATE ========================================================
 
 /**
- * 
+ * Transition from main menu to play state
+ * @param zEngine pointer to the engine
  */
 void mMenuToPlay(ZENg zEngine);
 
 /**
- * 
+ * Transition from main menu to options state
+ * @param zEngine pointer to the engine
  */
 void mMenuToOptions(ZENg zEngine);
 
@@ -88,70 +92,102 @@ Uint8 handleMainMenuEvents(SDL_Event *event, ZENg zEngine);
 // ============================================= OPTIONS STATE =========================================================
 
 /**
- * 
+ * Transition from options menu to game options
+ * @param zEngine pointer to the engine
  */
 void optionsToGameOpt(ZENg zEngine);
 
 /**
- * 
+ * Transition from options menu to audio options
+ * @param zEngine pointer to the engine
  */
 void optionsToAudioOpt(ZENg zEngine);
 
 /**
- * 
+ * Transition from options menu to video options
+ * @param zEngine pointer to the engine
  */
 void optionsToVideoOpt(ZENg zEngine);
 
 /**
- * 
+ * Transition from options menu to controls options
+ * @param zEngine pointer to the engine
  */
 void optionsToControlsOpt(ZENg zEngine);
 
 /**
- * 
+ * Transition from options menu to main menu
+ * @param zEngine pointer to the engine
  */
 void optionsToMMenu(ZENg zEngine);
 
-// Loads the options menu UI components into the ECS
+/**
+ * Loads the options menu UI components into the ECS
+ * @param zEngine pointer to the engine
+ */
 void onEnterOptionsMenu(ZENg zEngine);
 
-// Clears the options menu UI components from the ECS
+/**
+ * Clears the options menu UI components from the ECS
+ * @param zEngine pointer to the engine
+ */
 void onExitOptionsMenu(ZENg zEngine);
 
-// Takes care of the events in the options menu
+/**
+ * Takes care of the events in the options menu
+ * @param event pointer to the SDL_Event
+ * @param zEngine pointer to the engine
+ * @return 0 if the event is trying to exit the game, 1 otherwise
+ */
 Uint8 handleOptionsMenuEvents(SDL_Event *event, ZENg zEngine);
 
 // ============================================= VIDEO OPTIONS STATE ===================================================
 
 /**
- * 
+ * Loads the video options UI components into the ECS
+ * @param zEngine pointer to the engine
  */
 void onEnterVideoOptions(ZENg zEngine);
 
 /**
- * 
+ * Deletes the video options UI components from the ECS
+ * @param zEngine pointer to the engine
  */
 void onExitVideoOptions(ZENg zEngine);
 
 /**
- * 
+ * Handles the events in the video options menu
+ * @param event pointer to the SDL_Event
+ * @param zEngine pointer to the engine
+ * @return 0 if the event is trying to exit the game, 1 otherwise
  */
 Uint8 handleVideoOptionsEvents(SDL_Event *event, ZENg zEngine);
 
 /**
- * 
+ * Transition from video options to options menu
+ * @param zEngine pointer to the engine
  */
 void videoOptToOpt(ZENg zEngine);
 
 // ================================================ PLAY STATE =========================================================
 
-// Loads the initial game entities into the ECS when entering the play state
+/**
+ * Loads the initial game entities into the ECS when entering the play state
+ * @param zEngine pointer to the engine
+ */
 void onEnterPlayState(ZENg zEngine);
 
-// Deletes the game entities
+/**
+ * Deletes the game entities
+ * @param zEngine pointer to the engine
+ */
 void onExitPlayState(ZENg zEngine);
 
-// Spawns a bullet with a given owner entity, in the same direction the owner is looking
+/**
+ * Spawns a bullet with a given owner entity
+ * @param zEngine pointer to the engine
+ * @param owner the owner entity of the bullet
+ */
 void spawnBulletProjectile(ZENg zEngine, Entity owner);
 
 /**
@@ -164,37 +200,55 @@ Uint8 handlePlayStateEvents(SDL_Event *e, ZENg zEngine);
 
 /**
  * Game logic driven through continuous input
+ * @param zEngine pointer to the engine
  */
 void handlePlayStateInput(ZENg zEngine);
 
 /**
- * Updates the game logic
+ * Calls the systems that update the game logic
+ * @param zEngine pointer to the engine
+ * @param deltaTime time since the last frame, in seconds
  */
 void updatePlayStateLogic(ZENg zEngine, double_t deltaTime);
 
 /**
  * Renders the game arena
+ * @param zEngine pointer to the engine
  */
 void renderArena(ZENg zEngine);
 
+#ifdef DEBUG
+/**
+ * Renders lines on the tiles' margins to visualize the grid
+ * @param zEngine pointer to the engine
+ */
+void renderDebugGrid(ZENg zEngine);
+#endif
+
 /**
  * Renders the in-game entities
+ * @param zEngine pointer to the engine
  */
 void renderPlayState(ZENg zEngine);
 
 // ================================================ PAUSE STATE ========================================================
 
 /**
- * 
+ * Transitions from the pause state to the play state
+ * @param zEngine pointer to the engine
  */
 void pauseToPlay(ZENg zEngine);
 
 /**
- * 
+ * Transitions from the pause state to the main menu
+ * @param zEngine pointer to the engine
  */
 void pauseToMMenu(ZENg zEngine);
 
-// Updates the pause menu UI components
+/**
+ * Updates the pause menu UI components
+ * @param zEngine pointer to the engine
+ */
 void updatePauseUI(ZENg zEngine);
 
 /**
@@ -205,7 +259,10 @@ void updatePauseUI(ZENg zEngine);
  */
 Uint8 handlePauseStateEvents(SDL_Event *e, ZENg zEngine);
 
-// Renders the pause menu UI
+/**
+ * Renders the pause menu UI
+ * @param zEngine pointer to the engine
+ */
 void renderPauseState(ZENg zEngine);
 
 // =====================================================================================================================

@@ -15,16 +15,22 @@ void pushState(ZENg zEngine, GameState *state) {
         // call onExit if the pushed state is not an overlay
         if (curr && !state->isOverlay && curr->onExit) {
             curr->onExit(zEngine);
-            printf("Called onExit for state %d\n", curr->type);
+            #ifdef DEBUG
+                printf("Called onExit for state %d\n", curr->type);
+            #endif
         }
 
         zEngine->stateMng->states[zEngine->stateMng->top++] = state;
         if (state->onEnter) {
             state->onEnter(zEngine);
-            printf("Called onEnter for state %d\n", state->type);
+            #ifdef DEBUG
+                printf("Called onEnter for state %d\n", state->type);
+            #endif
         }
 
-        printf("Exited state %d, entered state %d\n", curr ? curr->type : -1, state->type);
+        #ifdef DEBUG
+            printf("Exited state %d, entered state %d\n", curr ? curr->type : -1, state->type);
+        #endif
     }
 }
 
@@ -34,18 +40,25 @@ void popState(ZENg zEngine) {
         GameState *currState = zEngine->stateMng->states[--zEngine->stateMng->top];
         if (currState->onExit) {
             currState->onExit(zEngine);
-            printf("Called onExit for state %d\n", currState->type);
+            #ifdef DEBUG
+                printf("Called onExit for state %d\n", currState->type);
+            #endif
         }
 
         // and call onEnter for the new top if the popped one was not an overlay
         GameState *newState = getCurrState(zEngine->stateMng);
         if (newState && !currState->isOverlay && newState->onEnter) {
             newState->onEnter(zEngine);
-            printf("Called onEnter for state %d\n", newState->type);
+            #ifdef DEBUG
+                printf("Called onEnter for state %d\n", newState->type);
+            #endif
         }
 
         
-        printf("Exited state %d, entered state %d\n", currState->type, newState->type);
+        #ifdef DEBUG
+            printf("Exited state %d, entered state %d\n", currState->type, newState->type);
+        #endif
+        
         free(currState);
         currState = NULL;  // clear the pointer to avoid dangling pointer issues
     }

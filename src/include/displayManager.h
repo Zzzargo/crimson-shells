@@ -40,8 +40,6 @@ SDL_DisplayMode* getAvailableDisplayModes(DisplayManager mgr, int *count);
  */
 void setDisplayMode(DisplayManager mgr, const SDL_DisplayMode *mode);
 
-// void handleDisplayEvent(DisplayManager mgr, SDL_Event *event);
-
 /**
  * Saves the current display settings to a file
  * @param mgr pointer to the display manager

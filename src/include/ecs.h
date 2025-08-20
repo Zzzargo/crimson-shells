@@ -36,6 +36,10 @@ typedef struct {
     Uint64 denseSize;  // Current size of the dense array
     Uint64 pageCount;  // Number of pages allocated for this component
     ComponentType type;  // The type of the component, needed for further info on each component
+
+    Entity *dirtyEntities;  // Array of entities that need to be updated
+    Uint64 dirtyCount;  // Number of dirty entities
+    Uint64 dirtyCapacity;  // Capacity of the dirty entities array
 } Component;
 
 typedef struct {
@@ -181,35 +185,63 @@ ButtonComponent* createButtonComponent(
 );
 
 /**
- * 
+ * Creates a direction component
+ * @param dir a direction vector
+ * @return a pointer to a DirectionComponent
  */
 DirectionComponent* createDirectionComponent(DirectionComponent dir);
 
 /**
- * 
+ * Creates a position component
+ * @param pos a position vector
+ * @return a pointer to a PositionComponent
  */
 PositionComponent* createPositionComponent(PositionComponent pos);
 
 /**
- * 
+ * Creates a velocity component
+ * @param velocity the current velocity vector
+ * @param maxVelocity the maximum speed of the entity
+ * @param predictedPos the predicted position based on the current velocity and direction
+ * @param lastAxis the last axis the entity moved on
+ * @param active indicates if the component is active
+ * @return a pointer to a VelocityComponent
  */
-
 VelocityComponent* createVelocityComponent(
     Vec2 velocity, double_t maxVelocity, PositionComponent predictedPos, Axis lastAxis, Uint8 active
 );
 
 /**
- * 
+ * Creates a health component
+ * @param maxHealth the maximum health of the entity
+ * @param currentHealth the current health of the entity
+ * @param active indicates if the component is active
+ * @return a pointer to a HealthComponent
  */
 HealthComponent* createHealthComponent(Int32 maxHealth, Int32 currentHealth, Uint8 active);
 
 /**
- * 
+ * Creates a collision component
+ * @param x the x coordinate of the hitbox
+ * @param y the y coordinate of the hitbox
+ * @param w the width of the hitbox
+ * @param h the height of the hitbox
+ * @param isSolid indicates if the entity can be passed through
+ * @param role the role of the entity in the collision
+ * @return a pointer to a CollisionComponent
  */
 CollisionComponent* createCollisionComponent(int x, int y, int w, int h, Uint8 isSolid, CollisionRole role);
 
 /**
- * 
+ * Creates a render component
+ * @param texture the texture to render
+ * @param x the x coordinate of the destination rectangle
+ * @param y the y coordinate of the destination rectangle
+ * @param w the width of the destination rectangle
+ * @param h the height of the destination rectangle
+ * @param active indicates if the component is active
+ * @param selected indicates if the component is selected (for UI components)
+ * @return a pointer to a RenderComponent
  */
 RenderComponent* createRenderComponent(SDL_Texture *texture, int x, int y, int w, int h, Uint8 active, Uint8 selected);
 
@@ -221,6 +253,22 @@ RenderComponent* createRenderComponent(SDL_Texture *texture, int x, int y, int w
  * @param component address of a component to be added to the entity
 */
 void addComponent(ECS ecs, Entity id, ComponentType compType, void *component);
+
+/**
+ * Marks an entity's component as dirty, meaning it needs to be updated
+ * @param ecs an ECS struct = struct ecs*
+ * @param id ID of the owner entity
+ * @param compType component type = enum variable
+ */
+void markComponentDirty(ECS ecs, Entity id, ComponentType compType);
+
+/**
+ * Deletes a component from the dirty array
+ * @param ecs an ECS struct = struct ecs*
+ * @param compType component type = enum variable
+ * @note the first entity in the dirty array is removed, as the array acts like a queue
+ */
+void unmarkComponentDirty(ECS ecs, ComponentType compType);
 
 /**
  * Deletes an entity along with all its associated components

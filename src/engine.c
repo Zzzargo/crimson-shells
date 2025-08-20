@@ -385,7 +385,11 @@ void handleEntitiesCollision(ZENg zEngine, CollisionComponent *AColComp, Collisi
         HealthComponent *actorHealth = (HealthComponent *)(zEngine->gEcs->components[HEALTH_COMPONENT].dense[HDenseIdx]);
         if (actorHealth && actorHealth->active) {
             actorHealth->currentHealth -= AProjComp->dmg;
-            printf("Bullet (%lu) takes %u health from entity %lu\n", AOwner, AProjComp->dmg, BOwner);
+            markComponentDirty(zEngine->gEcs, BOwner, HEALTH_COMPONENT);
+
+            #ifdef DEBUG
+                printf("Bullet (%lu) takes %u health from entity %lu\n", AOwner, AProjComp->dmg, BOwner);
+            #endif
         }
         deleteEntity(zEngine->gEcs, AOwner);  // delete the bullet
     } else if (BColComp->role == COL_BULLET && AColComp->isSolid && AOwner != PLAYER_ID && BProjComp) {
@@ -396,7 +400,10 @@ void handleEntitiesCollision(ZENg zEngine, CollisionComponent *AColComp, Collisi
         HealthComponent *actorHealth = (HealthComponent *)(zEngine->gEcs->components[HEALTH_COMPONENT].dense[HDenseIdx]);
         if (actorHealth && actorHealth->active) {
             actorHealth->currentHealth -= BProjComp->dmg;
-            printf("Bullet (%lu) takes %u health from entity %lu\n", BOwner, BProjComp->dmg, AOwner);
+            markComponentDirty(zEngine->gEcs, AOwner, HEALTH_COMPONENT);
+            #ifdef DEBUG
+                printf("Bullet (%lu) takes %u health from entity %lu\n", BOwner, BProjComp->dmg, AOwner);
+            #endif
         }
         deleteEntity(zEngine->gEcs, BOwner);  // delete the bullet
     }
@@ -483,7 +490,10 @@ void entityCollisionSystem(ZENg zEngine) {
 
             // Check for intersections
             if (SDL_HasIntersection(AColComp->hitbox, BColComp->hitbox)) {
-                printf("Collision detected between entities %ld and %ld\n", AOwner, BOwner);
+                #ifdef DEBUG
+                    printf("Collision detected between entities %ld and %ld\n", AOwner, BOwner);
+                #endif
+
                 handleEntitiesCollision(zEngine, AColComp, BColComp, AOwner, BOwner);
             }
         }
@@ -494,6 +504,7 @@ void entityCollisionSystem(ZENg zEngine) {
  * =====================================================================================================================
  */
 
+#ifdef DEBUG
 // Add this function to help debug collision
 void renderDebugCollision(ZENg zEngine) {
     // Draw entity hitboxes in red
@@ -521,6 +532,7 @@ void renderDebugCollision(ZENg zEngine) {
         }
     }
 }
+#endif
 
 /**
  * =====================================================================================================================
@@ -637,13 +649,22 @@ void worldCollisionSystem(ZENg zEngine, double_t deltaTime) {
  */
 
 void healthSystem(ZENg zEngine) {
-    for (Uint64 i = 0; i < zEngine->gEcs->components[HEALTH_COMPONENT].denseSize; i++) {
-        HealthComponent *healthComp = (HealthComponent *)(zEngine->gEcs->components[HEALTH_COMPONENT].dense[i]);
-        Entity ownerID = zEngine->gEcs->components[HEALTH_COMPONENT].denseToEntity[i];
+    #ifdef DEBUG
+        printf("There are %lu dirty health components\n", zEngine->gEcs->components[HEALTH_COMPONENT].dirtyCount);
+    #endif
+    
+    while (zEngine->gEcs->components[HEALTH_COMPONENT].dirtyCount > 0) {
+        Entity ownerID = zEngine->gEcs->components[HEALTH_COMPONENT].dirtyEntities[0];
+        Uint64 page = ownerID / PAGE_SIZE;
+        Uint64 index = ownerID % PAGE_SIZE;
 
-        if (healthComp->currentHealth <= 0) {
+        Uint64 helfDenseIdx = zEngine->gEcs->components[HEALTH_COMPONENT].sparse[page][index];
+        HealthComponent *helfComp = (HealthComponent *)(zEngine->gEcs->components[HEALTH_COMPONENT].dense[helfDenseIdx]);
+
+        if (helfComp->currentHealth <= 0) {
             deleteEntity(zEngine->gEcs, ownerID);
         }
+        unmarkComponentDirty(zEngine->gEcs, HEALTH_COMPONENT);
     }
 }
 
@@ -673,6 +694,8 @@ void transformSystem(ECS ecs) {
             if (renderComp) {  // sanity check cause I've been pretty insane lately
                 renderComp->destRect->x = (int)posComp->x;
                 renderComp->destRect->y = (int)posComp->y;
+                
+                markComponentDirty(ecs, entitty, RENDER_COMPONENT);
             }
         }
     }

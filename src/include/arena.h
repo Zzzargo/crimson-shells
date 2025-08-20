@@ -34,11 +34,15 @@ typedef struct map {
 
 /**
  * Converts a tile's index to vector coordinates
+ * @param idx the index of the tile
+ * @return a Vec2 representing the tile's position in the arena
  */
 Vec2 tileToWorld(Int32 idx);
 
 /**
  * Converts world coordinates to a tile index
+ * @param pos the position in world coordinates
+ * @return the index of the tile in the arena grid
  */
 Int32 worldToTile(Vec2 pos);
 

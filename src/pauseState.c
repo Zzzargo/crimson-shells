@@ -26,7 +26,7 @@ void updatePauseUI(ZENg zEngine) {
  */
 
 Uint8 handlePauseStateEvents(SDL_Event *e, ZENg zEngine) {
-    return handleMenuNavigation(e, zEngine, "Continue", "Exit to main menu", &updatePauseUI);
+    return handleMenuNavigation(e, zEngine, "Resume", "Exit to main menu", &updatePauseUI);
 }
 
 /**
