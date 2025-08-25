@@ -10,7 +10,7 @@
 typedef struct vec2D {
     double_t x;
     double_t y;
-} Vec2;
+} Vec2; 
 
 /**
  * Get the length of a vector

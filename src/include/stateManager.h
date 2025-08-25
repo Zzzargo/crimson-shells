@@ -24,23 +24,21 @@ typedef struct {
     Uint8 (*handleEvents)(SDL_Event*, ZENg);  // handle input via events
     void (*handleInput)(ZENg);  // handle continuous input like player movement
     void (*update)(ZENg, double_t);  // update game logic like physics
-    void (*render)(ZENg);  // render current frame
     GameStateType type;
-    Uint8 isOverlay;  // for short lifetime states like pause
+    Uint8 isOverlay;  // for short lifetime states like pause state
 } GameState;
 
 #define MAX_GAME_STATES 10  // max size of the game state stack
 
 /**
- * Generic function to render a menu UI based on the UI ECS entities' components
- * @param zEngine pointer to the engine
- */
-void renderMenu(ZENg zEngine);
-
-/**
  * Generic function to handle menu navigation input
+ * @param event SDL_Event pointer
+ * @param zEngine pointer to the engine
+ * @param firstItem label of the first menu item (for wrapping)
+ * @param lastItem label of the last menu item (for wrapping)
+ * @return 0 if the event is trying to exit the game, 1 otherwise
  */
-Uint8 handleMenuNavigation(SDL_Event *event, ZENg zEngine, char *firstItem, char *lastItem, void (*renderFunc)(ZENg));
+Uint8 handleMenuNavigation(SDL_Event *event, ZENg zEngine, char *firstItem, char *lastItem);
 
 /**
  * Exits the game
@@ -74,12 +72,6 @@ void onEnterMainMenu(ZENg zEngine);
  * @param zEngine pointer to the engine
  */
 void onExitMainMenu(ZENg zEngine);
-
-/**
- * Updates the components in the UI ECS after an event
- * @param zEngine pointer to the engine
- */
-void updateMenuUI(ZENg zEngine);
 
 /**
  * Takes care of the events in the main menu

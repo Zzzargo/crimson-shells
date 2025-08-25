@@ -42,8 +42,8 @@ void onEnterVideoOptions(ZENg zEngine) {
         button->destRect->x = (screenW - button->destRect->w) / 2;
         button->destRect->y = screenH * (listStartPos + orderIdx * listItemsSpacing);
         
-        id = createEntity(zEngine->uiEcs);
-        addComponent(zEngine->uiEcs, id, BUTTON_COMPONENT, (void *)button);
+        id = createEntity(zEngine->ecs);
+        addComponent(zEngine->ecs, id, BUTTON_COMPONENT, (void *)button);
     }
 
     // Back button
@@ -54,10 +54,8 @@ void onEnterVideoOptions(ZENg zEngine) {
     );
     backButton->destRect->x = (screenW - backButton->destRect->w) / 2;
     backButton->destRect->y = screenH * (listStartPos + orderIdx * listItemsSpacing);
-    id = createEntity(zEngine->uiEcs);
-    addComponent(zEngine->uiEcs, id, BUTTON_COMPONENT, (void *)backButton);
-
-    renderMenu(zEngine);  // render manually the first time
+    id = createEntity(zEngine->ecs);
+    addComponent(zEngine->ecs, id, BUTTON_COMPONENT, (void *)backButton);
 }
 
 void onExitVideoOptions(ZENg zEngine) {
@@ -65,7 +63,7 @@ void onExitVideoOptions(ZENg zEngine) {
 }
 
 Uint8 handleVideoOptionsEvents(SDL_Event *event, ZENg zEngine) {
-    return handleMenuNavigation(event, zEngine, "1920x1080", "Back", &updateMenuUI);
+    return handleMenuNavigation(event, zEngine, "1920x1080", "Back");
 }
 
 void videoOptToOpt(ZENg zEngine) {

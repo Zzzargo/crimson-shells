@@ -16,8 +16,7 @@ typedef struct engine {
     ResourceManager resources;  // Pointer to the resource manager
     InputManager inputMng;  // Pointer to the input manager
     StateManager stateMng;  // Pointer to the state manager
-    ECS uiEcs;  // Pointer to the UI ECS
-    ECS gEcs;  // Pointer to the game ECS
+    ECS ecs;  // Pointer to the game ECS
     Arena map;  // Pointer to the arena structure
 } *ZENg;
 
@@ -46,7 +45,7 @@ ZENg initGame();
  * Ensures the entities are aligned to the grid
  * @param zEngine pointer to the engine
  */
-void positionSystem(ZENg zEngine);
+void positionSystem(ZENg zEngine, double_t deltaTime);
 
 /**
  * Updates the entities' positions based on their velocity
@@ -76,7 +75,7 @@ void handleEntitiesCollision(ZENg zEngine, CollisionComponent *AColComp, Collisi
  * Passes the collision components to the collision handler
  * @param zEngine pointer to the engine
  */
-void entityCollisionSystem(ZENg zEngine);
+void entityCollisionSystem(ZENg zEngine, double_t deltaTime);
 
 #ifdef DEBUG
 /**
@@ -106,13 +105,28 @@ void worldCollisionSystem(ZENg zEngine, double_t deltaTime);
  * Updates entities based on their health
  * @param zEngine pointer to the engine
  */
-void healthSystem(ZENg zEngine);
+void healthSystem(ZENg zEngine, double_t deltaTime);
 
 /**
  * Updates the rendered entities based on their position
  * @param ecs pointer to the ECS (game ECS)
+ * @param deltaTime time since the last frame in seconds
  */
-void transformSystem(ECS ecs);
+void transformSystem(ZENg zEngine, double_t deltaTime);
+
+/**
+ * Renders the current frame
+ * @param zEngine pointer to the engine
+ * @param deltaTime time since the last frame in seconds
+ */
+void renderSystem(ZENg zEngine, double_t deltaTime);
+
+/**
+ * Updates buttons textures
+ * @param zEngine pointer to the engine
+ * @param deltaTime time since the last frame in seconds
+ */
+void buttonSystem(ZENg zEngine, double_t deltaTime);
 
 /**
  * Saves the current settings to a file

@@ -4,8 +4,8 @@ void updatePauseUI(ZENg zEngine) {
     SDL_SetRenderDrawColor(zEngine->display->renderer, 100, 50, 0, 200);  // background color - brownish
     SDL_RenderClear(zEngine->display->renderer);  // clear the renderer
 
-    for (Uint64 i = 0; i < zEngine->uiEcs->components[BUTTON_COMPONENT].denseSize; i++) {
-        ButtonComponent *curr = (ButtonComponent *)(zEngine->uiEcs->components[BUTTON_COMPONENT].dense[i]);
+    for (Uint64 i = 0; i < zEngine->ecs->components[BUTTON_COMPONENT].denseSize; i++) {
+        ButtonComponent *curr = (ButtonComponent *)(zEngine->ecs->components[BUTTON_COMPONENT].dense[i]);
 
         // Update the texture
         SDL_DestroyTexture(curr->texture);
@@ -26,7 +26,7 @@ void updatePauseUI(ZENg zEngine) {
  */
 
 Uint8 handlePauseStateEvents(SDL_Event *e, ZENg zEngine) {
-    return handleMenuNavigation(e, zEngine, "Resume", "Exit to main menu", &updatePauseUI);
+    return handleMenuNavigation(e, zEngine, "Resume", "Exit to main menu");
 }
 
 /**
@@ -42,8 +42,8 @@ void renderPauseState(ZENg zEngine) {
     SDL_RenderFillRect(zEngine->display->renderer, NULL);  // Fill the entire screen with the semi-transparent color
 
     // Render the options
-    for (Uint64 i = 0; i < zEngine->uiEcs->components[BUTTON_COMPONENT].denseSize; i++) {
-        ButtonComponent *buttonComp = (ButtonComponent *)(zEngine->uiEcs->components[BUTTON_COMPONENT].dense[i]);
+    for (Uint64 i = 0; i < zEngine->ecs->components[BUTTON_COMPONENT].denseSize; i++) {
+        ButtonComponent *buttonComp = (ButtonComponent *)(zEngine->ecs->components[BUTTON_COMPONENT].dense[i]);
         SDL_RenderCopy(zEngine->display->renderer, buttonComp->texture, NULL, buttonComp->destRect);
     }
     SDL_SetRenderDrawBlendMode(zEngine->display->renderer, SDL_BLENDMODE_NONE);  // Disable blending

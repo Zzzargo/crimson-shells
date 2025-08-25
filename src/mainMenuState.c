@@ -27,8 +27,8 @@ void onEnterMainMenu(ZENg zEngine) {
     title->destRect->x = (screenW - title->destRect->w) / 2;
     title->destRect->y = screenH * titlePos;
 
-    Entity id = createEntity(zEngine->uiEcs);
-    addComponent(zEngine->uiEcs, id, TEXT_COMPONENT, (void *)title);
+    Entity id = createEntity(zEngine->ecs);
+    addComponent(zEngine->ecs, id, TEXT_COMPONENT, (void *)title);
 
     for (Uint8 orderIdx = 0; orderIdx < (sizeof(buttonLabels) / sizeof(buttonLabels[0])); orderIdx++) {
         ButtonComponent *button = createButtonComponent(
@@ -44,8 +44,8 @@ void onEnterMainMenu(ZENg zEngine) {
         button->destRect->x = (screenW - button->destRect->w) / 2;
         button->destRect->y = screenH * (listStartPos + orderIdx * listItemsSpacing);
         
-        id = createEntity(zEngine->uiEcs);
-        addComponent(zEngine->uiEcs, id, BUTTON_COMPONENT, (void *)button);
+        id = createEntity(zEngine->ecs);
+        addComponent(zEngine->ecs, id, BUTTON_COMPONENT, (void *)button);
     }
 
     char *instrText = calloc(64, sizeof(char));
@@ -68,38 +68,15 @@ void onEnterMainMenu(ZENg zEngine) {
     instructions->destRect->x = (screenW - instructions->destRect->w) / 2;
     instructions->destRect->y = screenH * footerPos;
 
-    id = createEntity(zEngine->uiEcs);  // get a new entity's ID
-    addComponent(zEngine->uiEcs, id, TEXT_COMPONENT, (void *)instructions);
-
-    renderMenu(zEngine);  // render the menu one time
+    id = createEntity(zEngine->ecs);  // get a new entity's ID
+    addComponent(zEngine->ecs, id, TEXT_COMPONENT, (void *)instructions);
 }
 
 void onExitMainMenu(ZENg zEngine) {
     // delete all main menu entities
-    while (zEngine->uiEcs->entityCount > 0) {
-        deleteEntity(zEngine->uiEcs, zEngine->uiEcs->activeEntities[0]);
+    while (zEngine->ecs->entityCount > 0) {
+        deleteEntity(zEngine->ecs, zEngine->ecs->activeEntities[0]);
     }
-}
-
-void updateMenuUI(ZENg zEngine) {
-    // Rerender the UI based on the entities' current components' states
-
-    for (Uint64 i = 0; i < zEngine->uiEcs->components[BUTTON_COMPONENT].denseSize; i++) {
-        ButtonComponent *curr = (ButtonComponent *)(zEngine->uiEcs->components[BUTTON_COMPONENT].dense[i]);
-
-        // Update the texture
-        SDL_DestroyTexture(curr->texture);
-        SDL_Surface *surface = TTF_RenderText_Solid(
-            curr->font,
-            curr->text,
-            curr->selected ? COLOR_YELLOW : COLOR_WHITE
-        );
-        curr->texture = SDL_CreateTextureFromSurface(zEngine->display->renderer, surface);
-        SDL_FreeSurface(surface);
-    }
-
-    // rendering in this state is done only when components change
-    renderMenu(zEngine);
 }
 
 /**
@@ -107,10 +84,10 @@ void updateMenuUI(ZENg zEngine) {
  */
 
 Uint8 handleMainMenuEvents(SDL_Event *event, ZENg zEngine) {
-    return handleMenuNavigation(event, zEngine, "Play", "Exit", &updateMenuUI);
+    return handleMenuNavigation(event, zEngine, "Play", "Exit");
 }
 
-Uint8 handleMenuNavigation(SDL_Event *event, ZENg zEngine, char *firstItem, char *lastItem, void (*renderFunc)(ZENg)) {
+Uint8 handleMenuNavigation(SDL_Event *event, ZENg zEngine, char *firstItem, char *lastItem) {
     // Key press handling
     if (event->type == SDL_KEYDOWN) {
         if (event->key.keysym.sym == SDLK_F11) {
@@ -128,70 +105,88 @@ Uint8 handleMenuNavigation(SDL_Event *event, ZENg zEngine, char *firstItem, char
 
         switch (action) {
             case INPUT_MOVE_UP: {
-                for (Uint64 i = 0; i < zEngine->uiEcs->components[BUTTON_COMPONENT].denseSize; i++) {
-                    ButtonComponent *curr = (ButtonComponent *)(zEngine->uiEcs->components[BUTTON_COMPONENT].dense[i]);
+                for (Uint64 i = 0; i < zEngine->ecs->components[BUTTON_COMPONENT].denseSize; i++) {
+                    ButtonComponent *curr = (ButtonComponent *)(zEngine->ecs->components[BUTTON_COMPONENT].dense[i]);
                     if (curr->selected) {
                         curr->selected = 0;
                         if (strcmp(curr->text, firstItem) == 0) {
                             // wrap around to the last list item
                             // starting at 0 because the ids can be reused
-                            for (Uint64 j = 0; j < zEngine->uiEcs->components[BUTTON_COMPONENT].denseSize; j++) {
-                                ButtonComponent *fetch = (ButtonComponent *)(zEngine->uiEcs->components[BUTTON_COMPONENT].dense[j]);
+                            for (Uint64 j = 0; j < zEngine->ecs->components[BUTTON_COMPONENT].denseSize; j++) {
+                                ButtonComponent *fetch = (ButtonComponent *)(zEngine->ecs->components[BUTTON_COMPONENT].dense[j]);
                                 if (strcmp(fetch->text, lastItem) == 0) {
                                     fetch->selected = 1;  // select the last item
+
+                                    Entity currOwner = zEngine->ecs->components[BUTTON_COMPONENT].denseToEntity[i];
+                                    Entity fetchOwner = zEngine->ecs->components[BUTTON_COMPONENT].denseToEntity[j];
+                                    markComponentDirty(zEngine->ecs, currOwner, BUTTON_COMPONENT);
+                                    markComponentDirty(zEngine->ecs, fetchOwner, BUTTON_COMPONENT);
                                     break;
                                 }
                             }
                         } else {
                             // select the previous option
-                            for (Uint64 j = 0; j < zEngine->uiEcs->components[BUTTON_COMPONENT].denseSize; j++) {
-                                ButtonComponent *fetch = (ButtonComponent *)(zEngine->uiEcs->components[BUTTON_COMPONENT].dense[j]);
+                            for (Uint64 j = 0; j < zEngine->ecs->components[BUTTON_COMPONENT].denseSize; j++) {
+                                ButtonComponent *fetch = (ButtonComponent *)(zEngine->ecs->components[BUTTON_COMPONENT].dense[j]);
                                 // find the previous item
                                 if (fetch->orderIdx == curr->orderIdx - 1) {
                                     fetch->selected = 1;
+
+                                    Entity currOwner = zEngine->ecs->components[BUTTON_COMPONENT].denseToEntity[i];
+                                    Entity fetchOwner = zEngine->ecs->components[BUTTON_COMPONENT].denseToEntity[j];
+                                    markComponentDirty(zEngine->ecs, currOwner, BUTTON_COMPONENT);
+                                    markComponentDirty(zEngine->ecs, fetchOwner, BUTTON_COMPONENT);
                                     break;
                                 }
                             }
                         }
-                        renderFunc(zEngine);
                         return 1;
                     }
                 }
                 return 1;
             }
             case INPUT_MOVE_DOWN: {
-                for (Uint64 i = 0; i < zEngine->uiEcs->components[BUTTON_COMPONENT].denseSize; i++) {
-                    ButtonComponent *curr = (ButtonComponent *)(zEngine->uiEcs->components[BUTTON_COMPONENT].dense[i]);
+                for (Uint64 i = 0; i < zEngine->ecs->components[BUTTON_COMPONENT].denseSize; i++) {
+                    ButtonComponent *curr = (ButtonComponent *)(zEngine->ecs->components[BUTTON_COMPONENT].dense[i]);
                     if (curr->selected) {
                         curr->selected = 0;
                         if (strcmp(curr->text, lastItem) == 0) {
                             // wrap around to the last list item
-                            for (Uint64 j = 0; j < zEngine->uiEcs->components[BUTTON_COMPONENT].denseSize; j++) {
-                                ButtonComponent *fetch = (ButtonComponent *)(zEngine->uiEcs->components[BUTTON_COMPONENT].dense[j]);
+                            for (Uint64 j = 0; j < zEngine->ecs->components[BUTTON_COMPONENT].denseSize; j++) {
+                                ButtonComponent *fetch = (ButtonComponent *)(zEngine->ecs->components[BUTTON_COMPONENT].dense[j]);
                                 if (strcmp(fetch->text, firstItem) == 0) {
                                     fetch->selected = 1;  // select the first item
+
+                                    Entity currOwner = zEngine->ecs->components[BUTTON_COMPONENT].denseToEntity[i];
+                                    Entity fetchOwner = zEngine->ecs->components[BUTTON_COMPONENT].denseToEntity[j];
+                                    markComponentDirty(zEngine->ecs, currOwner, BUTTON_COMPONENT);
+                                    markComponentDirty(zEngine->ecs, fetchOwner, BUTTON_COMPONENT);
                                     break;
                                 }
                             }
                         } else {
                             // select the next option
-                                for (Uint64 j = 0; j < zEngine->uiEcs->components[BUTTON_COMPONENT].denseSize; j++) {
-                                ButtonComponent *fetch = (ButtonComponent *)(zEngine->uiEcs->components[BUTTON_COMPONENT].dense[j]);
+                                for (Uint64 j = 0; j < zEngine->ecs->components[BUTTON_COMPONENT].denseSize; j++) {
+                                ButtonComponent *fetch = (ButtonComponent *)(zEngine->ecs->components[BUTTON_COMPONENT].dense[j]);
                                 if (fetch->orderIdx == curr->orderIdx + 1) {
                                     fetch->selected = 1;
+
+                                    Entity currOwner = zEngine->ecs->components[BUTTON_COMPONENT].denseToEntity[i];
+                                    Entity fetchOwner = zEngine->ecs->components[BUTTON_COMPONENT].denseToEntity[j];
+                                    markComponentDirty(zEngine->ecs, currOwner, BUTTON_COMPONENT);
+                                    markComponentDirty(zEngine->ecs, fetchOwner, BUTTON_COMPONENT);
                                     break;
                                 }
                             }
                         }
-                        renderFunc(zEngine);
                         return 1;
                     }
                 }
                 return 1;
             }
             case INPUT_SELECT: {
-                for (Uint64 i = 0; i < zEngine->uiEcs->components[BUTTON_COMPONENT].denseSize; i++) {
-                    ButtonComponent *curr = (ButtonComponent *)(zEngine->uiEcs->components[BUTTON_COMPONENT].dense[i]);
+                for (Uint64 i = 0; i < zEngine->ecs->components[BUTTON_COMPONENT].denseSize; i++) {
+                    ButtonComponent *curr = (ButtonComponent *)(zEngine->ecs->components[BUTTON_COMPONENT].dense[i]);
                     if (curr->selected) {
                         curr->onClick(zEngine);
                     }
@@ -201,47 +196,12 @@ Uint8 handleMenuNavigation(SDL_Event *event, ZENg zEngine, char *firstItem, char
             case INPUT_BACK: {
                 if (getCurrState(zEngine->stateMng)->type != STATE_MAIN_MENU) {
                     popState(zEngine);
-                    if (getCurrState(zEngine->stateMng)->type == STATE_MAIN_MENU) {
-                        renderMenu(zEngine);
-                    }
                 }
                 return 1;
             }
         }
     }
     return 1;  // no input
-}
-
-/**
- * =====================================================================================================================
- */
-
-void renderMenu(ZENg zEngine) {
-    // Clear the screen
-    SDL_SetRenderDrawColor(zEngine->display->renderer, 100, 50, 0, 200);  // background color - brownish
-    SDL_RenderClear(zEngine->display->renderer);
-
-    // Text
-    for (Uint64 i = 0; i < zEngine->uiEcs->components[TEXT_COMPONENT].denseSize; i++) {
-        TextComponent *curr = (TextComponent *)(zEngine->uiEcs->components[TEXT_COMPONENT].dense[i]);
-        SDL_RenderCopy(
-            zEngine->display->renderer,
-            curr->texture,
-            NULL,
-            curr->destRect
-        );
-    }
-
-    // Then buttons
-    for (Uint64 i = 0; i < zEngine->uiEcs->components[BUTTON_COMPONENT].denseSize; i++) {
-        ButtonComponent *curr = (ButtonComponent *)(zEngine->uiEcs->components[BUTTON_COMPONENT].dense[i]);
-        SDL_RenderCopy(
-            zEngine->display->renderer,
-            curr->texture,
-            NULL,
-            curr->destRect
-        );
-    }
 }
 
 /**
@@ -261,7 +221,6 @@ void mMenuToPlay(ZENg zEngine) {
     playState->handleEvents = &handlePlayStateEvents;
     playState->handleInput = &handlePlayStateInput;
     playState->update = &updatePlayStateLogic;
-    playState->render = &renderPlayState;
     pushState(zEngine, playState);
 }
 
@@ -283,7 +242,6 @@ void mMenuToOptions(ZENg zEngine) {
     optionsState->handleEvents = &handleOptionsMenuEvents;
     optionsState->handleInput = NULL;  // no continuous input
     optionsState->update = NULL;  // no game logic update
-    optionsState->render = NULL;  // rendering is done only when needed
     pushState(zEngine, optionsState);
 }
 

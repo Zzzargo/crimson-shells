@@ -7,9 +7,13 @@
 
 #include "global.h"
 
+// =================================================ENTITIES============================================================
+
 typedef Uint64 Entity;  // In an ECS, an entity is just an ID
 extern Entity PLAYER_ID;  // Global variable for the player entity ID
 typedef Uint64 bitset;  // A bitset to indicate which components an entity has
+
+// ===============================================COMPONENTS============================================================
 
 // Available component types enum
 typedef enum {
@@ -120,34 +124,73 @@ typedef struct {
     Uint8 orderIdx;  // Used to maintain order in UI entities
 } ButtonComponent;
 
+// ===============================================SYSTEMS===============================================================
+
+typedef enum {
+    SYS_LIFETIME,  // Coarse-grained
+    SYS_VELOCITY,  // Coarse-grained
+    SYS_WORLD_COLLISIONS,  // Coarse-grained
+    SYS_ENTITY_COLLISIONS,  // Coarse-grained
+    SYS_POSITION,  // Coarse-grained
+    SYS_HEALTH,  // Fine-grained
+    SYS_TRANSFORM,  // Fine-grained
+    SYS_RENDER,  // Coarse-grained
+    SYS_BUTTONS,  // Fine-grained
+    SYS_COUNT  // Automatically counts
+} SystemType;
+
+typedef struct sysNode {
+    SystemType type;  // System identifier
+    void (*update)(ZENg, double_t);  // Function pointer to the system's update function
+
+    struct sysNode **dependents;  // Array of systems depending on this one
+    Uint64 dependentsCount;  // Number of dependents
+
+    struct sysNode **dependencies;  // Array of systems this one depends on
+    Uint64 dependenciesCount;  // Number of dependencies
+
+    // Indicates if the system is fine-grained (updates only dirty components) or coarse-grained(updates all components)
+    Uint8 isFineGrained;
+    Uint8 isDirty;  // For coarse-grained systems, indicates if the system needs to be updated
+} SystemNode;
+
+typedef struct depGraph {
+    SystemNode **nodes;  // Array of all systems in the graph
+    Uint64 nodeCount;  // Number of systems in the graph
+    SystemNode **sortedNodes;  // Array of systems sorted by dependencies
+} DependencyGraph;
+
+// =====================================================================================================================
+
 #define INIT_CAPACITY 10  // Capacity with which the ECS is initialised
 
 // ECS structure definition
 typedef struct EeSiEs {
-    char *name;  // Used to distinguish the ECS
     Entity nextEntityID;  // Next available entity ID
     Entity *activeEntities;  // Array of active entities
     Uint64 entityCount;  // Number of entities currently in the ECS
     Uint64 capacity;  // Current capacity of the ECS
-    bitset *componentsFlags;  // An array of bitsets, one for each entity
-    Component *components;  // Array of components, each component is a sparse set
-
     Entity *freeEntities;  // Array of free entities, used for recycling IDs
     Uint64 freeEntityCount;  // Number of free entities available for reuse
     Uint64 freeEntityCapacity;  // Capacity of the free entities array
+
+    bitset *componentsFlags;  // An array of bitsets, one for each entity
+    Component *components;  // Array of components, each component is a sparse set
+
+    DependencyGraph *depGraph;  // Dependency graph for systems
 } *ECS;
 
 /**
- * Initialises the game ECS - more dynamic entities
- * @param gEcs pointer to an ECS = struct ecs**
+ * Initialises the game ECS
+ * @param Ecs pointer to the ECS = struct ecs**
  */
-void initGECS(ECS *gEcs);
+void initECS(ECS *Ecs);
 
 /**
- * Initialises the UI ECS - mostly static entities
- * @param uiEcs pointer to an ECS = struct ecs**
+ * Frees the memory allocated for and inside an ECS
+ * @param ecs an ECS struct = struct ecs*
  */
-void initUIECS(ECS *uiEcs);
+void freeECS(ECS ecs);
 
 /**
  * Creates a new entity in an ECS
@@ -156,6 +199,82 @@ void initUIECS(ECS *uiEcs);
  * @note an entity in an ECS is just the ID (a number)
 */
 Entity createEntity(ECS ecs);
+
+/**
+ * Deletes an entity along with all its associated components
+ * @param ecs an ECS struct = struct ecs*
+ * @param id the entity ID
+ */
+void deleteEntity(ECS ecs, Entity id);
+
+/**
+ * Marks an entity's component as dirty, meaning it needs to be updated
+ * @param ecs an ECS struct = struct ecs*
+ * @param id ID of the owner entity
+ * @param compType component type = enum variable
+ */
+void markComponentDirty(ECS ecs, Entity id, ComponentType compType);
+
+/**
+ * Propagates the dirty state through the dependency graph
+ * @param node the system node to start propagation from
+ * @note the propagation is done at system level, fine-grained dirtiness propagation is done only where needed
+ */
+void propagateSystemDirtiness(SystemNode *node);
+
+/**
+ * Deletes a component from the dirty array
+ * @param ecs an ECS struct = struct ecs*
+ * @param compType component type = enum variable
+ * @note the first entity in the dirty array is removed, as the array acts like a queue
+ */
+void unmarkComponentDirty(ECS ecs, ComponentType compType);
+
+/**
+ * Creates a new system node
+ * @param type the type of the system
+ * @param update the function pointer to the system's update function
+ * @param isFineGrained indicates if the system is fine-grained (1) or coarse-grained (0)
+ * @return a pointer to the newly created SystemNode
+ */
+SystemNode* createSystemNode(SystemType type, void (*update)(ZENg, double_t), Uint8 isFineGrained);
+
+/**
+ * Adds a dependency between two system nodes
+ * @param dependency the system node that will be updated first
+ * @param dependent the system node that depends on the other one
+ * @note Update order is dependency -> dependent
+ */
+void addSystemDependency(SystemNode *dependency, SystemNode *dependent);
+
+/**
+ * Creates a new dependency graph for systems
+ * @return a pointer to the newly created DependencyGraph
+ * @note the plain systems are added to the graph inside this function
+ */
+DependencyGraph* initDependencyGraph();
+
+/**
+ * Helper that maps a component type to its corresponding system type
+ * @param compType component type = enum variable
+ * @return the corresponding system type = enum variable
+ */
+SystemType componentToSystem(ComponentType compType);
+
+/**
+ * Adds a system node to the dependency graph
+ * @param graph the dependency graph
+ * @param node the system node to be added
+ * @note the graph needs to be sorted after adding all systems
+ */
+void insertSystem(DependencyGraph *graph, SystemNode *node);
+
+/**
+ * Performs a topological sort by Kahn's algorithm on the dependency graph
+ * @param graph pointer to the dependency graph
+ * @note the function allocates and populates the sortedNodes array in the graph
+ */
+void kahnTopSort(DependencyGraph *graph);
 
 /**
  * Creates a text component for menus
@@ -253,34 +372,5 @@ RenderComponent* createRenderComponent(SDL_Texture *texture, int x, int y, int w
  * @param component address of a component to be added to the entity
 */
 void addComponent(ECS ecs, Entity id, ComponentType compType, void *component);
-
-/**
- * Marks an entity's component as dirty, meaning it needs to be updated
- * @param ecs an ECS struct = struct ecs*
- * @param id ID of the owner entity
- * @param compType component type = enum variable
- */
-void markComponentDirty(ECS ecs, Entity id, ComponentType compType);
-
-/**
- * Deletes a component from the dirty array
- * @param ecs an ECS struct = struct ecs*
- * @param compType component type = enum variable
- * @note the first entity in the dirty array is removed, as the array acts like a queue
- */
-void unmarkComponentDirty(ECS ecs, ComponentType compType);
-
-/**
- * Deletes an entity along with all its associated components
- * @param ecs an ECS struct = struct ecs*
- * @param id the entity ID
- */
-void deleteEntity(ECS ecs, Entity id);
-
-/**
- * Frees the memory allocated for and inside an ECS
- * @param ecs an ECS struct = struct ecs*
- */
-void freeECS(ECS ecs);
 
 #endif // ECS_H

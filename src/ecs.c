@@ -2,120 +2,63 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-void initGECS(ECS *gEcs) {
-    (*gEcs) = malloc(sizeof(struct EeSiEs));
-    if (!(*gEcs)) {
+void initECS(ECS *ecs) {
+    (*ecs) = malloc(sizeof(struct EeSiEs));
+    if (!(*ecs)) {
         fprintf(stderr, "Failed to allocate memory for ECS\n");
         exit(EXIT_FAILURE);
     }
 
-    (*gEcs)->name = strdup("Game ECS");
-
-    (*gEcs)->nextEntityID = 0;
-    (*gEcs)->entityCount = 0;
-    (*gEcs)->capacity = INIT_CAPACITY;
-    (*gEcs)->activeEntities = calloc(INIT_CAPACITY, sizeof(Entity));
-    if (!(*gEcs)->activeEntities) {
+    (*ecs)->nextEntityID = 0;
+    (*ecs)->entityCount = 0;
+    (*ecs)->capacity = INIT_CAPACITY;
+    (*ecs)->activeEntities = calloc(INIT_CAPACITY, sizeof(Entity));
+    if (!(*ecs)->activeEntities) {
         fprintf(stderr, "Failed to allocate memory for ECS active entities\n");
-        free(*gEcs);
+        free(*ecs);
         exit(EXIT_FAILURE);
     }
 
-    (*gEcs)->freeEntities = calloc(INIT_CAPACITY, sizeof(Entity));
-    if (!(*gEcs)->freeEntities) {
+    (*ecs)->freeEntities = calloc(INIT_CAPACITY, sizeof(Entity));
+    if (!(*ecs)->freeEntities) {
         fprintf(stderr, "Failed to allocate memory for ECS free entities\n");
-        free(*gEcs);
+        free(*ecs);
         exit(EXIT_FAILURE);
     }
-    (*gEcs)->freeEntityCount = 0;
-    (*gEcs)->freeEntityCapacity = INIT_CAPACITY;
+    (*ecs)->freeEntityCount = 0;
+    (*ecs)->freeEntityCapacity = INIT_CAPACITY;
 
     // initialize the component arrays
-    (*gEcs)->componentsFlags = calloc((*gEcs)->capacity, sizeof(bitset));
-    if (!(*gEcs)->componentsFlags) {
+    (*ecs)->componentsFlags = calloc((*ecs)->capacity, sizeof(bitset));
+    if (!(*ecs)->componentsFlags) {
         fprintf(stderr, "Failed to allocate memory for ECS components flags\n");
-        free(*gEcs);
+        free(*ecs);
         exit(EXIT_FAILURE);
     }
-    (*gEcs)->components = calloc(COMPONENT_COUNT, sizeof(Component));
-    if (!(*gEcs)->components) {
+    (*ecs)->components = calloc(COMPONENT_COUNT, sizeof(Component));
+    if (!(*ecs)->components) {
         fprintf(stderr, "Failed to allocate memory for ECS components\n");
-        free((*gEcs)->componentsFlags);
-        free(*gEcs);
+        free((*ecs)->componentsFlags);
+        free(*ecs);
         exit(EXIT_FAILURE);
     }
 
     for (Uint64 i = 0; i < COMPONENT_COUNT; i++) {
         // initialise these with NULL, they will be allocated later at addition
-        (*gEcs)->components[i].dense = NULL;
-        (*gEcs)->components[i].denseSize = 0;
-        (*gEcs)->components[i].sparse = NULL;
-        (*gEcs)->components[i].pageCount = 0;
+        // (*ecs)->components[i].dense = NULL;
+        // (*ecs)->components[i].denseSize = 0;
+        // (*ecs)->components[i].sparse = NULL;
+        // (*ecs)->components[i].pageCount = 0;
 
-        (*gEcs)->components[i].type = i;
+        (*ecs)->components[i].type = i;
 
-        (*gEcs)->components[i].dirtyEntities = NULL;
-        (*gEcs)->components[i].dirtyCount = 0;
-        (*gEcs)->components[i].dirtyCapacity = 0;
-    }
-}
-
-/**
- * =====================================================================================================================
- */
-
-void initUIECS(ECS *uiEcs) {
-    (*uiEcs) = malloc(sizeof(struct EeSiEs));
-    if (!(*uiEcs)) {
-        fprintf(stderr, "Failed to allocate memory for UI ECS\n");
-        exit(EXIT_FAILURE);
+        // (*ecs)->components[i].dirtyEntities = NULL;
+        // (*ecs)->components[i].dirtyCount = 0;
+        // (*ecs)->components[i].dirtyCapacity = 0;
     }
 
-    (*uiEcs)->name = strdup("UI ECS");
-    (*uiEcs)->nextEntityID = 0;
-    (*uiEcs)->entityCount = 0;
-    (*uiEcs)->capacity = INIT_CAPACITY;
-    (*uiEcs)->activeEntities = calloc(INIT_CAPACITY, sizeof(Entity));
-    if (!(*uiEcs)->activeEntities) {
-        fprintf(stderr, "Failed to allocate memory for UI ECS active entities\n");
-        free(*uiEcs);
-        exit(EXIT_FAILURE);
-    }
-
-    (*uiEcs)->freeEntities = calloc(INIT_CAPACITY, sizeof(Entity));
-    if (!(*uiEcs)->freeEntities) {
-        fprintf(stderr, "Failed to allocate memory for UI ECS free entities\n");
-        free(*uiEcs);
-        exit(EXIT_FAILURE);
-    }
-    (*uiEcs)->freeEntityCount = 0;
-    (*uiEcs)->freeEntityCapacity = INIT_CAPACITY;
-
-    (*uiEcs)->componentsFlags = calloc((*uiEcs)->capacity, sizeof(bitset));
-    if (!(*uiEcs)->componentsFlags) {
-        fprintf(stderr, "Failed to allocate memory for UI ECS components flags\n");
-        free(*uiEcs);
-        exit(EXIT_FAILURE);
-    }
-    (*uiEcs)->components = calloc(COMPONENT_COUNT, sizeof(Component));
-    if (!(*uiEcs)->components) {
-        fprintf(stderr, "Failed to allocate memory for UI ECS components\n");
-        free((*uiEcs)->componentsFlags);
-        free(*uiEcs);
-        exit(EXIT_FAILURE);
-    }
-
-    for (Uint64 i = TEXT_COMPONENT; i < COMPONENT_COUNT; i++) {
-        // initialise these with NULL, they will be allocated later at addition
-        (*uiEcs)->components[i].dense = NULL;
-        (*uiEcs)->components[i].denseSize = 0;
-        (*uiEcs)->components[i].sparse = NULL;
-        (*uiEcs)->components[i].pageCount = 0;
-        (*uiEcs)->components[i].type = i;
-        (*uiEcs)->components[i].dirtyEntities = NULL;
-        (*uiEcs)->components[i].dirtyCount = 0;
-        (*uiEcs)->components[i].dirtyCapacity = 0;
-    }
+    (*ecs)->depGraph = initDependencyGraph();
+    kahnTopSort((*ecs)->depGraph);
 }
 
 /**
@@ -135,7 +78,7 @@ Entity createEntity(ECS ecs) {
             ecs->capacity *= 2;
 
             #ifdef DEBUG
-                printf("Resizing ECS %s from %lu to %lu\n", ecs->name, oldCapacity, ecs->capacity);
+                printf("Resizing ECS from %lu to %lu\n", oldCapacity, ecs->capacity);
             #endif
 
             Entity *tmpActive = realloc(ecs->activeEntities, ecs->capacity * sizeof(Entity));
@@ -185,7 +128,7 @@ Entity createEntity(ECS ecs) {
     ecs->activeEntities[ecs->entityCount++] = entitty;  // add it to the active entities array
 
     #ifdef DEBUG
-        printf("Created entity with ID %ld in %s\n", entitty, ecs->name);
+        printf("Created entity with ID %ld\n", entitty);
     #endif
 
     return entitty;
@@ -481,7 +424,8 @@ void addComponent(ECS ecs, Entity id, ComponentType compType, void *component) {
 
     const ComponentType fineGrainedType[] = {
         HEALTH_COMPONENT,
-        RENDER_COMPONENT
+        RENDER_COMPONENT,
+        BUTTON_COMPONENT
     };
     const size_t fineGrainedCount = sizeof(fineGrainedType) / sizeof(ComponentType);
     for (size_t i = 0; i < fineGrainedCount; i++) {
@@ -492,7 +436,7 @@ void addComponent(ECS ecs, Entity id, ComponentType compType, void *component) {
     }
 
     #ifdef DEBUG
-        printf("Added component %d to entity %ld from %s\n", compType, id, ecs->name);
+        printf("Added component %d to entity %ld\n", compType, id);
     #endif
 }
 
@@ -528,7 +472,34 @@ void markComponentDirty(ECS ecs, Entity id, ComponentType compType) {
     }
 
     ecs->components[compType].dirtyEntities[ecs->components[compType].dirtyCount++] = id;
+    propagateSystemDirtiness(ecs->depGraph->nodes[componentToSystem(compType)]);  // Propagate the dirty state through the dependency graph
 }
+
+/**
+ * =====================================================================================================================
+ */
+
+void propagateSystemDirtiness(SystemNode *node) {
+    if (!node) {
+        fprintf(stderr, "Cannot propagate dirty state, node is NULL\n");
+        return;
+    }
+
+    for (Uint64 i = 0; i < node->dependentsCount; i++) {
+        SystemNode *dependent = node->dependents[i];
+        if (dependent->isFineGrained) {
+            continue; // Fine-grained systems handle their own dirty jobs
+        }
+        if (dependent->isDirty == 0) {
+            dependent->isDirty = 1;  // Mark the dependent system as dirty
+            propagateSystemDirtiness(dependent);  // Recursively propagate the dirty state
+        }
+    }
+}
+
+/**
+ * =====================================================================================================================
+ */
 
 void unmarkComponentDirty(ECS ecs, ComponentType compType) {
     if (!ecs) {
@@ -545,9 +516,185 @@ void unmarkComponentDirty(ECS ecs, ComponentType compType) {
     ecs->components[compType].dirtyEntities[0] = ecs->components[compType].dirtyEntities[--ecs->components[compType].dirtyCount];
 }
 
+SystemNode* createSystemNode(SystemType type, void (*update)(ZENg, double_t), Uint8 isFineGrained) {
+    SystemNode *node = calloc(1, sizeof(SystemNode));
+    if (!node) {
+        fprintf(stderr, "Failed to allocate memory for system node #%d\n", type);
+        exit(EXIT_FAILURE);
+    }
+    node->type = type;
+    node->update = update;
+    node->isDirty = 1;  // At creation force the system to update
+    node->isFineGrained = isFineGrained;
+    return node;
+}
+
 /**
  * =====================================================================================================================
  */
+
+SystemType componentToSystem(ComponentType compType) {
+    switch (compType) {
+        case LIFETIME_COMPONENT:
+            return SYS_LIFETIME;
+        case VELOCITY_COMPONENT:
+            return SYS_VELOCITY;
+            return SYS_ENTITY_COLLISIONS;
+        case POSITION_COMPONENT:
+            return SYS_POSITION;
+        case HEALTH_COMPONENT:
+            return SYS_HEALTH;
+        case RENDER_COMPONENT:
+            return SYS_RENDER;
+        case BUTTON_COMPONENT:
+            return SYS_BUTTONS;
+        default:
+            fprintf(stderr, "No corresponding system for component type %d\n", compType);
+            return -1;  // Invalid system type
+    }
+}
+
+ /**
+ * =====================================================================================================================
+ */
+
+void insertSystem(DependencyGraph *graph, SystemNode *node) {
+    if (!graph || !node) {
+        fprintf(stderr, "Graph or node is NULL, cannot insert system\n");
+        return;
+    }
+
+    if (graph->nodeCount >= SYS_COUNT) {
+        fprintf(stderr, "Dependency graph is full, cannot insert more systems\n");
+        return;
+    }
+
+    graph->nodes[node->type] = node;
+    graph->nodeCount++;
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+void addSystemDependency(SystemNode *dependency, SystemNode *dependent) {
+    if (!dependency || !dependent) {
+        fprintf(stderr, "Cannot add dependency, one of the nodes is NULL\n");
+        return;
+    }
+
+    // Add the dependent node to the dependency's dependents array
+    SystemNode **newDependencies = realloc(
+        dependency->dependents,
+        (dependency->dependentsCount + 1) * sizeof(SystemNode *)
+    );
+    if (!newDependencies) {
+        fprintf(stderr, "Failed to resize dependents array for system %d\n", dependency->type);
+        return;
+    }
+    dependency->dependents = newDependencies;
+    dependency->dependents[dependency->dependentsCount++] = dependent;
+
+    // Add the dependency node to the dependent's dependencies array
+    SystemNode **newDependents = realloc(
+        dependent->dependencies,
+        (dependent->dependenciesCount + 1) * sizeof(SystemNode *)
+    );
+    if (!newDependents) {
+        fprintf(stderr, "Failed to resize dependencies array for system %d\n", dependent->type);
+        return;
+    }
+    dependent->dependencies = newDependents;
+    dependent->dependencies[dependent->dependenciesCount++] = dependency;
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+void kahnTopSort(DependencyGraph *graph) {
+    if (!graph) {
+        fprintf(stderr, "Dependency graph is NULL, cannot perform topological sort\n");
+        return;
+    }
+
+    #ifdef DEBUG
+    const char* sysNames[] = {
+        "SYS_LIFETIME",
+        "SYS_VELOCITY",
+        "SYS_WORLD_COLLISIONS",
+        "SYS_ENTITY_COLLISIONS",
+        "SYS_POSITION",
+        "SYS_HEALTH",
+        "SYS_TRANSFORM",
+        "SYS_RENDER",
+        "SYS_BUTTONS"
+    };
+    printf("Performing Kahn's topological sort on the dependency graph with %lu nodes:\n", graph->nodeCount);
+    for (Uint64 i = 0; i < graph->nodeCount; i++) {
+        printf("%s ", sysNames[graph->nodes[i]->type]);
+    }
+    printf("\n");
+    #endif
+    
+    graph->sortedNodes = calloc(SYS_COUNT, sizeof(SystemNode *));
+    if (!graph->sortedNodes) {
+        fprintf(stderr, "Failed to allocate memory for sorted nodes array\n");
+        return;
+    }
+
+    Uint64 inDegree[SYS_COUNT] = {0};
+
+    // Calculate in-degrees of each node
+    for (Uint64 i = 0; i < SYS_COUNT; i++) {
+        SystemNode *node = graph->nodes[i];
+        if (node) {
+            for (Uint64 j = 0; j < node->dependentsCount; j++) {
+                inDegree[node->dependents[j]->type]++;
+            }
+        }
+    }
+
+    // Create a queue and populate it with nodes of 0 incoming edges
+    Uint64 queueSize = 0;
+    SystemNode *queue[SYS_COUNT] = {0};
+
+    for (Uint64 i = 0; i < SYS_COUNT; i++) {
+        if (inDegree[i] == 0 && graph->nodes[i]) {
+            queue[queueSize++] = graph->nodes[i];
+        }
+    }
+
+    // Kahn's algorithm
+    Uint64 sortedIndex = 0;
+    while (queueSize > 0) {
+        SystemNode *current = queue[--queueSize];
+        graph->sortedNodes[sortedIndex++] = current;
+
+        for (Uint64 j = 0; j < current->dependentsCount; j++) {
+            SystemNode *dependent = current->dependents[j];
+            // Decrease the in-degree of the dependent nodes of each processed node
+            inDegree[dependent->type]--;
+
+            if (inDegree[dependent->type] == 0) {
+                // When the in-degree of a node becomes 0, queue it to be processed
+                queue[queueSize++] = dependent;
+            }
+        }
+    }
+
+    if (sortedIndex != SYS_COUNT) {
+        fprintf(stderr, "Kahn's sort failed: graph may have cycles or missing nodes (sorted %lu of %d)\n", sortedIndex, SYS_COUNT);
+    }
+
+    #ifdef DEBUG
+        printf("Sorted systems order:\n");
+        for (Uint64 i = 0; i < graph->nodeCount; i++) {
+            printf("%s -> ", sysNames[graph->sortedNodes[i]->type]);
+        }
+        printf("\n");
+    #endif
+}
 
 /**
  * =====================================================================================================================
@@ -668,7 +815,7 @@ void deleteEntity(ECS ecs, Entity id) {
     ecs->entityCount--;
     
     #ifdef DEBUG
-        printf("Deleted entity with ID %ld from %s\n", id, ecs->name);
+        printf("Deleted entity with ID %ld\n", id);
     #endif
 }
 
@@ -678,9 +825,6 @@ void deleteEntity(ECS ecs, Entity id) {
 
 void freeECS(ECS ecs) {
     if (ecs) {
-        if (ecs->name) {
-            free(ecs->name);
-        }
         if (ecs->componentsFlags) {
             free(ecs->componentsFlags);
         }

@@ -22,6 +22,10 @@ int main(int argc, char* argv[]) {
         // Cap delta time to prevent spikes after lags
         if (deltaTime > 0.1) deltaTime = 0.1;  // max 100 ms per frame
 
+        #ifdef DEBUG
+            printf("============================================\nDelta time for this frame: %.4f seconds\n", deltaTime);
+        #endif
+
         GameState *currState = getCurrState(zEngine->stateMng);
         while (SDL_PollEvent(&event)) {
             running = currState->handleEvents(&event, zEngine);
@@ -36,8 +40,8 @@ int main(int argc, char* argv[]) {
         // currState can be NULL if the stack was popped, so check it
         if (currState && currState->handleInput) currState->handleInput(zEngine);
         if (currState && currState->update) currState->update(zEngine, deltaTime);
-        if (currState && currState->render) currState->render(zEngine);
-        
+
+        renderSystem(zEngine, deltaTime);
         SDL_RenderPresent(zEngine->display->renderer);
         
         Uint64 frameTime = SDL_GetTicks64() - frameStart;

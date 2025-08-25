@@ -34,11 +34,9 @@ void onEnterOptionsMenu(ZENg zEngine) {
         button->destRect->x = (screenW - button->destRect->w) / 2;
         button->destRect->y = screenH * (listStartPos + orderIdx * listItemsSpacing);
         
-        id = createEntity(zEngine->uiEcs);
-        addComponent(zEngine->uiEcs, id, BUTTON_COMPONENT, (void *)button);
+        id = createEntity(zEngine->ecs);
+        addComponent(zEngine->ecs, id, BUTTON_COMPONENT, (void *)button);
     }
-
-    renderMenu(zEngine);  // render manually the first time
 }
 
 /**
@@ -46,8 +44,8 @@ void onEnterOptionsMenu(ZENg zEngine) {
  */
 
 void onExitOptionsMenu(ZENg zEngine) {
-    while (zEngine->uiEcs->entityCount > 0) {
-        deleteEntity(zEngine->uiEcs, zEngine->uiEcs->activeEntities[0]);
+    while (zEngine->ecs->entityCount > 0) {
+        deleteEntity(zEngine->ecs, zEngine->ecs->activeEntities[0]);
     }
 }
 
@@ -56,7 +54,7 @@ void onExitOptionsMenu(ZENg zEngine) {
  */
 
 Uint8 handleOptionsMenuEvents(SDL_Event *event, ZENg zEngine) {
-    return handleMenuNavigation(event, zEngine, "Game", "Back", &updateMenuUI);
+    return handleMenuNavigation(event, zEngine, "Game", "Back");
 }
 
 /**
