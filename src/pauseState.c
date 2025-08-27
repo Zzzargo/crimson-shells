@@ -1,24 +1,57 @@
 #include "include/stateManager.h"
 
-void updatePauseUI(ZENg zEngine) {
-    SDL_SetRenderDrawColor(zEngine->display->renderer, 100, 50, 0, 200);  // background color - brownish
-    SDL_RenderClear(zEngine->display->renderer);  // clear the renderer
+void onEnterPauseState(ZENg zEngine) {
+    int screenH = zEngine->display->currentMode.h;
+    int screenW = zEngine->display->currentMode.w;
 
-    for (Uint64 i = 0; i < zEngine->ecs->components[BUTTON_COMPONENT].denseSize; i++) {
-        ButtonComponent *curr = (ButtonComponent *)(zEngine->ecs->components[BUTTON_COMPONENT].dense[i]);
+    // Percentages from the top of the screen
+    double titlePos = 0.3;
+    double listStartPos = 0.45;
+    double listItemsSpacing = 0.08;
 
-        // Update the texture
-        SDL_DestroyTexture(curr->texture);
-        SDL_Surface *surface = TTF_RenderText_Solid(
-            curr->font,
-            curr->text,
-            curr->selected ? COLOR_YELLOW : COLOR_WHITE
+    // Create buttons with evenly spaced positions
+    char* buttonLabels[] = {
+        "Resume", "Exit to main menu"
+    };
+    // this is amazing
+    void (*buttonActions[])(ZENg) = {
+        &pauseToPlay, &pauseToMMenu
+    };
+
+    Entity id;
+    for (Uint8 orderIdx = 0; orderIdx < (sizeof(buttonLabels) / sizeof(buttonLabels[0])); orderIdx++) {
+        ButtonComponent *button = createButtonComponent (
+            zEngine->display->renderer, 
+            getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf"),
+            strdup(buttonLabels[orderIdx]), 
+            orderIdx == 0 ? COLOR_YELLOW : COLOR_WHITE, // First button selected (color)
+            buttonActions[orderIdx], 
+            orderIdx == 0 ? 1 : 0,  // First button selected (field flag)
+            orderIdx
         );
-        curr->texture = SDL_CreateTextureFromSurface(zEngine->display->renderer, surface);
-        SDL_RenderCopy(zEngine->display->renderer, curr->texture, NULL, curr->destRect);
-        SDL_FreeSurface(surface);
+        
+        button->destRect->x = (screenW - button->destRect->w) / 2;
+        button->destRect->y = screenH * (listStartPos + orderIdx * listItemsSpacing);
+        
+        id = createEntity(zEngine->ecs);
+        addComponent(zEngine->ecs, id, BUTTON_COMPONENT, (void *)button);
     }
-    renderPauseState(zEngine);
+
+    zEngine->ecs->depGraph->nodes[SYS_BUTTONS]->isActive = 1;
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+void onExitPauseState(ZENg zEngine) {
+    // delete game entities
+    while (zEngine->ecs->entityCount > 0) {
+        deleteEntity(zEngine->ecs, zEngine->ecs->activeEntities[0]);
+    }
+
+    // Disable the pause state systems
+    zEngine->ecs->depGraph->nodes[SYS_BUTTONS]->isActive = 0;
 }
 
 /**

@@ -152,6 +152,7 @@ typedef struct sysNode {
     // Indicates if the system is fine-grained (updates only dirty components) or coarse-grained(updates all components)
     Uint8 isFineGrained;
     Uint8 isDirty;  // For coarse-grained systems, indicates if the system needs to be updated
+    Uint8 isActive;  // Indicates if this system is currently active
 } SystemNode;
 
 typedef struct depGraph {
@@ -275,6 +276,14 @@ void insertSystem(DependencyGraph *graph, SystemNode *node);
  * @note the function allocates and populates the sortedNodes array in the graph
  */
 void kahnTopSort(DependencyGraph *graph);
+
+/**
+ * Runs the active systems for the current frame
+ * @param zEngine pointer to the engine
+ * @param deltaTime time since the last frame in seconds
+ * @note a topological sort must be done on the dependency graph prior to calling this function
+ */
+void runSystems(ZENg zEngine, double_t deltaTime);
 
 /**
  * Creates a text component for menus

@@ -23,7 +23,7 @@ typedef struct {
     void (*onExit)(ZENg);  // unload state's assets
     Uint8 (*handleEvents)(SDL_Event*, ZENg);  // handle input via events
     void (*handleInput)(ZENg);  // handle continuous input like player movement
-    void (*update)(ZENg, double_t);  // update game logic like physics
+
     GameStateType type;
     Uint8 isOverlay;  // for short lifetime states like pause state
 } GameState;
@@ -256,6 +256,18 @@ Uint8 handlePauseStateEvents(SDL_Event *e, ZENg zEngine);
  * @param zEngine pointer to the engine
  */
 void renderPauseState(ZENg zEngine);
+
+/**
+ * Loads the pause menu UI components into the ECS
+ * @param zEngine pointer to the engine
+ */
+void onEnterPauseState(ZENg zEngine);
+
+/**
+ * Unloads the pause menu UI components from the ECS
+ * @param zEngine pointer to the engine
+ */
+void onExitPauseState(ZENg zEngine);
 
 // =====================================================================================================================
 

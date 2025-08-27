@@ -37,6 +37,8 @@ void onEnterOptionsMenu(ZENg zEngine) {
         id = createEntity(zEngine->ecs);
         addComponent(zEngine->ecs, id, BUTTON_COMPONENT, (void *)button);
     }
+
+    zEngine->ecs->depGraph->nodes[SYS_BUTTONS]->isActive = 1;
 }
 
 /**

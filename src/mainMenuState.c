@@ -70,6 +70,10 @@ void onEnterMainMenu(ZENg zEngine) {
 
     id = createEntity(zEngine->ecs);  // get a new entity's ID
     addComponent(zEngine->ecs, id, TEXT_COMPONENT, (void *)instructions);
+
+    // Enable the needed systems
+    zEngine->ecs->depGraph->nodes[SYS_RENDER]->isActive = 1;  // Render system will always be on
+    zEngine->ecs->depGraph->nodes[SYS_BUTTONS]->isActive = 1;
 }
 
 void onExitMainMenu(ZENg zEngine) {
@@ -77,6 +81,9 @@ void onExitMainMenu(ZENg zEngine) {
     while (zEngine->ecs->entityCount > 0) {
         deleteEntity(zEngine->ecs, zEngine->ecs->activeEntities[0]);
     }
+
+    // Disable the buttons system
+    zEngine->ecs->depGraph->nodes[SYS_BUTTONS]->isActive = 0;
 }
 
 /**
@@ -220,7 +227,6 @@ void mMenuToPlay(ZENg zEngine) {
     playState->onExit = &onExitPlayState;
     playState->handleEvents = &handlePlayStateEvents;
     playState->handleInput = &handlePlayStateInput;
-    playState->update = &updatePlayStateLogic;
     pushState(zEngine, playState);
 }
 
@@ -241,7 +247,6 @@ void mMenuToOptions(ZENg zEngine) {
     optionsState->onExit = &onExitOptionsMenu;
     optionsState->handleEvents = &handleOptionsMenuEvents;
     optionsState->handleInput = NULL;  // no continuous input
-    optionsState->update = NULL;  // no game logic update
     pushState(zEngine, optionsState);
 }
 

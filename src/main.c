@@ -39,9 +39,7 @@ int main(int argc, char* argv[]) {
 
         // currState can be NULL if the stack was popped, so check it
         if (currState && currState->handleInput) currState->handleInput(zEngine);
-        if (currState && currState->update) currState->update(zEngine, deltaTime);
-
-        renderSystem(zEngine, deltaTime);
+        runSystems(zEngine, deltaTime);
         SDL_RenderPresent(zEngine->display->renderer);
         
         Uint64 frameTime = SDL_GetTicks64() - frameStart;

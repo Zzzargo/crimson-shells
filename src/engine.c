@@ -231,7 +231,7 @@ DependencyGraph* initDependencyGraph() {
     } SysPair;
 
     const SysPair sysPairs[] = {
-        {SYS_LIFETIME, &lifetimeSystem, 1},
+        {SYS_LIFETIME, &lifetimeSystem, 0},
         {SYS_VELOCITY, &velocitySystem, 0},
         {SYS_WORLD_COLLISIONS, &worldCollisionSystem, 0},
         {SYS_ENTITY_COLLISIONS, &entityCollisionSystem, 0},
@@ -330,7 +330,6 @@ ZENg initGame() {
     mainMenuState->onEnter = &onEnterMainMenu;
     mainMenuState->onExit = &onExitMainMenu;
     mainMenuState->handleEvents = &handleMainMenuEvents;
-    mainMenuState->update = &buttonSystem;
     pushState(zEngine, mainMenuState);
 
     return zEngine;
@@ -342,6 +341,9 @@ ZENg initGame() {
 
 void velocitySystem(ZENg zEngine, double_t deltaTime) {
     if (zEngine->ecs->depGraph->nodes[SYS_VELOCITY]->isDirty == 0) {
+        #ifdef DEBUG
+            printf("[VELOCITY SYSTEM] Velocity system is not dirty\n");
+        #endif
         return;
     }
     
@@ -389,6 +391,7 @@ void velocitySystem(ZENg zEngine, double_t deltaTime) {
         }
         // Hitboxes are updates in the collision system
     }
+    propagateSystemDirtiness(zEngine->ecs->depGraph->nodes[SYS_VELOCITY]);
     zEngine->ecs->depGraph->nodes[SYS_VELOCITY]->isDirty = 0;
 }
 
@@ -398,6 +401,9 @@ void velocitySystem(ZENg zEngine, double_t deltaTime) {
 
 void positionSystem(ZENg zEngine, double_t deltaTime) {
     if (zEngine->ecs->depGraph->nodes[SYS_POSITION]->isDirty == 0) {
+        #ifdef DEBUG
+            printf("[POSITION SYSTEM] Position system is not dirty\n");
+        #endif
         return;
     }
     #ifdef DEBUG
@@ -448,6 +454,9 @@ void positionSystem(ZENg zEngine, double_t deltaTime) {
             }
         }
     }
+
+    propagateSystemDirtiness(zEngine->ecs->depGraph->nodes[SYS_POSITION]);
+    zEngine->ecs->depGraph->nodes[SYS_POSITION]->isDirty = 0;
 }
 
 /**
@@ -455,14 +464,27 @@ void positionSystem(ZENg zEngine, double_t deltaTime) {
  */
 
 void lifetimeSystem(ZENg zEngine, double_t deltaTime) {
+    if (zEngine->ecs->depGraph->nodes[SYS_LIFETIME]->isDirty == 0) {
+        #ifdef DEBUG
+            printf("[LIFETIME SYSTEM] Lifetime system is not dirty. Something wrong happened\n");
+        #endif
+        return;
+    }
+    
+    #ifdef DEBUG
+        printf("[LIFETIME SYSTEM] Running lifetime system for %lu entities\n", zEngine->ecs->components[LIFETIME_COMPONENT].denseSize);
+    #endif
+
     for (Uint64 i = 0; i < zEngine->ecs->components[LIFETIME_COMPONENT].denseSize; i++) {
-        LifetimeComponent *lifeComp = (LifetimeComponent *)(zEngine->ecs->components[LIFETIME_COMPONENT].dense[i]);
-        lifeComp->timeAlive += deltaTime;
-        if (lifeComp->timeAlive >= lifeComp->lifeTime) {
-            Entity owner = zEngine->ecs->components[LIFETIME_COMPONENT].denseToEntity[i];
-            deleteEntity(zEngine->ecs, owner);
+        LifetimeComponent *lftComp = (LifetimeComponent *)(zEngine->ecs->components[LIFETIME_COMPONENT].dense[i]);
+        lftComp->timeAlive += deltaTime;
+        if (lftComp->timeAlive >= lftComp->lifeTime) {
+            Entity dirtyOwner = zEngine->ecs->components[LIFETIME_COMPONENT].denseToEntity[i];
+            deleteEntity(zEngine->ecs, dirtyOwner);
         }
-    }   
+    }
+    propagateSystemDirtiness(zEngine->ecs->depGraph->nodes[SYS_LIFETIME]);
+    // There is no point in unmarking the lifetime system clean
 }
 
 /**
@@ -561,6 +583,9 @@ Uint8 checkEntityCollision(ZENg zEngine, SDL_Rect *hitbox, SDL_Rect *result) {
 
 void entityCollisionSystem(ZENg zEngine, double_t deltaTime) {
     if (zEngine->ecs->depGraph->nodes[SYS_ENTITY_COLLISIONS]->isDirty == 0) {
+        #ifdef DEBUG
+            printf("[ENTITY COLLISION SYSTEM] Entity collision system is not dirty\n");
+        #endif
         return;
     }
 
@@ -616,6 +641,9 @@ void entityCollisionSystem(ZENg zEngine, double_t deltaTime) {
             }
         }
     }
+
+    propagateSystemDirtiness(zEngine->ecs->depGraph->nodes[SYS_ENTITY_COLLISIONS]);
+    zEngine->ecs->depGraph->nodes[SYS_ENTITY_COLLISIONS]->isDirty = 0;
 }
 
 /**
@@ -696,6 +724,9 @@ Uint8 checkWorldCollision(ZENg zEngine, SDL_Rect *hitbox, SDL_Rect *result) {
 
 void worldCollisionSystem(ZENg zEngine, double_t deltaTime) {
     if (zEngine->ecs->depGraph->nodes[SYS_WORLD_COLLISIONS]->isDirty == 0) {
+        #ifdef DEBUG
+            printf("[WORLD COLLISION SYSTEM] World collision system is not dirty\n");
+        #endif
         return;
     }
 
@@ -770,6 +801,9 @@ void worldCollisionSystem(ZENg zEngine, double_t deltaTime) {
         }
         posComp->y = eColComp->hitbox->y;
     }
+
+    propagateSystemDirtiness(zEngine->ecs->depGraph->nodes[SYS_WORLD_COLLISIONS]);
+    zEngine->ecs->depGraph->nodes[SYS_WORLD_COLLISIONS]->isDirty = 0;
 }
 
 
@@ -781,6 +815,10 @@ void healthSystem(ZENg zEngine, double_t deltaTime) {
     #ifdef DEBUG
         printf("[HEALTH SYSTEM] There are %lu dirty health components\n", zEngine->ecs->components[HEALTH_COMPONENT].dirtyCount);
     #endif
+
+    if (zEngine->ecs->components[HEALTH_COMPONENT].dirtyCount != 0) {
+        propagateSystemDirtiness(zEngine->ecs->depGraph->nodes[SYS_HEALTH]);
+    }
     
     while (zEngine->ecs->components[HEALTH_COMPONENT].dirtyCount > 0) {
         Entity ownerID = zEngine->ecs->components[HEALTH_COMPONENT].dirtyEntities[0];
@@ -803,6 +841,9 @@ void healthSystem(ZENg zEngine, double_t deltaTime) {
 
 void transformSystem(ZENg zEngine, double_t deltaTime) {
     if (zEngine->ecs->depGraph->nodes[SYS_TRANSFORM]->isDirty == 0) {
+        #ifdef DEBUG
+            printf("[TRANSFORM SYSTEM] Transform system is not dirty\n");
+        #endif
         return;
     }
 
@@ -839,6 +880,9 @@ void transformSystem(ZENg zEngine, double_t deltaTime) {
             }
         }
     }
+
+    propagateSystemDirtiness(zEngine->ecs->depGraph->nodes[SYS_TRANSFORM]);
+    zEngine->ecs->depGraph->nodes[SYS_TRANSFORM]->isDirty = 0;
 }
 
 /**
@@ -846,6 +890,9 @@ void transformSystem(ZENg zEngine, double_t deltaTime) {
  */
 void renderSystem(ZENg zEngine, double_t deltaTime) {
     if (zEngine->ecs->depGraph->nodes[SYS_RENDER]->isDirty == 0) {
+        #ifdef DEBUG
+            printf("[RENDER SYSTEM] Render system is not dirty\n");
+        #endif
         return;  // No need to render if nothing changed
     }
 
@@ -858,10 +905,11 @@ void renderSystem(ZENg zEngine, double_t deltaTime) {
     SDL_SetRenderDrawColor(zEngine->display->renderer, 0, 0, 0, 255);  // Pitch black
     SDL_RenderClear(zEngine->display->renderer);
 
-    if (getCurrState(zEngine->stateMng)->type == STATE_PLAYING) renderArena(zEngine);
+    GameState *currState = getCurrState(zEngine->stateMng);
+    if (currState->type == STATE_PLAYING || currState->type == STATE_PAUSED) renderArena(zEngine);
 
     #ifdef DEBUG
-        if (getCurrState(zEngine->stateMng)->type == STATE_PLAYING) renderDebugGrid(zEngine);
+        if (currState->type == STATE_PLAYING || currState->type == STATE_PAUSED) renderDebugGrid(zEngine);
     #endif
 
     for (Uint64 i = 0; i < zEngine->ecs->components[RENDER_COMPONENT].denseSize; i++) {
@@ -895,8 +943,19 @@ void renderSystem(ZENg zEngine, double_t deltaTime) {
     }
     
     #ifdef DEBUG
-        if (getCurrState(zEngine->stateMng)->type == STATE_PLAYING) renderDebugCollision(zEngine);
+        if (currState->type == STATE_PLAYING || currState->type == STATE_PAUSED) renderDebugCollision(zEngine);
     #endif
+
+    if (currState->type == STATE_PAUSED) {
+        // Make the game appear as in background
+        int screenW = zEngine->display->currentMode.w;
+        int screenH = zEngine->display->currentMode.h;
+
+        SDL_SetRenderDrawBlendMode(zEngine->display->renderer, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(zEngine->display->renderer, 0, 0, 0, 128); // Half opaque
+        SDL_RenderFillRect(zEngine->display->renderer, NULL);
+        SDL_SetRenderDrawBlendMode(zEngine->display->renderer, SDL_BLENDMODE_NONE); // Reset if needed
+    }
 
     for (Uint64 i = 0; i < zEngine->ecs->components[BUTTON_COMPONENT].denseSize; i++) {
         ButtonComponent *button = (ButtonComponent *)(zEngine->ecs->components[BUTTON_COMPONENT].dense[i]);
@@ -909,6 +968,7 @@ void renderSystem(ZENg zEngine, double_t deltaTime) {
         }
     }
 
+    // Should propagate the dirtiness here, but the render system is pretty much always the last
     zEngine->ecs->depGraph->nodes[SYS_RENDER]->isDirty = 0;
 }
 
@@ -946,6 +1006,19 @@ void buttonSystem(ZENg zEngine, double_t deltaTime) {
         SDL_FreeSurface(surface);
 
         unmarkComponentDirty(zEngine->ecs, BUTTON_COMPONENT);
+    }
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+void runSystems(ZENg zEngine, double_t deltaTime) {
+    for (Uint64 i = 0; i < zEngine->ecs->depGraph->nodeCount; i++) {
+        SystemNode *curr = zEngine->ecs->depGraph->sortedNodes[i];
+        if (curr->isActive) {
+            curr->update(zEngine, deltaTime);
+        }
     }
 }
 

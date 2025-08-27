@@ -419,12 +419,11 @@ void addComponent(ECS ecs, Entity id, ComponentType compType, void *component) {
     ecs->components[compType].denseToEntity[denseIdx] = id;  // map the component to its entity ID
     ecs->components[compType].denseSize++;
 
-    // And set the corresponding bitmask
+    // And set the corresponding bit
     ecs->componentsFlags[id] |= (1 << compType);
 
     const ComponentType fineGrainedType[] = {
         HEALTH_COMPONENT,
-        RENDER_COMPONENT,
         BUTTON_COMPONENT
     };
     const size_t fineGrainedCount = sizeof(fineGrainedType) / sizeof(ComponentType);

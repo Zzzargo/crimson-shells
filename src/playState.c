@@ -9,7 +9,7 @@ void onEnterPlayState(ZENg zEngine) {
     addComponent(zEngine->ecs, id, HEALTH_COMPONENT, (void *)healthComp);
 
     Uint32 playerStartTileX = ARENA_WIDTH / 2;
-    Uint32 playerStartTileY = ARENA_HEIGHT - 2;  // bottom row
+    Uint32 playerStartTileY = ARENA_HEIGHT - 4;  // bottom
     Int32 playerStartTile = playerStartTileY * ARENA_WIDTH + playerStartTileX;
     int wW, wH;
     SDL_GetWindowSize(zEngine->display->window, &wW, &wH);
@@ -38,43 +38,6 @@ void onEnterPlayState(ZENg zEngine) {
         1, 0
     );
     addComponent(zEngine->ecs, id, RENDER_COMPONENT, (void *)renderComp);
-
-    // prepare the pause menu
-
-    int screenH = zEngine->display->currentMode.h;
-    int screenW = zEngine->display->currentMode.w;
-
-    // Percentages from the top of the screen
-    double titlePos = 0.3;
-    double listStartPos = 0.45;
-    double listItemsSpacing = 0.08;
-
-    // Create buttons with evenly spaced positions
-    char* buttonLabels[] = {
-        "Resume", "Exit to main menu"
-    };
-    // this is amazing
-    void (*buttonActions[])(ZENg) = {
-        &pauseToPlay, &pauseToMMenu
-    };
-
-    for (Uint8 orderIdx = 0; orderIdx < (sizeof(buttonLabels) / sizeof(buttonLabels[0])); orderIdx++) {
-        ButtonComponent *button = createButtonComponent (
-            zEngine->display->renderer, 
-            getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf"),
-            strdup(buttonLabels[orderIdx]), 
-            orderIdx == 0 ? COLOR_YELLOW : COLOR_WHITE, // First button selected (color)
-            buttonActions[orderIdx], 
-            orderIdx == 0 ? 1 : 0,  // First button selected (field flag)
-            orderIdx
-        );
-        
-        button->destRect->x = (screenW - button->destRect->w) / 2;
-        button->destRect->y = screenH * (listStartPos + orderIdx * listItemsSpacing);
-        
-        id = createEntity(zEngine->ecs);
-        addComponent(zEngine->ecs, id, BUTTON_COMPONENT, (void *)button);
-    }
 
     // test entity
     Int32 testEStartTileX = playerStartTileX + 5;
@@ -106,6 +69,19 @@ void onEnterPlayState(ZENg zEngine) {
     addComponent(zEngine->ecs, id, RENDER_COMPONENT, (void *)TrenderComp);
 
     initLevel(zEngine, "null for now");
+
+    // Enable the systems required by the play state
+    SystemNode **systems = zEngine->ecs->depGraph->nodes;
+    systems[SYS_LIFETIME]->isActive = 1;
+    systems[SYS_VELOCITY]->isActive = 1;
+    systems[SYS_WORLD_COLLISIONS]->isActive = 1;
+    systems[SYS_ENTITY_COLLISIONS]->isActive = 1;
+    systems[SYS_POSITION]->isActive = 1;
+    systems[SYS_HEALTH]->isActive = 1;
+    systems[SYS_TRANSFORM]->isActive = 1;
+
+    // Force a systems run
+    systems[SYS_VELOCITY]->isDirty = 1;
 }
 
 void onExitPlayState(ZENg zEngine) {
@@ -114,10 +90,15 @@ void onExitPlayState(ZENg zEngine) {
         deleteEntity(zEngine->ecs, zEngine->ecs->activeEntities[0]);
     }
 
-    // and the pause menu UI entities
-    while (zEngine->ecs->entityCount > 0) {
-        deleteEntity(zEngine->ecs, zEngine->ecs->activeEntities[0]);
-    }
+    // Disable the play state's systems
+    SystemNode **systems = zEngine->ecs->depGraph->nodes;
+    systems[SYS_LIFETIME]->isActive = 0;
+    systems[SYS_VELOCITY]->isActive = 0;
+    systems[SYS_WORLD_COLLISIONS]->isActive = 0;
+    systems[SYS_ENTITY_COLLISIONS]->isActive = 0;
+    systems[SYS_POSITION]->isActive = 0;
+    systems[SYS_HEALTH]->isActive = 0;
+    systems[SYS_TRANSFORM]->isActive = 0;
 }
 
 void spawnBulletProjectile(ZENg zEngine, Entity shooter) {
@@ -217,6 +198,8 @@ Uint8 handlePlayStateEvents(SDL_Event *e, ZENg zEngine) {
                 }
                 pauseState->type = STATE_PAUSED;
                 pauseState->handleEvents = &handlePauseStateEvents;
+                pauseState->onEnter = &onEnterPauseState;
+                pauseState->onExit = &onExitPauseState;
                 pauseState->isOverlay = 1;
                 pushState(zEngine, pauseState);
                 renderPauseState(zEngine);  // render the pause state once
