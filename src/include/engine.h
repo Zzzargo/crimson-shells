@@ -89,11 +89,10 @@ void renderDebugCollision(ZENg zEngine);
  * Checks whether a SDL_Rect (usually a hitbox) collides with the world (walls)
  * @param zEngine pointer to the engine
  * @param hitbox pointer to a SDL_Rect
- * @param result a pointer to a SDL_Rect representing the world part with which the entity collided, or NULL
+ * @param collidedTile a pointer to a tile with which the entity collided
  * @return 1 if a collision was detected, 0 otherwise
- * @note the result must be allocated before calling the function
  */
-Uint8 checkWorldCollision(ZENg zEngine, SDL_Rect *hitbox, SDL_Rect *result);
+Uint8 checkWorldCollision(ZENg zEngine, SDL_Rect *hitbox, Tile *collidedTile);
 
 /**
  * Passes the collision components to the collision handler

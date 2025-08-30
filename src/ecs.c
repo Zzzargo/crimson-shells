@@ -65,7 +65,7 @@ void initECS(ECS *ecs) {
  * =====================================================================================================================
  */
 
-Entity createEntity(ECS ecs) {
+Entity createEntity(ECS ecs, StateTagComponent state) {
     Entity entitty;
     if (ecs->freeEntityCount > 0) {
         // reuse an ID from the free entities array
@@ -127,8 +127,18 @@ Entity createEntity(ECS ecs) {
     ecs->componentsFlags[entitty] = 0;  // the new entity has no components
     ecs->activeEntities[ecs->entityCount++] = entitty;  // add it to the active entities array
 
+    // Add the state tag component
+    StateTagComponent *stateTag = calloc(1, sizeof(StateTagComponent));
+    if (!stateTag) {
+        printf("Failed allocating memory for the state tag of entity %lu\n", entitty);
+        exit(EXIT_FAILURE);
+    }
+
+    *stateTag = state; 
+    addComponent(ecs, entitty, STATE_TAG_COMPONENT, (void*)stateTag);
+
     #ifdef DEBUG
-        printf("Created entity with ID %ld\n", entitty);
+        printf("Created entity %lu belonging to state %d\n", entitty, *stateTag);
     #endif
 
     return entitty;
@@ -754,6 +764,12 @@ void deleteEntity(ECS ecs, Entity id) {
                             if (render->destRect) free(render->destRect);
                             break;
                         }
+                        case BUTTON_COMPONENT: {
+                            ButtonComponent *button = (ButtonComponent*)component;
+                            if (button->text) free(button->text);
+                            if (button->destRect) free(button->destRect);
+                            break;
+                        }
                     }
                     free(component);
                     
@@ -822,6 +838,21 @@ void deleteEntity(ECS ecs, Entity id) {
  * =====================================================================================================================
  */
 
+void sweepState(ECS ecs, GameStateType stateType) {
+    // Iterating backwards because the deletion changes the entities array order
+    for (Int64 i = ecs->components[STATE_TAG_COMPONENT].denseSize - 1; i >= 0; i--) {
+        StateTagComponent *stateTag = ecs->components[STATE_TAG_COMPONENT].dense[i];
+        if (*stateTag == stateType) {
+            Entity owner = ecs->components[STATE_TAG_COMPONENT].denseToEntity[i];
+            deleteEntity(ecs, owner);
+        }
+    }
+}
+
+/**
+ * =====================================================================================================================
+ */
+
 void freeECS(ECS ecs) {
     if (ecs) {
         if (ecs->componentsFlags) {
@@ -865,11 +896,33 @@ void freeECS(ECS ecs) {
                     }
                     free(ecs->components[i].sparse);
                 }
+                if (ecs->components[i].dirtyEntities) {
+                    free(ecs->components[i].dirtyEntities);
+                }
             }
             free(ecs->components);
         }
         if (ecs->freeEntities) {
             free(ecs->freeEntities);
+        }
+        if (ecs->depGraph) {
+            if (ecs->depGraph->nodes) {
+                for (Uint64 i = 0; i < ecs->depGraph->nodeCount; i++) {
+                    SystemNode *curr = ecs->depGraph->nodes[i];
+                    if (curr) {
+                        if (curr->dependencies) {
+                            free(curr->dependencies);
+                        }
+                        if (curr->dependents) {
+                            free(curr->dependents);
+                        }
+                        free(curr);
+                    }
+                }
+                free(ecs->depGraph->nodes);
+            }
+            if (ecs->depGraph->sortedNodes) free(ecs->depGraph->sortedNodes);
+            free(ecs->depGraph);
         }
         free(ecs);
     }

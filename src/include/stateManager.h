@@ -4,21 +4,8 @@
 #include "global.h"
 #include "engine.h"
 
-// Available game states enum
-typedef enum {
-    STATE_MAIN_MENU,
-    STATE_OPTIONS,
-    STATE_OPTIONS_AUDIO,
-    STATE_OPTIONS_VIDEO,
-    STATE_OPTIONS_CONTROLS,
-    STATE_PLAYING,
-    STATE_PAUSED,
-    STATE_GAME_OVER,
-    STATE_EXIT,
-} GameStateType;
-
 // A game state is described by a set of functions that handle its lifecycle
-typedef struct {
+typedef struct state {
     void (*onEnter)(ZENg);  // load state's assets
     void (*onExit)(ZENg);  // unload state's assets
     Uint8 (*handleEvents)(SDL_Event*, ZENg);  // handle input via events

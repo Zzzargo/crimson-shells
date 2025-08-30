@@ -29,7 +29,9 @@ typedef struct {
 } Tile;
 
 typedef struct map {
-    Tile tiles[ARENA_WIDTH][ARENA_HEIGHT];
+    // Definitions for each tile type, initialized at engine start
+    Tile tileDefs[TILE_COUNT];
+    Tile tiles[ARENA_HEIGHT][ARENA_WIDTH];
 } *Arena;
 
 /**
@@ -37,13 +39,13 @@ typedef struct map {
  * @param idx the index of the tile
  * @return a Vec2 representing the tile's position in the arena
  */
-Vec2 tileToWorld(Int32 idx);
+Vec2 tileToWorld(Uint32 idx);
 
 /**
  * Converts world coordinates to a tile index
  * @param pos the position in world coordinates
  * @return the index of the tile in the arena grid
  */
-Int32 worldToTile(Vec2 pos);
+Uint32 worldToTile(Vec2 pos);
 
 #endif // ARENA_H

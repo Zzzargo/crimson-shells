@@ -42,7 +42,7 @@ void onEnterVideoOptions(ZENg zEngine) {
         button->destRect->x = (screenW - button->destRect->w) / 2;
         button->destRect->y = screenH * (listStartPos + orderIdx * listItemsSpacing);
         
-        id = createEntity(zEngine->ecs);
+        id = createEntity(zEngine->ecs, STATE_OPTIONS_VIDEO);
         addComponent(zEngine->ecs, id, BUTTON_COMPONENT, (void *)button);
     }
 
@@ -54,7 +54,7 @@ void onEnterVideoOptions(ZENg zEngine) {
     );
     backButton->destRect->x = (screenW - backButton->destRect->w) / 2;
     backButton->destRect->y = screenH * (listStartPos + orderIdx * listItemsSpacing);
-    id = createEntity(zEngine->ecs);
+    id = createEntity(zEngine->ecs, STATE_OPTIONS_VIDEO);
     addComponent(zEngine->ecs, id, BUTTON_COMPONENT, (void *)backButton);
 }
 

@@ -33,11 +33,20 @@ void onEnterPauseState(ZENg zEngine) {
         button->destRect->x = (screenW - button->destRect->w) / 2;
         button->destRect->y = screenH * (listStartPos + orderIdx * listItemsSpacing);
         
-        id = createEntity(zEngine->ecs);
+        id = createEntity(zEngine->ecs, STATE_PAUSED);
         addComponent(zEngine->ecs, id, BUTTON_COMPONENT, (void *)button);
     }
 
-    zEngine->ecs->depGraph->nodes[SYS_BUTTONS]->isActive = 1;
+    SystemNode **systems = zEngine->ecs->depGraph->nodes;
+    systems[SYS_LIFETIME]->isActive = 0;
+    systems[SYS_VELOCITY]->isActive = 0;
+    systems[SYS_WORLD_COLLISIONS]->isActive = 0;
+    systems[SYS_ENTITY_COLLISIONS]->isActive = 0;
+    systems[SYS_POSITION]->isActive = 0;
+    systems[SYS_HEALTH]->isActive = 0;
+    systems[SYS_TRANSFORM]->isActive = 0;
+
+    systems[SYS_BUTTONS]->isActive = 1;
 }
 
 /**
@@ -45,13 +54,23 @@ void onEnterPauseState(ZENg zEngine) {
  */
 
 void onExitPauseState(ZENg zEngine) {
-    // delete game entities
-    while (zEngine->ecs->entityCount > 0) {
-        deleteEntity(zEngine->ecs, zEngine->ecs->activeEntities[0]);
-    }
+    // Delete pause state entities
+    sweepState(zEngine->ecs, STATE_PAUSED);
 
     // Disable the pause state systems
-    zEngine->ecs->depGraph->nodes[SYS_BUTTONS]->isActive = 0;
+    SystemNode **systems = zEngine->ecs->depGraph->nodes;
+    systems[SYS_BUTTONS]->isActive = 0;
+
+    // And enable the game's
+    systems[SYS_LIFETIME]->isActive = 1;
+    systems[SYS_VELOCITY]->isActive = 1;
+    systems[SYS_WORLD_COLLISIONS]->isActive = 1;
+    systems[SYS_ENTITY_COLLISIONS]->isActive = 1;
+    systems[SYS_POSITION]->isActive = 1;
+    systems[SYS_HEALTH]->isActive = 1;
+    systems[SYS_TRANSFORM]->isActive = 1;
+    // Force a frame
+    systems[SYS_VELOCITY]->isDirty = 1;
 }
 
 /**

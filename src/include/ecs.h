@@ -24,6 +24,7 @@ typedef enum {
     PROJECTILE_COMPONENT,
     LIFETIME_COMPONENT,
     COLLISION_COMPONENT,
+    STATE_TAG_COMPONENT,
     TEXT_COMPONENT,  // From here more UI-based components
     BUTTON_COMPONENT,
     RENDER_COMPONENT,
@@ -124,6 +125,22 @@ typedef struct {
     Uint8 orderIdx;  // Used to maintain order in UI entities
 } ButtonComponent;
 
+// Available game states enum
+typedef enum {
+    STATE_MAIN_MENU,
+    STATE_OPTIONS,
+    STATE_OPTIONS_AUDIO,
+    STATE_OPTIONS_VIDEO,
+    STATE_OPTIONS_CONTROLS,
+    STATE_PLAYING,
+    STATE_PAUSED,
+    STATE_GAME_OVER,
+    STATE_EXIT,
+} GameStateType;
+
+// A state tag component tells which state an entity belongs to (was created in)
+typedef GameStateType StateTagComponent;
+
 // ===============================================SYSTEMS===============================================================
 
 typedef enum {
@@ -196,10 +213,11 @@ void freeECS(ECS ecs);
 /**
  * Creates a new entity in an ECS
  * @param ecs an ECS struct = struct ecs*
+ * @param state enum type, state in which the entity was created
  * @return Entity(ID)
  * @note an entity in an ECS is just the ID (a number)
 */
-Entity createEntity(ECS ecs);
+Entity createEntity(ECS ecs, StateTagComponent state);
 
 /**
  * Deletes an entity along with all its associated components
@@ -207,6 +225,13 @@ Entity createEntity(ECS ecs);
  * @param id the entity ID
  */
 void deleteEntity(ECS ecs, Entity id);
+
+/**
+ * Deletes all the entities belonging to a state
+ * @param ecs pointer to the ECS
+ * @param stateType enum type, the state in question
+ */
+void sweepState(ECS ecs, GameStateType stateType);
 
 /**
  * Marks an entity's component as dirty, meaning it needs to be updated

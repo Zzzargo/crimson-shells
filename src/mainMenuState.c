@@ -27,7 +27,7 @@ void onEnterMainMenu(ZENg zEngine) {
     title->destRect->x = (screenW - title->destRect->w) / 2;
     title->destRect->y = screenH * titlePos;
 
-    Entity id = createEntity(zEngine->ecs);
+    Entity id = createEntity(zEngine->ecs, STATE_MAIN_MENU);
     addComponent(zEngine->ecs, id, TEXT_COMPONENT, (void *)title);
 
     for (Uint8 orderIdx = 0; orderIdx < (sizeof(buttonLabels) / sizeof(buttonLabels[0])); orderIdx++) {
@@ -44,7 +44,7 @@ void onEnterMainMenu(ZENg zEngine) {
         button->destRect->x = (screenW - button->destRect->w) / 2;
         button->destRect->y = screenH * (listStartPos + orderIdx * listItemsSpacing);
         
-        id = createEntity(zEngine->ecs);
+        id = createEntity(zEngine->ecs, STATE_MAIN_MENU);
         addComponent(zEngine->ecs, id, BUTTON_COMPONENT, (void *)button);
     }
 
@@ -68,7 +68,7 @@ void onEnterMainMenu(ZENg zEngine) {
     instructions->destRect->x = (screenW - instructions->destRect->w) / 2;
     instructions->destRect->y = screenH * footerPos;
 
-    id = createEntity(zEngine->ecs);  // get a new entity's ID
+    id = createEntity(zEngine->ecs, STATE_MAIN_MENU);  // get a new entity's ID
     addComponent(zEngine->ecs, id, TEXT_COMPONENT, (void *)instructions);
 
     // Enable the needed systems
@@ -77,10 +77,8 @@ void onEnterMainMenu(ZENg zEngine) {
 }
 
 void onExitMainMenu(ZENg zEngine) {
-    // delete all main menu entities
-    while (zEngine->ecs->entityCount > 0) {
-        deleteEntity(zEngine->ecs, zEngine->ecs->activeEntities[0]);
-    }
+    // Delete all main menu entities
+    sweepState(zEngine->ecs, STATE_MAIN_MENU);
 
     // Disable the buttons system
     zEngine->ecs->depGraph->nodes[SYS_BUTTONS]->isActive = 0;

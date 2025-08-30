@@ -180,31 +180,93 @@ void initLevel(ZENg zEngine, const char *levelFilePath) {
         exit(EXIT_FAILURE);
     }
 
-    for (Uint32 y = 0; y < ARENA_HEIGHT; y++) {
-        for (Uint32 x = 0; x < ARENA_WIDTH; x++) {
-            if ((y < 3 || y > 25) && (x % 3 == 0)) {
-                zEngine->map->tiles[x][y] = (Tile) {
-                    .type = TILE_BRICKS,
-                    .texture = getTexture(zEngine->resources, "assets/textures/brick.jpg"),
-                    .speedMod = 1.0,
-                    .idx = y * ARENA_WIDTH + x,
-                    .isWalkable = 0,
-                    .isSolid = 1,
-                    .damage = 0
-                };
-            } else {
-                zEngine->map->tiles[x][y] = (Tile){
-                    .type = TILE_EMPTY,
-                    .texture = NULL,
-                    .speedMod = 1.0,
-                    .idx = y * ARENA_WIDTH + x,
-                    .isWalkable = 1,
-                    .isSolid = 0,
-                    .damage = 0
-                };
+    // Initialize the tileDefs
+    Tile *defs = zEngine->map->tileDefs;
+    defs[TILE_EMPTY].isWalkable = 1;
+    defs[TILE_EMPTY].type = TILE_EMPTY;
+
+    defs[TILE_BRICKS].isSolid = 1;
+    defs[TILE_BRICKS].type = TILE_BRICKS;
+    defs[TILE_BRICKS].texture = getTexture(zEngine->resources, "assets/textures/brick.jpg");
+
+    defs[TILE_ROCK].isSolid = 1;
+    defs[TILE_ROCK].type = TILE_ROCK;
+    defs[TILE_ROCK].texture = getTexture(zEngine->resources, "assets/textures/rocks.jpg");
+
+
+    FILE *fin = fopen(levelFilePath, "r");
+    if (!fin) {
+        fprintf(stderr, "Failed to open level file: %s\n", levelFilePath);
+        exit(EXIT_FAILURE);
+    }
+
+    enum {
+        NONE,
+        SECTION_TILES,
+        SECTION_ENTITIES
+    } currSect = NONE;
+
+    char line[256];
+    Uint32 tileRow;
+
+    while (fgets(line, sizeof(line), fin)) {
+        line[strcspn(line, "\r\n")] = 0;  // Remove newline characters
+
+        // Skip empty lines
+        if (strlen(line) == 0) continue;
+
+        // Section headers
+        if (strcmp(line, "[TILES]") == 0) {
+            currSect = SECTION_TILES;
+            tileRow = 0;  // Init the counter
+            continue;
+        } else if (strcmp(line, "[ENTITIES]") == 0) {
+            currSect = SECTION_ENTITIES;
+            continue;
+        }
+
+        // Skip comments
+        if (line[0] == '#') continue;
+
+        switch (currSect) {
+            case SECTION_TILES: {
+                if (tileRow >= ARENA_HEIGHT) {
+                    fprintf(stderr, "Warning: More tile rows in level file than expected (%d). Ignoring extra rows.\n", ARENA_HEIGHT);
+                    continue;
+                }
+
+                // Parse the tiles row
+                Uint32 tileCol = 0;
+                char *token = strtok(line, " ");
+                while (token && tileCol < ARENA_WIDTH) {
+                    TileType currTileType = (TileType)atoi(token);
+                    if (currTileType < 0 || currTileType >= TILE_COUNT) {
+                        fprintf(stderr, "Invalid tile type %d at row %d, column %d. Defaulting to TILE_EMPTY.\n", currTileType, tileRow, tileCol);
+                        currTileType = TILE_EMPTY;
+                    }
+                    zEngine->map->tiles[tileRow][tileCol] = zEngine->map->tileDefs[currTileType];
+                    zEngine->map->tiles[tileRow][tileCol].idx = tileRow * ARENA_WIDTH + tileCol;
+                    token = strtok(NULL, " ");
+                    tileCol++;
+                }
+
+                tileRow++;
+                break;
+            }
+            case SECTION_ENTITIES: {
+                break;
+            }
+            case NONE: {
+                break;
+            }
+            default: {
+                // It shouldn't reach here
+                fprintf(stderr, "Unknown section in level file: %s\n", line);
+                break;
             }
         }
     }
+    fclose(fin);
 }
 
 /**
@@ -341,10 +403,15 @@ ZENg initGame() {
 
 void velocitySystem(ZENg zEngine, double_t deltaTime) {
     if (zEngine->ecs->depGraph->nodes[SYS_VELOCITY]->isDirty == 0) {
-        #ifdef DEBUG
-            printf("[VELOCITY SYSTEM] Velocity system is not dirty\n");
-        #endif
-        return;
+        if (zEngine->ecs->components[PROJECTILE_COMPONENT].denseSize > 0) {
+            // If there are projectiles, let them behave
+            zEngine->ecs->depGraph->nodes[SYS_VELOCITY]->isDirty = 1;
+        } else {
+            #ifdef DEBUG
+                printf("[VELOCITY SYSTEM] Velocity system is not dirty\n");
+            #endif
+            return;
+        }
     }
     
     #ifdef DEBUG
@@ -425,11 +492,16 @@ void positionSystem(ZENg zEngine, double_t deltaTime) {
             // Only entities with a velocity component can be snapped
             continue;
         }
-        Uint64 velDenseIdx = zEngine->ecs->components[VELOCITY_COMPONENT].sparse[page][idx];
-        VelocityComponent *velComp = (VelocityComponent *)(zEngine->ecs->components[VELOCITY_COMPONENT].dense[velDenseIdx]);
 
-        Uint8 movingX = fabs(velComp->currVelocity.x) > EPSILON;
-        Uint8 movingY = fabs(velComp->currVelocity.y) > EPSILON;
+        Uint64 velDenseIdx = zEngine->ecs->components[VELOCITY_COMPONENT].sparse[page][idx];
+        VelocityComponent *velComp = zEngine->ecs->components[VELOCITY_COMPONENT].dense[velDenseIdx];
+
+        // Entities with velocity are guaranteed to have also direction
+        Uint64 dirDenseIdx = zEngine->ecs->components[DIRECTION_COMPONENT].sparse[page][idx];
+        DirectionComponent *dirComp = (DirectionComponent *)(zEngine->ecs->components[DIRECTION_COMPONENT].dense[dirDenseIdx]);
+
+        Uint8 movingX = fabs(dirComp->x) > EPSILON;
+        Uint8 movingY = fabs(dirComp->y) > EPSILON;
         
         Int32 currTileIdx = worldToTile(*posComp);
         Uint32 currTileX = currTileIdx % ARENA_WIDTH;
@@ -443,15 +515,6 @@ void positionSystem(ZENg zEngine, double_t deltaTime) {
             // Axis change -> snap the position to a tile
             posComp->x = round(posComp->x / TILE_SIZE) * TILE_SIZE;
             velComp->prevAxis = AXIS_Y;
-        } else {
-            // Last case can happen when the collision system changed the velocity
-            if ((zEngine->ecs->componentsFlags[owner] & (1 << DIRECTION_COMPONENT)) != 0) {
-                // If the current direction is on a different axis than the prevAxis - snap
-                Uint64 dirDenseIdx = zEngine->ecs->components[DIRECTION_COMPONENT].sparse[page][idx];
-                DirectionComponent *dirComp = (DirectionComponent *)(zEngine->ecs->components[DIRECTION_COMPONENT].dense[dirDenseIdx]);
-
-                // TODO YOOOO THIS CAN ACTUALLY BE DONE ONLY WITH THE DIRECTION
-            }
         }
     }
 
@@ -494,6 +557,11 @@ void lifetimeSystem(ZENg zEngine, double_t deltaTime) {
 void handleEntitiesCollision(ZENg zEngine, CollisionComponent *AColComp, CollisionComponent *BColComp, Entity AOwner, Entity BOwner) {
     if (!AColComp->isSolid && !BColComp->isSolid) {
         // two bullets collide - skip collision check
+        return;
+    }
+
+    if (AColComp->role == COL_ACTOR && BColComp->role == COL_ACTOR) {
+        printf("QUIT THE SMOOCHING!1!\n");
         return;
     }
 
@@ -666,7 +734,7 @@ void renderDebugCollision(ZENg zEngine) {
     SDL_SetRenderDrawColor(zEngine->display->renderer, 0, 255, 0, 255);
     for (Uint32 y = 0; y < ARENA_HEIGHT; y++) {
         for (Uint32 x = 0; x < ARENA_WIDTH; x++) {
-            if (zEngine->map->tiles[x][y].isSolid) {
+            if (zEngine->map->tiles[y][x].isSolid) {
                 SDL_Rect tileRect = {
                     .x = x * TILE_SIZE,
                     .y = y * TILE_SIZE,
@@ -684,8 +752,7 @@ void renderDebugCollision(ZENg zEngine) {
  * =====================================================================================================================
  */
 
-Uint8 checkWorldCollision(ZENg zEngine, SDL_Rect *hitbox, SDL_Rect *result) {
-
+Uint8 checkWorldCollision(ZENg zEngine, SDL_Rect *hitbox, Tile *collidedTile) {
     // For entities bigger than one tile. consider the base the top-left tile
     Uint32 tileX = (Uint32)(hitbox->x / TILE_SIZE);
     Uint32 tileY = (Uint32)(hitbox->y / TILE_SIZE);
@@ -694,13 +761,13 @@ Uint8 checkWorldCollision(ZENg zEngine, SDL_Rect *hitbox, SDL_Rect *result) {
     Int32 dxMax = eWidth + 1;
     Int32 dyMax = eHeight + 1;
 
-    for (Int32 dx = -1; dx <= dxMax; dx++) {
-        for (Int32 dy = -1; dy <= dyMax; dy++) {
+    for (Int32 dy = -1; dy <= dyMax; dy++) {
+        Uint32 neighY = (Int32)tileY + dy;
+        for (Int32 dx = -1; dx <= dxMax; dx++) {
             Uint32 neighX = (Int32)tileX + dx;
-            Uint32 neighY = (Int32)tileY + dy;
 
             if (neighX > 0 && neighX < ARENA_WIDTH && neighY > 0 && neighY < ARENA_HEIGHT) {
-                Tile *neighTile = &zEngine->map->tiles[neighX][neighY];
+                Tile *neighTile = &zEngine->map->tiles[neighY][neighX];
                 SDL_Rect neighTileRect = {
                     .x = neighX * TILE_SIZE,
                     .y = neighY * TILE_SIZE,
@@ -709,7 +776,7 @@ Uint8 checkWorldCollision(ZENg zEngine, SDL_Rect *hitbox, SDL_Rect *result) {
                 };
 
                 if (neighTile->isSolid && SDL_HasIntersection(hitbox, &neighTileRect)) {
-                    *result = neighTileRect;
+                    *collidedTile = *neighTile;
                     return 1;  // Collision detected
                 }
             }
@@ -769,18 +836,27 @@ void worldCollisionSystem(ZENg zEngine, double_t deltaTime) {
             continue;
         }
 
-        SDL_Rect collidedTile;  // passed to the function checking world collisions
+        Tile collidedTile;  // passed to the function checking world collisions
         
         // Resolve X-Axis collisions
         double_t moveX = eVelComp->currVelocity.x * deltaTime;
         eColComp->hitbox->x = eVelComp->predictedPos.x;
 
         if (checkWorldCollision(zEngine, eColComp->hitbox, &collidedTile)) {
-            
+            if (eColComp->role == COL_BULLET) {
+                // If a bullet hit a wall, delete it
+                deleteEntity(zEngine->ecs, e);
+                Uint32 tileY = collidedTile.idx / ARENA_WIDTH;
+                Uint32 tileX = collidedTile.idx % ARENA_WIDTH;
+                zEngine->map->tiles[tileY][tileX] = zEngine->map->tileDefs[TILE_EMPTY];
+                continue;
+            }
+
+            Vec2 tileCoords = tileToWorld(collidedTile.idx);
             if (moveX > 0) {
-                eColComp->hitbox->x = collidedTile.x - eColComp->hitbox->w;
+                eColComp->hitbox->x = tileCoords.x - eColComp->hitbox->w;
             } else if (moveX < 0) {
-                eColComp->hitbox->x = collidedTile.x + collidedTile.w;
+                eColComp->hitbox->x = tileCoords.x + TILE_SIZE;
             }
             eVelComp->currVelocity.x = 0.0;
         }
@@ -791,11 +867,19 @@ void worldCollisionSystem(ZENg zEngine, double_t deltaTime) {
         eColComp->hitbox->y = eVelComp->predictedPos.y;
 
         if (checkWorldCollision(zEngine, eColComp->hitbox, &collidedTile)) {
+            if (eColComp->role == COL_BULLET) {
+                deleteEntity(zEngine->ecs, e);
+                Uint32 tileY = collidedTile.idx / ARENA_WIDTH;
+                Uint32 tileX = collidedTile.idx % ARENA_WIDTH;
+                zEngine->map->tiles[tileY][tileX] = zEngine->map->tileDefs[TILE_EMPTY];
+                continue;
+            }
 
+            Vec2 tileCoords = tileToWorld(collidedTile.idx);
             if (moveY > 0) {
-                eColComp->hitbox->y = collidedTile.y - eColComp->hitbox->h;
+                eColComp->hitbox->y = tileCoords.y - eColComp->hitbox->h;
             } else if (moveY < 0) {
-                eColComp->hitbox->y = collidedTile.y + collidedTile.h;
+                eColComp->hitbox->y = tileCoords.y + TILE_SIZE;
             }
             eVelComp->currVelocity.y = 0.0;
         }

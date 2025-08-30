@@ -2,7 +2,7 @@
 
 void onEnterPlayState(ZENg zEngine) {
     // Add the initial game entities to the ECS
-    Entity id = createEntity(zEngine->ecs);
+    Entity id = createEntity(zEngine->ecs, STATE_PLAYING);
     PLAYER_ID = id;  // set the global player ID
 
     HealthComponent *healthComp = createHealthComponent(100, 100, 1);
@@ -44,7 +44,7 @@ void onEnterPlayState(ZENg zEngine) {
     Int32 testEStartTileY = playerStartTileY - 5;
     Int32 testEStartTileIdx = testEStartTileY * ARENA_WIDTH + testEStartTileX;
 
-    id = createEntity(zEngine->ecs);
+    id = createEntity(zEngine->ecs, STATE_PLAYING);
     HealthComponent *ThealthComp = createHealthComponent(
         100, 100, 1
     );
@@ -68,7 +68,7 @@ void onEnterPlayState(ZENg zEngine) {
     );
     addComponent(zEngine->ecs, id, RENDER_COMPONENT, (void *)TrenderComp);
 
-    initLevel(zEngine, "null for now");
+    initLevel(zEngine, "arenatest");
 
     // Enable the systems required by the play state
     SystemNode **systems = zEngine->ecs->depGraph->nodes;
@@ -85,9 +85,12 @@ void onEnterPlayState(ZENg zEngine) {
 }
 
 void onExitPlayState(ZENg zEngine) {
-    // delete game entities
-    while (zEngine->ecs->entityCount > 0) {
-        deleteEntity(zEngine->ecs, zEngine->ecs->activeEntities[0]);
+    // Delete game entities
+    sweepState(zEngine->ecs, STATE_PLAYING);
+
+    // Destroy the arena memory
+    if (zEngine->map) {
+        free(zEngine->map);
     }
 
     // Disable the play state's systems
@@ -102,7 +105,7 @@ void onExitPlayState(ZENg zEngine) {
 }
 
 void spawnBulletProjectile(ZENg zEngine, Entity shooter) {
-    Entity bulletID = createEntity(zEngine->ecs);
+    Entity bulletID = createEntity(zEngine->ecs, STATE_PLAYING);
 
     // Bullet size
     int bulletW = 10, bulletH = 10;
@@ -257,19 +260,18 @@ void handlePlayStateInput(ZENg zEngine) {
     }
 }
 
-void updatePlayStateLogic(ZENg zEngine, double_t deltaTime) {
-    lifetimeSystem(zEngine, deltaTime);  // Deletes expired entities
-    velocitySystem(zEngine, deltaTime);  // Updates predicted positions
-    worldCollisionSystem(zEngine, deltaTime);  // Handles world collisions based on predicted positions
-    entityCollisionSystem(zEngine, deltaTime);  // Handles entities collisions based on predicted positions and validates them
-    positionSystem(zEngine, deltaTime);  // Snaps entities to the grid when needed
-    healthSystem(zEngine, deltaTime);  // Deletes entities with <= 0 health
-    transformSystem(zEngine, deltaTime);  // Updates the screen textures of entities based on their virtual positions
-}
+/**
+ * =====================================================================================================================
+ */
 
 void renderArena(ZENg zEngine) {
     SDL_SetRenderDrawColor(zEngine->display->renderer, 20, 20, 20, 200);  // background color - grey
     SDL_RenderClear(zEngine->display->renderer);
+
+    if (!zEngine->map || !zEngine->map->tiles) {
+        printf("The arena was no initialized correctly.\n");
+        exit(EXIT_FAILURE);
+    }
 
     for (Uint64 y = 0; y < ARENA_HEIGHT; y++) {
         for (Uint64 x = 0; x < ARENA_WIDTH; x++) {
@@ -279,10 +281,10 @@ void renderArena(ZENg zEngine) {
                 .w = TILE_SIZE,
                 .h = TILE_SIZE
             };
-            if (zEngine->map->tiles[x][y].texture) {
+            if (zEngine->map->tiles[y][x].texture) {
                 SDL_RenderCopy(
                     zEngine->display->renderer,
-                    zEngine->map->tiles[x][y].texture,
+                    zEngine->map->tiles[y][x].texture,
                     NULL,
                     &tileRect
                 );
