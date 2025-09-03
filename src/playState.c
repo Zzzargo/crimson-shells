@@ -1,6 +1,8 @@
 #include "include/stateManager.h"
 
 void onEnterPlayState(ZENg zEngine) {
+    initLevel(zEngine, "arenatest");
+
     // Add the initial game entities to the ECS
     Entity id = createEntity(zEngine->ecs, STATE_PLAYING);
     PLAYER_ID = id;  // set the global player ID
@@ -14,7 +16,7 @@ void onEnterPlayState(ZENg zEngine) {
     int wW, wH;
     SDL_GetWindowSize(zEngine->display->window, &wW, &wH);
 
-    PositionComponent *posComp = createPositionComponent(tileToWorld(playerStartTile));
+    PositionComponent *posComp = createPositionComponent(tileToWorld(zEngine->map, playerStartTile));
     addComponent(zEngine->ecs, id, POSITION_COMPONENT, (void *)posComp);
 
     DirectionComponent *dirComp = createDirectionComponent(DIR_UP);
@@ -39,6 +41,9 @@ void onEnterPlayState(ZENg zEngine) {
     );
     addComponent(zEngine->ecs, id, RENDER_COMPONENT, (void *)renderComp);
 
+    WeaponComponent *weapComp = createWeaponComponent(strdup("Machine Gun"), 10.0, &spawnBulletProjectile);
+    addComponent(zEngine->ecs, id, WEAPON_COMPONENT, (void *)weapComp);
+
     // test entity
     Int32 testEStartTileX = playerStartTileX + 5;
     Int32 testEStartTileY = playerStartTileY - 5;
@@ -51,7 +56,7 @@ void onEnterPlayState(ZENg zEngine) {
     addComponent(zEngine->ecs, id, HEALTH_COMPONENT, (void *)ThealthComp);
 
     PositionComponent *TposComp = createPositionComponent(
-        tileToWorld(testEStartTileIdx)
+        tileToWorld(zEngine->map, testEStartTileIdx)
     );
     addComponent(zEngine->ecs, id, POSITION_COMPONENT, (void *)TposComp);
 
@@ -68,11 +73,10 @@ void onEnterPlayState(ZENg zEngine) {
     );
     addComponent(zEngine->ecs, id, RENDER_COMPONENT, (void *)TrenderComp);
 
-    initLevel(zEngine, "arenatest");
-
     // Enable the systems required by the play state
     SystemNode **systems = zEngine->ecs->depGraph->nodes;
     systems[SYS_LIFETIME]->isActive = 1;
+    systems[SYS_WEAPONS]->isActive = 1;
     systems[SYS_VELOCITY]->isActive = 1;
     systems[SYS_WORLD_COLLISIONS]->isActive = 1;
     systems[SYS_ENTITY_COLLISIONS]->isActive = 1;
@@ -82,6 +86,9 @@ void onEnterPlayState(ZENg zEngine) {
 
     // Force a systems run
     systems[SYS_VELOCITY]->isDirty = 1;
+
+    // Mix_Chunk *music = getSound(zEngine->resources, "assets/sounds/music.mp3");
+    // Mix_PlayChannel(-1, music, -1);
 }
 
 void onExitPlayState(ZENg zEngine) {
@@ -96,6 +103,7 @@ void onExitPlayState(ZENg zEngine) {
     // Disable the play state's systems
     SystemNode **systems = zEngine->ecs->depGraph->nodes;
     systems[SYS_LIFETIME]->isActive = 0;
+    systems[SYS_WEAPONS]->isActive = 0;
     systems[SYS_VELOCITY]->isActive = 0;
     systems[SYS_WORLD_COLLISIONS]->isActive = 0;
     systems[SYS_ENTITY_COLLISIONS]->isActive = 0;
@@ -108,7 +116,7 @@ void spawnBulletProjectile(ZENg zEngine, Entity shooter) {
     Entity bulletID = createEntity(zEngine->ecs, STATE_PLAYING);
 
     // Bullet size
-    int bulletW = 10, bulletH = 10;
+    int bulletW = TILE_SIZE / 3, bulletH = TILE_SIZE / 3;
 
     // get the shooter components
     Uint64 shooterPage = shooter / PAGE_SIZE;
@@ -183,6 +191,13 @@ void spawnBulletProjectile(ZENg zEngine, Entity shooter) {
         1, 0
     );
     addComponent(zEngine->ecs, bulletID, RENDER_COMPONENT, (void *)bulletRender);
+
+    Mix_Chunk *buttonSound = getSound(zEngine->resources, "assets/sounds/button-press.mp3");
+    if (!buttonSound) {
+        printf("Failed to load button sound: %s\n", Mix_GetError());
+        exit(EXIT_FAILURE);
+    }
+    Mix_PlayChannel(-1, buttonSound, 0);
 }
 
 Uint8 handlePlayStateEvents(SDL_Event *e, ZENg zEngine) {
@@ -205,12 +220,7 @@ Uint8 handlePlayStateEvents(SDL_Event *e, ZENg zEngine) {
                 pauseState->onExit = &onExitPauseState;
                 pauseState->isOverlay = 1;
                 pushState(zEngine, pauseState);
-                renderPauseState(zEngine);  // render the pause state once
                 return 1;
-            }
-            case INPUT_SHOOT: {
-                // spawn a bullet with the owner PLAYER
-                spawnBulletProjectile(zEngine, PLAYER_ID);
             }
         }
     }
@@ -221,13 +231,40 @@ void handlePlayStateInput(ZENg zEngine) {
     // Keyboard state
     zEngine->inputMng->keyboardState = SDL_GetKeyboardState(NULL);
 
+
     Uint64 page = PLAYER_ID / PAGE_SIZE;
     Uint64 pageIdx = PLAYER_ID % PAGE_SIZE;
-    Uint64 denseIdx = zEngine->ecs->components[VELOCITY_COMPONENT].sparse[page][pageIdx];
 
-    VelocityComponent *playerSpeed = (VelocityComponent *)(zEngine->ecs->components[VELOCITY_COMPONENT].dense[denseIdx]);
-    PositionComponent *playerPos = (PositionComponent *)(zEngine->ecs->components[POSITION_COMPONENT].dense[denseIdx]);
-    DirectionComponent *playerDir = (DirectionComponent *)(zEngine->ecs->components[DIRECTION_COMPONENT].dense[denseIdx]);
+    if (isActionPressed(zEngine->inputMng, INPUT_SHOOT)) {
+        Uint64 weapDenseIdx = zEngine->ecs->components[WEAPON_COMPONENT].sparse[page][pageIdx];
+        WeaponComponent *playerWeap = (WeaponComponent *)zEngine->ecs->components[WEAPON_COMPONENT].dense[weapDenseIdx];
+
+        #ifdef DEBUG
+            printf(
+                "Trying to shoot... timeSinceUse: %.4f    timeRequired: %.4f\n",
+                playerWeap->timeSinceUse, (1.0 / playerWeap->fireRate)
+            );
+        #endif
+
+        if (playerWeap->timeSinceUse > (1.0 / playerWeap->fireRate)) {
+            playerWeap->spawnProj(zEngine, PLAYER_ID);
+            playerWeap->timeSinceUse = 0;
+        }
+        #ifdef DEBUG
+            else {
+                printf("Weapon has cooldown, can't shoot\n");
+            }
+        #endif
+    }
+
+    Uint64 velDenseIdx = zEngine->ecs->components[VELOCITY_COMPONENT].sparse[page][pageIdx];
+    VelocityComponent *playerSpeed = (VelocityComponent *)(zEngine->ecs->components[VELOCITY_COMPONENT].dense[velDenseIdx]);
+
+    Uint64 posDenseIdx = zEngine->ecs->components[POSITION_COMPONENT].sparse[page][pageIdx];
+    PositionComponent *playerPos = (PositionComponent *)(zEngine->ecs->components[POSITION_COMPONENT].dense[posDenseIdx]);
+
+    Uint64 dirDenseIdx = zEngine->ecs->components[DIRECTION_COMPONENT].sparse[page][pageIdx];
+    DirectionComponent *playerDir = (DirectionComponent *)(zEngine->ecs->components[DIRECTION_COMPONENT].dense[dirDenseIdx]);
 
     Uint8 moving = 0;  // flag to check if the player is moving
     if (isActionPressed(zEngine->inputMng, INPUT_MOVE_UP)) {
@@ -258,106 +295,4 @@ void handlePlayStateInput(ZENg zEngine) {
         // If no movement input, stop the player
         playerSpeed->currVelocity = (Vec2) { .x = 0.0, .y = 0.0 };
     }
-}
-
-/**
- * =====================================================================================================================
- */
-
-void renderArena(ZENg zEngine) {
-    SDL_SetRenderDrawColor(zEngine->display->renderer, 20, 20, 20, 200);  // background color - grey
-    SDL_RenderClear(zEngine->display->renderer);
-
-    if (!zEngine->map || !zEngine->map->tiles) {
-        printf("The arena was no initialized correctly.\n");
-        exit(EXIT_FAILURE);
-    }
-
-    for (Uint64 y = 0; y < ARENA_HEIGHT; y++) {
-        for (Uint64 x = 0; x < ARENA_WIDTH; x++) {
-            SDL_Rect tileRect = {
-                .x = x * TILE_SIZE,
-                .y = y * TILE_SIZE,
-                .w = TILE_SIZE,
-                .h = TILE_SIZE
-            };
-            if (zEngine->map->tiles[y][x].texture) {
-                SDL_RenderCopy(
-                    zEngine->display->renderer,
-                    zEngine->map->tiles[y][x].texture,
-                    NULL,
-                    &tileRect
-                );
-            }
-        }
-    }
-}
-
-#ifdef DEBUG
-void renderDebugGrid(ZENg zEngine) {
-    SDL_SetRenderDrawColor(zEngine->display->renderer, 100, 100, 100, 50);
-    
-    // Draw vertical grid lines
-    for (int x = 0; x <= ARENA_WIDTH; x++) {
-        SDL_RenderDrawLine(
-            zEngine->display->renderer,
-            x * TILE_SIZE, 0,
-            x * TILE_SIZE, zEngine->display->currentMode.h
-        );
-    }
-    
-    // Draw horizontal grid lines
-    for (int y = 0; y <= ARENA_HEIGHT; y++) {
-        SDL_RenderDrawLine(
-            zEngine->display->renderer,
-            0, y * TILE_SIZE,
-            zEngine->display->currentMode.w, y * TILE_SIZE
-        );
-    }
-}
-#endif
-
-void renderPlayState(ZENg zEngine) {
-    renderArena(zEngine);
-    #ifdef DEBUG
-        renderDebugGrid(zEngine);
-        printf("There are %lu entities with a dirty render component\n", zEngine->ecs->components[RENDER_COMPONENT].dirtyCount);
-    #endif
-
-    while (zEngine->ecs->components[RENDER_COMPONENT].dirtyCount > 0) {
-        // Render only the dirty entities
-        Entity dirtyOwner = (zEngine->ecs->components[RENDER_COMPONENT].dirtyEntities[0]);
-        Uint64 page = dirtyOwner / PAGE_SIZE;
-        Uint64 index = dirtyOwner % PAGE_SIZE;
-        Uint64 rdrDenseIdx = zEngine->ecs->components[RENDER_COMPONENT].sparse[page][index];
-        RenderComponent *render = (RenderComponent *)(zEngine->ecs->components[RENDER_COMPONENT].dense[rdrDenseIdx]);
-
-        if (render && render->destRect) {
-            double angle = 0.0;
-
-            // Check if the entity has a direction component
-            bitset hasDirection = 1 << DIRECTION_COMPONENT;
-            if (zEngine->ecs->componentsFlags[dirtyOwner] & hasDirection) {
-                Uint64 dirDenseIdx = zEngine->ecs->components[DIRECTION_COMPONENT].sparse[page][index];
-                DirectionComponent *dirComp = (DirectionComponent *)(zEngine->ecs->components[DIRECTION_COMPONENT].dense[dirDenseIdx]);
-
-                if (VEC2_EQUAL(*dirComp, DIR_UP)) {
-                    angle = 0.0;
-                } else if (VEC2_EQUAL(*dirComp, DIR_DOWN)) {
-                    angle = 180.0;
-                } else if (VEC2_EQUAL(*dirComp, DIR_LEFT)) {
-                    angle = 270.0;
-                } else if (VEC2_EQUAL(*dirComp, DIR_RIGHT)) {
-                    angle = 90.0;
-                }
-            }
-
-            SDL_RenderCopyEx(zEngine->display->renderer, render->texture, NULL, render->destRect, angle, NULL, SDL_FLIP_NONE);
-        }
-        unmarkComponentDirty(zEngine->ecs, RENDER_COMPONENT);  // mark the render component as clean
-    }
-    
-    #ifdef DEBUG
-        renderDebugCollision(zEngine);
-    #endif
 }

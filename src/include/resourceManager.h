@@ -52,6 +52,11 @@ TTF_Font* getFont(ResourceManager resMng, const char *key);
 // retrieves a sound resource from the ResourceManager
 Mix_Chunk *getSound(ResourceManager resMng, const char *key);
 
+/**
+ * 
+ */
+Mix_Music *getMusic(ResourceManager resMng, const char *key);
+
 // retrieves a resource from the ResourceManager if it's there, otherwise loads it
 void* getOrLoadResource(ResourceManager resMng, SDL_Renderer *renderer, const char *key, ResourceType type);
 

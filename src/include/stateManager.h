@@ -183,33 +183,6 @@ Uint8 handlePlayStateEvents(SDL_Event *e, ZENg zEngine);
  */
 void handlePlayStateInput(ZENg zEngine);
 
-/**
- * Calls the systems that update the game logic
- * @param zEngine pointer to the engine
- * @param deltaTime time since the last frame, in seconds
- */
-void updatePlayStateLogic(ZENg zEngine, double_t deltaTime);
-
-/**
- * Renders the game arena
- * @param zEngine pointer to the engine
- */
-void renderArena(ZENg zEngine);
-
-#ifdef DEBUG
-/**
- * Renders lines on the tiles' margins to visualize the grid
- * @param zEngine pointer to the engine
- */
-void renderDebugGrid(ZENg zEngine);
-#endif
-
-/**
- * Renders the in-game entities
- * @param zEngine pointer to the engine
- */
-void renderPlayState(ZENg zEngine);
-
 // ================================================ PAUSE STATE ========================================================
 
 /**
@@ -225,24 +198,12 @@ void pauseToPlay(ZENg zEngine);
 void pauseToMMenu(ZENg zEngine);
 
 /**
- * Updates the pause menu UI components
- * @param zEngine pointer to the engine
- */
-void updatePauseUI(ZENg zEngine);
-
-/**
  * Handles events in the pause state
  * @param e pointer to the SDL_Event
  * @param zEngine pointer to the engine
  * @return 0 if the event is trying to exit the game, 1 otherwise
  */
 Uint8 handlePauseStateEvents(SDL_Event *e, ZENg zEngine);
-
-/**
- * Renders the pause menu UI
- * @param zEngine pointer to the engine
- */
-void renderPauseState(ZENg zEngine);
 
 /**
  * Loads the pause menu UI components into the ECS

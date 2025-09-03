@@ -39,6 +39,7 @@ void onEnterPauseState(ZENg zEngine) {
 
     SystemNode **systems = zEngine->ecs->depGraph->nodes;
     systems[SYS_LIFETIME]->isActive = 0;
+    systems[SYS_WEAPONS]->isActive = 0;
     systems[SYS_VELOCITY]->isActive = 0;
     systems[SYS_WORLD_COLLISIONS]->isActive = 0;
     systems[SYS_ENTITY_COLLISIONS]->isActive = 0;
@@ -63,6 +64,7 @@ void onExitPauseState(ZENg zEngine) {
 
     // And enable the game's
     systems[SYS_LIFETIME]->isActive = 1;
+    systems[SYS_WEAPONS]->isActive = 1;
     systems[SYS_VELOCITY]->isActive = 1;
     systems[SYS_WORLD_COLLISIONS]->isActive = 1;
     systems[SYS_ENTITY_COLLISIONS]->isActive = 1;
@@ -79,26 +81,6 @@ void onExitPauseState(ZENg zEngine) {
 
 Uint8 handlePauseStateEvents(SDL_Event *e, ZENg zEngine) {
     return handleMenuNavigation(e, zEngine, "Resume", "Exit to main menu");
-}
-
-/**
- * =====================================================================================================================
- */
-
-void renderPauseState(ZENg zEngine) {
-    renderPlayState(zEngine);
-
-    // transparent overlay
-    SDL_SetRenderDrawBlendMode(zEngine->display->renderer, SDL_BLENDMODE_BLEND);  // Enable blending for transparency
-    SDL_SetRenderDrawColor(zEngine->display->renderer, 0, 0, 0, 150);  // semi-transparent black
-    SDL_RenderFillRect(zEngine->display->renderer, NULL);  // Fill the entire screen with the semi-transparent color
-
-    // Render the options
-    for (Uint64 i = 0; i < zEngine->ecs->components[BUTTON_COMPONENT].denseSize; i++) {
-        ButtonComponent *buttonComp = (ButtonComponent *)(zEngine->ecs->components[BUTTON_COMPONENT].dense[i]);
-        SDL_RenderCopy(zEngine->display->renderer, buttonComp->texture, NULL, buttonComp->destRect);
-    }
-    SDL_SetRenderDrawBlendMode(zEngine->display->renderer, SDL_BLENDMODE_NONE);  // Disable blending
 }
 
 /**

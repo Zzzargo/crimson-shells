@@ -180,6 +180,25 @@ void initLevel(ZENg zEngine, const char *levelFilePath) {
         exit(EXIT_FAILURE);
     }
 
+    int screenW = zEngine->display->currentMode.w;
+    int screenH = zEngine->display->currentMode.h;
+    zEngine->map->offsetX = (screenW - (ARENA_WIDTH * TILE_SIZE)) / 2;
+    zEngine->map->offsetY = (screenH - (ARENA_HEIGHT * TILE_SIZE)) / 2;
+
+    zEngine->map->tiles = calloc(ARENA_HEIGHT, sizeof(Tile*));
+    if (!zEngine->map->tiles) {
+        fprintf(stderr, "Failed to allocate memory for arena tiles rows\n");
+        free(zEngine->map);
+        exit(EXIT_FAILURE);
+    }
+    for (Uint32 i = 0; i < ARENA_HEIGHT; i++) {
+        zEngine->map->tiles[i] = calloc(ARENA_WIDTH, sizeof(Tile));
+        if (!zEngine->map->tiles[i]) {
+            fprintf(stderr, "Failed to allocate memory for arena tiles columns\n");
+            exit(EXIT_FAILURE);
+        }
+    }
+
     // Initialize the tileDefs
     Tile *defs = zEngine->map->tileDefs;
     defs[TILE_EMPTY].isWalkable = 1;
@@ -301,7 +320,8 @@ DependencyGraph* initDependencyGraph() {
         {SYS_HEALTH, &healthSystem, 1},
         {SYS_TRANSFORM, &transformSystem, 0},
         {SYS_RENDER, &renderSystem, 0},
-        {SYS_BUTTONS, &buttonSystem, 1}
+        {SYS_BUTTONS, &buttonSystem, 1},
+        {SYS_WEAPONS, &weaponSystem, 0}
     };
 
     for (Uint64 i = 0; i < SYS_COUNT; i++) {
@@ -335,6 +355,7 @@ DependencyGraph* initDependencyGraph() {
             #ifdef DEBUG
                 const char* sysNames[] = {
                     "SYS_LIFETIME",
+                    "SYS_WEAPONS",
                     "SYS_VELOCITY",
                     "SYS_WORLD_COLLISIONS",
                     "SYS_ENTITY_COLLISIONS",
@@ -366,12 +387,18 @@ ZENg initGame() {
         exit(EXIT_FAILURE);
     }
 
+    // And open the audio device
+    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
+        printf("Couldn't initialize SDL_Mixer: %s\n", Mix_GetError());
+        exit(EXIT_FAILURE);
+    }
+
     // Initalize the display and input managers by reading settings file if existent
     loadSettings(zEngine, "settings.ini");
 
     // After setting the display resolution define the tile size
     // The tiles are guaranteed to be square
-    TILE_SIZE = zEngine->display->currentMode.w / ARENA_WIDTH;
+    TILE_SIZE = zEngine->display->currentMode.h / ARENA_HEIGHT;
 
     // Initialize ECS
     initECS(&zEngine->ecs);
@@ -440,23 +467,22 @@ void velocitySystem(ZENg zEngine, double_t deltaTime) {
         velComp->predictedPos.y = posComp->y + velComp->currVelocity.y * deltaTime;
 
         // Clamp the position to the window bounds
-        if (velComp->predictedPos.x < 0) velComp->predictedPos.x = 0;  // prevent going out of bounds
-        if (velComp->predictedPos.y < 0) velComp->predictedPos.y = 0;  // prevent going out of bounds
+        if (velComp->predictedPos.x < (double_t)zEngine->map->offsetX) velComp->predictedPos.x = (double_t)zEngine->map->offsetX;  // prevent going out of bounds
+        if (velComp->predictedPos.y < (double_t)zEngine->map->offsetY) velComp->predictedPos.y = (double_t)zEngine->map->offsetY;  // prevent going out of bounds
 
         Uint64 denseRenderIndex = zEngine->ecs->components[RENDER_COMPONENT].sparse[page][idx];
         SDL_Rect *entityRect = ((RenderComponent *)(zEngine->ecs->components[RENDER_COMPONENT].dense[denseRenderIndex]))->destRect;
         if (entityRect) {
-            int screenW = zEngine->display->currentMode.w;
-            int screenH = zEngine->display->currentMode.h;
-
-            if (velComp->predictedPos.x + entityRect->w > screenW) {
-                velComp->predictedPos.x = screenW - entityRect->w;  // prevent going out of bounds
+            int arenaRightMargin = zEngine->map->offsetX + ARENA_WIDTH * TILE_SIZE;
+            int arenaBottomMargin = zEngine->map->offsetY + ARENA_HEIGHT * TILE_SIZE;
+            if (velComp->predictedPos.x + entityRect->w > arenaRightMargin) {
+                velComp->predictedPos.x = arenaRightMargin - entityRect->w;  // prevent going out of bounds
             }
-            if (velComp->predictedPos.y + entityRect->h > screenH) {
-                velComp->predictedPos.y = screenH - entityRect->h;  // prevent going out of bounds
+            if (velComp->predictedPos.y + entityRect->h > arenaBottomMargin) {
+                velComp->predictedPos.y = arenaBottomMargin - entityRect->h;  // prevent going out of bounds
             }
         }
-        // Hitboxes are updates in the collision system
+        // Hitboxes are updated in the collision system
     }
     propagateSystemDirtiness(zEngine->ecs->depGraph->nodes[SYS_VELOCITY]);
     zEngine->ecs->depGraph->nodes[SYS_VELOCITY]->isDirty = 0;
@@ -503,17 +529,20 @@ void positionSystem(ZENg zEngine, double_t deltaTime) {
         Uint8 movingX = fabs(dirComp->x) > EPSILON;
         Uint8 movingY = fabs(dirComp->y) > EPSILON;
         
-        Int32 currTileIdx = worldToTile(*posComp);
+        Int32 currTileIdx = worldToTile(zEngine->map, *posComp);
         Uint32 currTileX = currTileIdx % ARENA_WIDTH;
         Uint32 currTileY = currTileIdx / ARENA_WIDTH;
+
+        int offsetX = zEngine->map->offsetX;
+        int offsetY = zEngine->map->offsetY;
         
         if (movingX && (velComp->prevAxis != AXIS_X)) {
             // Axis change -> snap the position to a tile
-            posComp->y = round(posComp->y / TILE_SIZE) * TILE_SIZE;
+            posComp->y = round((posComp->y - offsetY) / TILE_SIZE) * TILE_SIZE + offsetY;
             velComp->prevAxis = AXIS_X;
         } else if (movingY && (velComp->prevAxis != AXIS_Y)) {
             // Axis change -> snap the position to a tile
-            posComp->x = round(posComp->x / TILE_SIZE) * TILE_SIZE;
+            posComp->x = round((posComp->x - offsetX) / TILE_SIZE) * TILE_SIZE + offsetX;
             velComp->prevAxis = AXIS_Y;
         }
     }
@@ -673,13 +702,16 @@ void entityCollisionSystem(ZENg zEngine, double_t deltaTime) {
             continue;
         }
 
-        int wW, wH;
-        SDL_GetWindowSize(zEngine->display->window, &wW, &wH);
-        // if a bullet hits the screen edge - remove it
-        if (AColComp->role == COL_BULLET && (AColComp->hitbox->x <= 0
-            || AColComp->hitbox->y <= 0
-            || AColComp->hitbox->x + AColComp->hitbox->w >= wW
-            || AColComp->hitbox->y + AColComp->hitbox->h >= wH)
+        // if a bullet hits the arena edge - remove it
+        int offsetX = zEngine->map->offsetX;
+        int offsetY = zEngine->map->offsetY;
+        int arenaRightMargin = offsetX + ARENA_WIDTH * TILE_SIZE;
+        int arenaBottomMargin = offsetY + ARENA_HEIGHT * TILE_SIZE;
+        
+        if (AColComp->role == COL_BULLET && (AColComp->hitbox->x <= offsetX
+            || AColComp->hitbox->y <= offsetY
+            || AColComp->hitbox->x + AColComp->hitbox->w >= arenaRightMargin
+            || AColComp->hitbox->y + AColComp->hitbox->h >= arenaBottomMargin)
         ) {
             deleteEntity(zEngine->ecs, AOwner);
             continue;  // skip to the next entity
@@ -718,59 +750,27 @@ void entityCollisionSystem(ZENg zEngine, double_t deltaTime) {
  * =====================================================================================================================
  */
 
-#ifdef DEBUG
-// Add this function to help debug collision
-void renderDebugCollision(ZENg zEngine) {
-    // Draw entity hitboxes in red
-    SDL_SetRenderDrawColor(zEngine->display->renderer, 255, 0, 0, 255);
-    for (Uint64 i = 0; i < zEngine->ecs->components[COLLISION_COMPONENT].denseSize; i++) {
-        CollisionComponent *colComp = (CollisionComponent *)(zEngine->ecs->components[COLLISION_COMPONENT].dense[i]);
-        if (colComp && colComp->hitbox) {
-            SDL_RenderDrawRect(zEngine->display->renderer, colComp->hitbox);
-        }
-    }
-    
-    // Draw solid tile boundaries in green
-    SDL_SetRenderDrawColor(zEngine->display->renderer, 0, 255, 0, 255);
-    for (Uint32 y = 0; y < ARENA_HEIGHT; y++) {
-        for (Uint32 x = 0; x < ARENA_WIDTH; x++) {
-            if (zEngine->map->tiles[y][x].isSolid) {
-                SDL_Rect tileRect = {
-                    .x = x * TILE_SIZE,
-                    .y = y * TILE_SIZE,
-                    .w = TILE_SIZE,
-                    .h = TILE_SIZE
-                };
-                SDL_RenderDrawRect(zEngine->display->renderer, &tileRect);
-            }
-        }
-    }
-}
-#endif
-
-/**
- * =====================================================================================================================
- */
-
 Uint8 checkWorldCollision(ZENg zEngine, SDL_Rect *hitbox, Tile *collidedTile) {
     // For entities bigger than one tile. consider the base the top-left tile
-    Uint32 tileX = (Uint32)(hitbox->x / TILE_SIZE);
-    Uint32 tileY = (Uint32)(hitbox->y / TILE_SIZE);
-    int eWidth = hitbox->w / TILE_SIZE;
-    int eHeight = hitbox->h / TILE_SIZE;
-    Int32 dxMax = eWidth + 1;
-    Int32 dyMax = eHeight + 1;
+    Uint32 tileIdx = worldToTile(zEngine->map, (PositionComponent){.x = hitbox->x, .y = hitbox->y});
+    Uint32 tileX = tileIdx % ARENA_WIDTH;
+    Uint32 tileY = tileIdx / ARENA_WIDTH;
+
+    int entityWidth = hitbox->w / TILE_SIZE;
+    int entityHeight = hitbox->h / TILE_SIZE;
+    Int32 dxMax = entityWidth + 1;
+    Int32 dyMax = entityHeight + 1;
 
     for (Int32 dy = -1; dy <= dyMax; dy++) {
         Uint32 neighY = (Int32)tileY + dy;
         for (Int32 dx = -1; dx <= dxMax; dx++) {
             Uint32 neighX = (Int32)tileX + dx;
 
-            if (neighX > 0 && neighX < ARENA_WIDTH && neighY > 0 && neighY < ARENA_HEIGHT) {
+            if ((neighX >= 0 && neighX < ARENA_WIDTH) && (neighY >= 0 && neighY < ARENA_HEIGHT)) {
                 Tile *neighTile = &zEngine->map->tiles[neighY][neighX];
                 SDL_Rect neighTileRect = {
-                    .x = neighX * TILE_SIZE,
-                    .y = neighY * TILE_SIZE,
+                    .x = neighX * TILE_SIZE + zEngine->map->offsetX,
+                    .y = neighY * TILE_SIZE + zEngine->map->offsetY,
                     .w = TILE_SIZE,
                     .h = TILE_SIZE
                 };
@@ -852,7 +852,7 @@ void worldCollisionSystem(ZENg zEngine, double_t deltaTime) {
                 continue;
             }
 
-            Vec2 tileCoords = tileToWorld(collidedTile.idx);
+            Vec2 tileCoords = tileToWorld(zEngine->map, collidedTile.idx);
             if (moveX > 0) {
                 eColComp->hitbox->x = tileCoords.x - eColComp->hitbox->w;
             } else if (moveX < 0) {
@@ -875,7 +875,7 @@ void worldCollisionSystem(ZENg zEngine, double_t deltaTime) {
                 continue;
             }
 
-            Vec2 tileCoords = tileToWorld(collidedTile.idx);
+            Vec2 tileCoords = tileToWorld(zEngine->map, collidedTile.idx);
             if (moveY > 0) {
                 eColComp->hitbox->y = tileCoords.y - eColComp->hitbox->h;
             } else if (moveY < 0) {
@@ -917,6 +917,45 @@ void healthSystem(ZENg zEngine, double_t deltaTime) {
         }
         unmarkComponentDirty(zEngine->ecs, HEALTH_COMPONENT);
     }
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+void weaponSystem(ZENg zEngine, double_t deltaTime) {
+    if (zEngine->ecs->depGraph->nodes[SYS_WEAPONS]->isDirty == 0) {
+        #ifdef DEBUG
+            printf("[WEAPON SYSTEM] Weapon system is not dirty\n");
+        #endif
+        return;
+    }
+
+    #ifdef DEBUG
+        printf(
+            "[WEAPON SYSTEM] Running weapon system for %lu entities\n",
+            zEngine->ecs->components[WEAPON_COMPONENT].denseSize
+        );
+    #endif
+
+    for (Uint64 i = 0; i < zEngine->ecs->components[WEAPON_COMPONENT].denseSize; i++) {
+        WeaponComponent *weapComp = (WeaponComponent *)(zEngine->ecs->components[WEAPON_COMPONENT].dense[i]);
+
+        // Prevent overflow
+        if (weapComp->timeSinceUse > (1 / weapComp->fireRate + EPSILON)) {
+            continue;
+        }
+        #ifdef DEBUG
+            printf("Updating timeSinceUse... %.4f -> ", weapComp->timeSinceUse);
+        #endif
+        weapComp->timeSinceUse += deltaTime;
+
+        #ifdef DEBUG
+            printf("%.4f\n", weapComp->timeSinceUse);
+        #endif
+    }
+    propagateSystemDirtiness(zEngine->ecs->depGraph->nodes[SYS_TRANSFORM]);
+    // zEngine->ecs->depGraph->nodes[SYS_TRANSFORM]->isDirty = 0;
 }
 
 /**
@@ -990,7 +1029,34 @@ void renderSystem(ZENg zEngine, double_t deltaTime) {
     SDL_RenderClear(zEngine->display->renderer);
 
     GameState *currState = getCurrState(zEngine->stateMng);
-    if (currState->type == STATE_PLAYING || currState->type == STATE_PAUSED) renderArena(zEngine);
+    if (currState->type == STATE_PLAYING || currState->type == STATE_PAUSED) {
+        renderArena(zEngine);
+        // Fill the offset space
+        SDL_SetRenderDrawColor(zEngine->display->renderer, 139, 69, 19, 255);  // brown color
+
+        int offsetX = zEngine->map->offsetX;
+        int offsetY = zEngine->map->offsetY;
+        int arenaW = ARENA_WIDTH * TILE_SIZE;
+        int arenaH = ARENA_HEIGHT * TILE_SIZE;
+        int screenW = zEngine->display->currentMode.w;
+        int screenH = zEngine->display->currentMode.h;
+
+        // Left margin
+        SDL_Rect leftRect = {0, 0, offsetX, screenH};
+        SDL_RenderFillRect(zEngine->display->renderer, &leftRect);
+        // Right margin
+        SDL_Rect rightRect = {offsetX + arenaW, 0, screenW - (offsetX + arenaW), screenH};
+        SDL_RenderFillRect(zEngine->display->renderer, &rightRect);
+        // Top margin
+        SDL_Rect topRect = {0, 0, screenW, offsetY};
+        SDL_RenderFillRect(zEngine->display->renderer, &topRect);
+        // Bottom margin
+        SDL_Rect bottomRect = {0, offsetY + arenaH, screenW, screenH - (offsetY + arenaH)};
+        SDL_RenderFillRect(zEngine->display->renderer, &bottomRect);
+
+        // Reset the drawing color
+        SDL_SetRenderDrawColor(zEngine->display->renderer, 0, 0, 0, 255);
+    }
 
     #ifdef DEBUG
         if (currState->type == STATE_PLAYING || currState->type == STATE_PAUSED) renderDebugGrid(zEngine);
@@ -1092,6 +1158,114 @@ void buttonSystem(ZENg zEngine, double_t deltaTime) {
         unmarkComponentDirty(zEngine->ecs, BUTTON_COMPONENT);
     }
 }
+
+/**
+ * =====================================================================================================================
+ */
+
+void renderArena(ZENg zEngine) {
+    SDL_SetRenderDrawColor(zEngine->display->renderer, 20, 20, 20, 200);  // background color - grey
+    SDL_RenderClear(zEngine->display->renderer);
+
+    if (!zEngine->map || !zEngine->map->tiles) {
+        printf("The arena was no initialized correctly.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    int offsetX = zEngine->map->offsetX;
+    int offsetY = zEngine->map->offsetY;
+
+    for (Uint64 y = 0; y < ARENA_HEIGHT; y++) {
+        for (Uint64 x = 0; x < ARENA_WIDTH; x++) {
+            SDL_Rect tileRect = {
+                .x =  x * TILE_SIZE + offsetX,
+                .y = y * TILE_SIZE + offsetY,
+                .w = TILE_SIZE,
+                .h = TILE_SIZE
+            };
+
+            // World limits
+            // if ((x == 0 || x == ARENA_WIDTH - 1) || (y == 0 || y == ARENA_HEIGHT - 1)) {
+            //     SDL_RenderCopy(
+            //         zEngine->display->renderer,
+            //         getTexture(zEngine->resources, "assets/textures/adele.png"),
+            //         NULL,
+            //         &tileRect
+            //     );
+            //     continue;
+            // }
+            if (zEngine->map->tiles[y][x].texture) {
+                SDL_RenderCopy(
+                    zEngine->display->renderer,
+                    zEngine->map->tiles[y][x].texture,
+                    NULL,
+                    &tileRect
+                );
+            }
+        }
+    }
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+#ifdef DEBUG
+void renderDebugGrid(ZENg zEngine) {
+    SDL_SetRenderDrawColor(zEngine->display->renderer, 100, 100, 100, 50);
+
+    int offsetX = zEngine->map->offsetX;
+    int offsetY = zEngine->map->offsetY;
+    
+    // Draw vertical grid lines
+    for (int x = 0; x <= ARENA_WIDTH; x++) {
+        SDL_RenderDrawLine(
+            zEngine->display->renderer,
+            x * TILE_SIZE + offsetX, 0,
+            x * TILE_SIZE + offsetX, zEngine->display->currentMode.h
+        );
+    }
+    
+    // Draw horizontal grid lines
+    for (int y = 0; y <= ARENA_HEIGHT; y++) {
+        SDL_RenderDrawLine(
+            zEngine->display->renderer,
+            0, y * TILE_SIZE + offsetY,
+            zEngine->display->currentMode.w, y * TILE_SIZE + offsetY
+        );
+    }
+}
+
+void renderDebugCollision(ZENg zEngine) {
+    // Draw entity hitboxes in red
+    SDL_SetRenderDrawColor(zEngine->display->renderer, 255, 0, 0, 255);
+    for (Uint64 i = 0; i < zEngine->ecs->components[COLLISION_COMPONENT].denseSize; i++) {
+        CollisionComponent *colComp = (CollisionComponent *)(zEngine->ecs->components[COLLISION_COMPONENT].dense[i]);
+        if (colComp && colComp->hitbox) {
+            SDL_RenderDrawRect(zEngine->display->renderer, colComp->hitbox);
+        }
+    }
+    
+    // Draw solid tile boundaries in green
+    int offsetX = zEngine->map->offsetX;
+    int offsetY = zEngine->map->offsetY;
+    
+    SDL_SetRenderDrawColor(zEngine->display->renderer, 0, 255, 0, 255);
+    for (Uint32 y = 0; y < ARENA_HEIGHT; y++) {
+        for (Uint32 x = 0; x < ARENA_WIDTH; x++) {
+            if (zEngine->map->tiles[y][x].isSolid) {
+                SDL_Rect tileRect = {
+                    .x = x * TILE_SIZE + offsetX,
+                    .y = y * TILE_SIZE + offsetY,
+                    .w = TILE_SIZE,
+                    .h = TILE_SIZE
+                };
+                SDL_RenderDrawRect(zEngine->display->renderer, &tileRect);
+            }
+        }
+    }
+}
+#endif
 
 /**
  * =====================================================================================================================

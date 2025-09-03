@@ -21,6 +21,7 @@ typedef enum {
     POSITION_COMPONENT,
     VELOCITY_COMPONENT,
     DIRECTION_COMPONENT,
+    WEAPON_COMPONENT,
     PROJECTILE_COMPONENT,
     LIFETIME_COMPONENT,
     COLLISION_COMPONENT,
@@ -78,6 +79,16 @@ typedef struct {
     Uint8 exploding;
     Uint8 friendly;  // Indicates whether the projectile can damage the player
 } ProjectileComponent;
+
+typedef struct engine *ZENg;  // Forward declaration
+
+typedef struct {
+    char *name;  // Name of the weapon
+    double_t fireRate;  // How fast can the weapon shoot, in seconds
+    double_t timeSinceUse;  // How much time has passed since projectile spawn
+
+    void (*spawnProj)(ZENg, Entity);  // Pointer to the function spawning the weapon's projectile
+} WeaponComponent;
 
 typedef struct {
     double_t lifeTime;
@@ -145,6 +156,7 @@ typedef GameStateType StateTagComponent;
 
 typedef enum {
     SYS_LIFETIME,  // Coarse-grained
+    SYS_WEAPONS,  // Coarse-grained
     SYS_VELOCITY,  // Coarse-grained
     SYS_WORLD_COLLISIONS,  // Coarse-grained
     SYS_ENTITY_COLLISIONS,  // Coarse-grained
@@ -397,6 +409,16 @@ CollisionComponent* createCollisionComponent(int x, int y, int w, int h, Uint8 i
  * @return a pointer to a RenderComponent
  */
 RenderComponent* createRenderComponent(SDL_Texture *texture, int x, int y, int w, int h, Uint8 active, Uint8 selected);
+
+
+/**
+ * Creates a weapon component
+ * @param name weapon's name
+ * @param fireRate weapon's firerate, in seconds
+ * @param spawnProj pointer to the projectile spawn function
+ * @return freshly allocated weapon component
+ */
+WeaponComponent* createWeaponComponent(char *name, double_t fireRate, void (*spawnProj)(ZENg, Entity));
 
 /**
  * Adds a component to an entity in an ECS

@@ -103,12 +103,19 @@ void worldCollisionSystem(ZENg zEngine, double_t deltaTime);
 /**
  * Updates entities based on their health
  * @param zEngine pointer to the engine
+ * @param deltaTime time since the last frame in seconds
  */
 void healthSystem(ZENg zEngine, double_t deltaTime);
 
 /**
+ * @param zEngine pointer to the engine
+ * @param deltaTime time since the last frame in seconds
+ */
+void weaponSystem(ZENg zEngine, double_t deltaTime);
+
+/**
  * Updates the rendered entities based on their position
- * @param ecs pointer to the ECS (game ECS)
+ * @param zEngine pointer to the engine
  * @param deltaTime time since the last frame in seconds
  */
 void transformSystem(ZENg zEngine, double_t deltaTime);
@@ -119,6 +126,20 @@ void transformSystem(ZENg zEngine, double_t deltaTime);
  * @param deltaTime time since the last frame in seconds
  */
 void renderSystem(ZENg zEngine, double_t deltaTime);
+
+/**
+ * Renders the game arena
+ * @param zEngine pointer to the engine
+ */
+void renderArena(ZENg zEngine);
+
+#ifdef DEBUG
+/**
+ * Renders lines on the tiles' margins to visualize the grid
+ * @param zEngine pointer to the engine
+ */
+void renderDebugGrid(ZENg zEngine);
+#endif
 
 /**
  * Updates buttons textures

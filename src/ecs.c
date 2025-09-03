@@ -358,6 +358,23 @@ RenderComponent* createRenderComponent(SDL_Texture *texture, int x, int y, int w
  * =====================================================================================================================
  */
 
+WeaponComponent* createWeaponComponent(char *name, double_t fireRate, void (*spawnProj)(ZENg, Entity)) {
+    WeaponComponent *comp = calloc(1, sizeof(WeaponComponent));
+    if (!comp) {
+        printf("Failed to allocate memory for weapon component\n");
+        exit(EXIT_FAILURE);
+    }
+    comp->fireRate = fireRate;
+    comp->timeSinceUse = 0;
+    comp->name = name;
+    comp->spawnProj = spawnProj;
+    return comp;
+}
+
+/**
+ * =====================================================================================================================
+ */
+
 void addComponent(ECS ecs, Entity id, ComponentType compType, void *component) {
     Uint64 page = id / PAGE_SIZE;  // determine the page for the entity
     Uint64 index = id % PAGE_SIZE;  // determine the index within the page
@@ -434,7 +451,8 @@ void addComponent(ECS ecs, Entity id, ComponentType compType, void *component) {
 
     const ComponentType fineGrainedType[] = {
         HEALTH_COMPONENT,
-        BUTTON_COMPONENT
+        BUTTON_COMPONENT,
+        WEAPON_COMPONENT
     };
     const size_t fineGrainedCount = sizeof(fineGrainedType) / sizeof(ComponentType);
     for (size_t i = 0; i < fineGrainedCount; i++) {
@@ -546,6 +564,8 @@ SystemType componentToSystem(ComponentType compType) {
     switch (compType) {
         case LIFETIME_COMPONENT:
             return SYS_LIFETIME;
+        case WEAPON_COMPONENT:
+            return SYS_WEAPONS;
         case VELOCITY_COMPONENT:
             return SYS_VELOCITY;
             return SYS_ENTITY_COLLISIONS;
@@ -630,6 +650,7 @@ void kahnTopSort(DependencyGraph *graph) {
     #ifdef DEBUG
     const char* sysNames[] = {
         "SYS_LIFETIME",
+        "SYS_WEAPONS",
         "SYS_VELOCITY",
         "SYS_WORLD_COLLISIONS",
         "SYS_ENTITY_COLLISIONS",
@@ -770,6 +791,10 @@ void deleteEntity(ECS ecs, Entity id) {
                             if (button->destRect) free(button->destRect);
                             break;
                         }
+                        case WEAPON_COMPONENT: {
+                            WeaponComponent *weap = (WeaponComponent*)component;
+                            if (weap->name) free(weap->name);
+                        }
                     }
                     free(component);
                     
@@ -882,6 +907,9 @@ void freeECS(ECS ecs) {
                                 case COLLISION_COMPONENT: {
                                     if ((*(CollisionComponent *)(curr)).hitbox) free((*(CollisionComponent *)(curr)).hitbox);
                                     break;
+                                }
+                                case WEAPON_COMPONENT: {
+                                    if ((*(WeaponComponent *)(curr)).name) free((*(WeaponComponent *)(curr)).name);
                                 }
                             }
                             free(ecs->components[i].dense[j]);

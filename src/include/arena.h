@@ -3,9 +3,9 @@
 
 #include "global.h"
 
-#define ARENA_WIDTH 48
-#define ARENA_HEIGHT 27
-extern Uint32 TILE_SIZE;  // Size of a tile, will be initialized once the display is initialized
+#define ARENA_WIDTH 48  // Arena width, in tiles
+#define ARENA_HEIGHT 27  // Arena height, in tiles
+extern Uint32 TILE_SIZE;  // Size of a tile, in pixels
 
 typedef enum {
     TILE_EMPTY,
@@ -29,23 +29,26 @@ typedef struct {
 } Tile;
 
 typedef struct map {
-    // Definitions for each tile type, initialized at engine start
-    Tile tileDefs[TILE_COUNT];
-    Tile tiles[ARENA_HEIGHT][ARENA_WIDTH];
+    Tile tileDefs[TILE_COUNT];  // Definitions for each tile type, initialized at engine start
+    Tile **tiles;  // 2D array of tiles representing the arena
+    int offsetX;  // Offset for centering arena horizontally
+    int offsetY;  // Offset for centering arena vertically
 } *Arena;
 
 /**
  * Converts a tile's index to vector coordinates
+ * @param arena pointer to the arena structure
  * @param idx the index of the tile
  * @return a Vec2 representing the tile's position in the arena
  */
-Vec2 tileToWorld(Uint32 idx);
+Vec2 tileToWorld(Arena arena, Uint32 idx);
 
 /**
  * Converts world coordinates to a tile index
+ * @param arena pointer to the arena structure
  * @param pos the position in world coordinates
  * @return the index of the tile in the arena grid
  */
-Uint32 worldToTile(Vec2 pos);
+Uint32 worldToTile(Arena arena, Vec2 pos);
 
 #endif // ARENA_H

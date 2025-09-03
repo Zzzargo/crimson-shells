@@ -138,6 +138,19 @@ Mix_Chunk *getSound(ResourceManager resMng, const char *key) {
  * =====================================================================================================================
  */
 
+ Mix_Music *getMusic(ResourceManager resMng, const char *key) {
+    ResourceEntry *entry = getResource(resMng, key);
+    if (entry && entry->type == RESOURCE_MUSIC) {
+        return (Mix_Music *)entry->resource;  // cast the resource to Mix_Music
+    }
+    fprintf(stderr, "Music with key '%s' not found\n", key);
+    return NULL;  // Music not found or wrong type
+}
+
+/**
+ * =====================================================================================================================
+ */
+
 void *getOrLoadResource(ResourceManager resMng, SDL_Renderer *renderer, const char *key, ResourceType type) {
     ResourceEntry *entry = getResource(resMng, key);
     if (entry) {
@@ -168,6 +181,13 @@ void *getOrLoadResource(ResourceManager resMng, SDL_Renderer *renderer, const ch
             resource = Mix_LoadWAV(key);
             if (!resource) {
                 fprintf(stderr, "Failed to load sound %s: %s\n", key, Mix_GetError());
+            }
+            break;
+        }
+        case RESOURCE_MUSIC: {
+            resource = Mix_LoadMUS(key);
+            if (!resource) {
+                fprintf(stderr, "Failed to load music file %s: %s\n", key, Mix_GetError());
             }
             break;
         }
@@ -217,6 +237,8 @@ void preloadResources(ResourceManager resMng, SDL_Renderer *renderer) {
     getOrLoadResource(resMng, renderer, "assets/textures/bullet.png", RESOURCE_TEXTURE);
     getOrLoadResource(resMng, renderer, "assets/textures/brick.jpg", RESOURCE_TEXTURE);
     getOrLoadResource(resMng, renderer, "assets/textures/rocks.jpg", RESOURCE_TEXTURE);
+    getOrLoadResource(resMng, renderer, "assets/sounds/button-press.mp3", RESOURCE_SOUND);
+    getOrLoadResource(resMng, renderer, "assets/sounds/music.mp3", RESOURCE_SOUND);
 }
 
 /**
