@@ -238,7 +238,9 @@ void preloadResources(ResourceManager resMng, SDL_Renderer *renderer) {
     getOrLoadResource(resMng, renderer, "assets/textures/brick.jpg", RESOURCE_TEXTURE);
     getOrLoadResource(resMng, renderer, "assets/textures/rocks.jpg", RESOURCE_TEXTURE);
     getOrLoadResource(resMng, renderer, "assets/sounds/button-press.mp3", RESOURCE_SOUND);
+    getOrLoadResource(resMng, renderer, "assets/sounds/mg.mp3", RESOURCE_SOUND);
     getOrLoadResource(resMng, renderer, "assets/sounds/music.mp3", RESOURCE_SOUND);
+    getOrLoadResource(resMng, renderer, "assets/sounds/rifle.mp3", RESOURCE_SOUND);
 }
 
 /**

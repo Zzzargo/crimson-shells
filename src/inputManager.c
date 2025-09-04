@@ -16,12 +16,13 @@ void saveKeyBindings(InputManager inputMng, const char *filePath) {
         "BACK",
         "INTERACT",
         "SHOOT",
+        "SWITCH_RIGHT",
+        "SWITCH_LEFT",
         "SPECIAL"
     };
 
     fprintf(fout, "[INPUT]\n");
 
-    // I don't know why action < INPUT_ACTION_COUNT gives a `(null) = ` line in the file
     for (InputAction action = 0; action < INPUT_ACTION_COUNT - 1; action++) {
         fprintf(fout, "%s=%s\n", actionNames[action], SDL_GetScancodeName(inputMng->bindings[action]));
     }
@@ -46,6 +47,8 @@ void setDefaultBindings(InputManager inputMng) {
     inputMng->bindings[INPUT_BACK] = SDL_SCANCODE_ESCAPE;
     inputMng->bindings[INPUT_INTERACT] = SDL_SCANCODE_SPACE;
     inputMng->bindings[INPUT_SHOOT] = SDL_SCANCODE_J;
+    inputMng->bindings[INPUT_SWITCH_RIGHT] = SDL_SCANCODE_E;
+    inputMng->bindings[INPUT_SWITCH_LEFT] = SDL_SCANCODE_Q;
     inputMng->bindings[INPUT_SPECIAL] = SDL_SCANCODE_L;
 }
 

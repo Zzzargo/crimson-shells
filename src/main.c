@@ -27,16 +27,21 @@ int main(int argc, char* argv[]) {
         #endif
 
         GameState *currState = getCurrState(zEngine->stateMng);
+        
         while (SDL_PollEvent(&event)) {
             running = currState->handleEvents(&event, zEngine);
             currState = getCurrState(zEngine->stateMng);  // get the current state after handling events
             if (!running) printf("Event handler returned 0 for the main loop\n");
-
+            
             if (event.type == SDL_QUIT || (currState && currState->type == STATE_EXIT)) {
                 running = 0;
             }
         }
-
+        
+        // Clear the screen
+        SDL_SetRenderDrawColor(zEngine->display->renderer, 0, 0, 0, 255);  // Pitch black
+        SDL_RenderClear(zEngine->display->renderer);
+        
         // currState can be NULL if the stack was popped, so check it
         if (currState && currState->handleInput) currState->handleInput(zEngine);
         runSystems(zEngine, deltaTime);

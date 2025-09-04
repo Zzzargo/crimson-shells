@@ -13,6 +13,8 @@ typedef enum {
     INPUT_BACK,
     INPUT_INTERACT,
     INPUT_SHOOT,
+    INPUT_SWITCH_RIGHT,
+    INPUT_SWITCH_LEFT,
     INPUT_SPECIAL,
     INPUT_UNKNOWN,
     INPUT_ACTION_COUNT  // automatically counts

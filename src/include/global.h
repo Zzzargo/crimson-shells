@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "vec2.h"
+#include "DLinkList.h"
 
 typedef int32_t Int32;
 typedef int64_t Int64;

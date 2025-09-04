@@ -12,6 +12,8 @@ void setDefaultDisplaySettings(DisplayManager display) {
     display->currentMode.format = SDL_PIXELFORMAT_RGBA8888;  // default pixel format
     display->currentMode.driverdata = NULL;  // should be initialized by SDL
     display->wdwFlags = SDL_WINDOW_SHOWN;  // windowed mode by default
+    display->fullscreen = 0;
+    display->vsync = 0;
 }
 
 void toggleFullscreen(DisplayManager mgr) {
@@ -19,7 +21,7 @@ void toggleFullscreen(DisplayManager mgr) {
 
     int curr = mgr->wdwFlags & SDL_WINDOW_FULLSCREEN;
     if (curr) {
-        SDL_SetWindowFullscreen(mgr->window, SDL_WINDOW_SHOWN);
+        SDL_SetWindowFullscreen(mgr->window, 0);
         mgr->wdwFlags &= ~SDL_WINDOW_FULLSCREEN;
     }
     else {

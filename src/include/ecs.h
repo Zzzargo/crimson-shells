@@ -88,6 +88,10 @@ typedef struct {
     double_t timeSinceUse;  // How much time has passed since projectile spawn
 
     void (*spawnProj)(ZENg, Entity);  // Pointer to the function spawning the weapon's projectile
+} Weapon;
+
+typedef struct {
+    CDLLNode *currWeapon;  // Pointer to a circular doubly linked list node
 } WeaponComponent;
 
 typedef struct {
@@ -162,7 +166,7 @@ typedef enum {
     SYS_ENTITY_COLLISIONS,  // Coarse-grained
     SYS_POSITION,  // Coarse-grained
     SYS_HEALTH,  // Fine-grained
-    SYS_TRANSFORM,  // Fine-grained
+    SYS_TRANSFORM,  // Coarse-grained
     SYS_RENDER,  // Coarse-grained
     SYS_BUTTONS,  // Fine-grained
     SYS_COUNT  // Automatically counts
@@ -412,13 +416,20 @@ RenderComponent* createRenderComponent(SDL_Texture *texture, int x, int y, int w
 
 
 /**
- * Creates a weapon component
+ * Creates a weapon
  * @param name weapon's name
  * @param fireRate weapon's firerate, in seconds
  * @param spawnProj pointer to the projectile spawn function
- * @return freshly allocated weapon component
+ * @return freshly allocated weapon
  */
-WeaponComponent* createWeaponComponent(char *name, double_t fireRate, void (*spawnProj)(ZENg, Entity));
+Weapon* createWeapon(char *name, double_t fireRate, void (*spawnProj)(ZENg, Entity));
+
+/**
+ * Creates a weapon component
+ * @param currWeapon pointer to a circular doubly linked list node, holding the current weapon
+ * @return a pointer to a WeaponComponent
+ */
+WeaponComponent *createWeaponComponent(CDLLNode *currWeapon);
 
 /**
  * Adds a component to an entity in an ECS

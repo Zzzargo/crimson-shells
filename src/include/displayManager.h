@@ -9,6 +9,8 @@ typedef struct displaymng {
 
     SDL_DisplayMode currentMode;  // thanks SDL for making this easy
     Uint32 wdwFlags;  // fullscreen, borderless, etc.
+    Uint8 fullscreen;
+    Uint8 vsync;
 } *DisplayManager;
 
 /**

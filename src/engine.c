@@ -118,6 +118,10 @@ void loadSettings(ZENg zEngine, const char *filePath) {
                     zEngine->inputMng->bindings[INPUT_INTERACT] = scancode;
                 } else if (strcmp(setting, "SHOOT") == 0) {
                     zEngine->inputMng->bindings[INPUT_SHOOT] = scancode;
+                } else if (strcmp(setting, "SWITCH_LEFT") == 0) {
+                    zEngine->inputMng->bindings[INPUT_SWITCH_LEFT] = scancode;
+                } else if (strcmp(setting, "SWITCH_RIGHT") == 0) {
+                    zEngine->inputMng->bindings[INPUT_SWITCH_RIGHT] = scancode;
                 } else if (strcmp(setting, "SPECIAL") == 0) {
                     zEngine->inputMng->bindings[INPUT_SPECIAL] = scancode;
                 } else {
@@ -132,6 +136,8 @@ void loadSettings(ZENg zEngine, const char *filePath) {
     zEngine->display->currentMode.w = width;
     zEngine->display->currentMode.h = height;
     zEngine->display->wdwFlags = fullscreen ? SDL_WINDOW_FULLSCREEN : SDL_WINDOW_SHOWN;
+    zEngine->display->fullscreen = fullscreen;
+    zEngine->display->vsync = vsync;
 
     // Create the window with the read settings
     zEngine->display->window = SDL_CreateWindow(
@@ -162,6 +168,15 @@ void loadSettings(ZENg zEngine, const char *filePath) {
     }
 
     printf("Settings loaded from %s\n", filePath);
+
+    #ifdef DEBUG
+        printf("Display settings: %dx%d, fullscreen: %d, vsync: %d\n",
+            zEngine->display->currentMode.w,
+            zEngine->display->currentMode.h,
+            zEngine->display->fullscreen,
+            zEngine->display->vsync
+        );
+    #endif
 }
 
 /**
@@ -940,18 +955,19 @@ void weaponSystem(ZENg zEngine, double_t deltaTime) {
 
     for (Uint64 i = 0; i < zEngine->ecs->components[WEAPON_COMPONENT].denseSize; i++) {
         WeaponComponent *weapComp = (WeaponComponent *)(zEngine->ecs->components[WEAPON_COMPONENT].dense[i]);
+        Weapon *currWeapon = (Weapon *)(weapComp->currWeapon->data);
 
         // Prevent overflow
-        if (weapComp->timeSinceUse > (1 / weapComp->fireRate + EPSILON)) {
+        if (currWeapon->timeSinceUse > (1 / currWeapon->fireRate + EPSILON)) {
             continue;
         }
         #ifdef DEBUG
-            printf("Updating timeSinceUse... %.4f -> ", weapComp->timeSinceUse);
+            printf("Updating timeSinceUse... %.4f -> ", currWeapon->timeSinceUse);
         #endif
-        weapComp->timeSinceUse += deltaTime;
+        currWeapon->timeSinceUse += deltaTime;
 
         #ifdef DEBUG
-            printf("%.4f\n", weapComp->timeSinceUse);
+            printf("%.4f\n", currWeapon->timeSinceUse);
         #endif
     }
     propagateSystemDirtiness(zEngine->ecs->depGraph->nodes[SYS_TRANSFORM]);
@@ -1014,19 +1030,15 @@ void transformSystem(ZENg zEngine, double_t deltaTime) {
 void renderSystem(ZENg zEngine, double_t deltaTime) {
     if (zEngine->ecs->depGraph->nodes[SYS_RENDER]->isDirty == 0) {
         #ifdef DEBUG
-            printf("[RENDER SYSTEM] Render system is not dirty\n");
+            printf("[RENDER SYSTEM] Render system is not dirty. Not good.\n");
         #endif
-        return;  // No need to render if nothing changed
+        return;  // Rendering should always be done every frame
     }
 
     #ifdef DEBUG
         Uint64 renderCount = zEngine->ecs->components[RENDER_COMPONENT].denseSize + zEngine->ecs->components[BUTTON_COMPONENT].denseSize;
         printf("[RENDER SYSTEM] Running render system for %lu entities\n", renderCount);
     #endif
-    
-    // Clear the screen
-    SDL_SetRenderDrawColor(zEngine->display->renderer, 0, 0, 0, 255);  // Pitch black
-    SDL_RenderClear(zEngine->display->renderer);
 
     GameState *currState = getCurrState(zEngine->stateMng);
     if (currState->type == STATE_PLAYING || currState->type == STATE_PAUSED) {
@@ -1119,7 +1131,8 @@ void renderSystem(ZENg zEngine, double_t deltaTime) {
     }
 
     // Should propagate the dirtiness here, but the render system is pretty much always the last
-    zEngine->ecs->depGraph->nodes[SYS_RENDER]->isDirty = 0;
+    // Rendering should always be done every frame
+    // zEngine->ecs->depGraph->nodes[SYS_RENDER]->isDirty = 0;
 }
 
 /**

@@ -41,7 +41,11 @@ void onEnterPlayState(ZENg zEngine) {
     );
     addComponent(zEngine->ecs, id, RENDER_COMPONENT, (void *)renderComp);
 
-    WeaponComponent *weapComp = createWeaponComponent(strdup("Machine Gun"), 10.0, &spawnBulletProjectile);
+    Weapon *weap = createWeapon(strdup("Machine Gun"), 10.0, &spawnBulletProjectile);
+    CDLLNode *weapList = initList((void *)weap);
+    Weapon *weap2 = createWeapon(strdup("Pistol"), 2.0, &spawnBulletProjectile);
+    CDLLInsertLast(weapList, (void *)weap2);
+    WeaponComponent *weapComp = createWeaponComponent(weapList);
     addComponent(zEngine->ecs, id, WEAPON_COMPONENT, (void *)weapComp);
 
     // test entity
@@ -192,12 +196,24 @@ void spawnBulletProjectile(ZENg zEngine, Entity shooter) {
     );
     addComponent(zEngine->ecs, bulletID, RENDER_COMPONENT, (void *)bulletRender);
 
-    Mix_Chunk *buttonSound = getSound(zEngine->resources, "assets/sounds/button-press.mp3");
-    if (!buttonSound) {
-        printf("Failed to load button sound: %s\n", Mix_GetError());
-        exit(EXIT_FAILURE);
+    Uint64 weapDenseIdx = zEngine->ecs->components[WEAPON_COMPONENT].sparse[shooterPage][shooterPageIdx];
+    WeaponComponent *shooterWeap = (WeaponComponent *)zEngine->ecs->components[WEAPON_COMPONENT].dense[weapDenseIdx];
+    Weapon *currWeapon = (Weapon *)(shooterWeap->currWeapon->data);
+    if (strcmp(currWeapon->name, "Machine Gun") == 0) {
+        Mix_Chunk *buttonSound = getSound(zEngine->resources, "assets/sounds/rifle.mp3");
+        if (!buttonSound) {
+            printf("Failed to load button sound: %s\n", Mix_GetError());
+            exit(EXIT_FAILURE);
+        }
+        Mix_PlayChannel(-1, buttonSound, 0);
+    } else if (strcmp(currWeapon->name, "Pistol") == 0) {
+        Mix_Chunk *buttonSound = getSound(zEngine->resources, "assets/sounds/mg.mp3");
+        if (!buttonSound) {
+            printf("Failed to load button sound: %s\n", Mix_GetError());
+            exit(EXIT_FAILURE);
+        }
+        Mix_PlayChannel(-1, buttonSound, 0);
     }
-    Mix_PlayChannel(-1, buttonSound, 0);
 }
 
 Uint8 handlePlayStateEvents(SDL_Event *e, ZENg zEngine) {
@@ -207,6 +223,9 @@ Uint8 handlePlayStateEvents(SDL_Event *e, ZENg zEngine) {
             printf("Unknown input action for scancode %d\n", e->key.keysym.scancode);
             return 1;
         }
+        Uint64 page = PLAYER_ID / PAGE_SIZE;
+        Uint64 pageIdx = PLAYER_ID % PAGE_SIZE;
+
         switch (action) {
             case INPUT_BACK: {
                 GameState *pauseState = calloc(1, sizeof(GameState));
@@ -222,6 +241,31 @@ Uint8 handlePlayStateEvents(SDL_Event *e, ZENg zEngine) {
                 pushState(zEngine, pauseState);
                 return 1;
             }
+            case INPUT_SWITCH_LEFT: {
+                Uint64 weapDenseIdx = zEngine->ecs->components[WEAPON_COMPONENT].sparse[page][pageIdx];
+                WeaponComponent *playerWeap = (WeaponComponent *)zEngine->ecs->components[WEAPON_COMPONENT].dense[weapDenseIdx];
+                Weapon *currWeapon = (Weapon *)(playerWeap->currWeapon->data);
+
+                playerWeap->currWeapon = playerWeap->currWeapon->prev;
+                // #ifdef DEBUG
+                    Weapon *newWeapon = (Weapon *)(playerWeap->currWeapon->data);
+                    printf("Switched weapon left: %s -> %s\n", currWeapon->name, newWeapon->name);
+                // #endif
+                return 1;
+            }
+
+            case INPUT_SWITCH_RIGHT: {
+                Uint64 weapDenseIdx = zEngine->ecs->components[WEAPON_COMPONENT].sparse[page][pageIdx];
+                WeaponComponent *playerWeap = (WeaponComponent *)zEngine->ecs->components[WEAPON_COMPONENT].dense[weapDenseIdx];
+                Weapon *currWeapon = (Weapon *)(playerWeap->currWeapon->data);
+
+                playerWeap->currWeapon = playerWeap->currWeapon->next;
+                // #ifdef DEBUG
+                    Weapon *newWeapon = (Weapon *)(playerWeap->currWeapon->data);
+                    printf("Switched weapon right: %s -> %s\n", currWeapon->name, newWeapon->name);
+                // #endif
+                return 1;
+            }
         }
     }
     return 1;
@@ -234,28 +278,6 @@ void handlePlayStateInput(ZENg zEngine) {
 
     Uint64 page = PLAYER_ID / PAGE_SIZE;
     Uint64 pageIdx = PLAYER_ID % PAGE_SIZE;
-
-    if (isActionPressed(zEngine->inputMng, INPUT_SHOOT)) {
-        Uint64 weapDenseIdx = zEngine->ecs->components[WEAPON_COMPONENT].sparse[page][pageIdx];
-        WeaponComponent *playerWeap = (WeaponComponent *)zEngine->ecs->components[WEAPON_COMPONENT].dense[weapDenseIdx];
-
-        #ifdef DEBUG
-            printf(
-                "Trying to shoot... timeSinceUse: %.4f    timeRequired: %.4f\n",
-                playerWeap->timeSinceUse, (1.0 / playerWeap->fireRate)
-            );
-        #endif
-
-        if (playerWeap->timeSinceUse > (1.0 / playerWeap->fireRate)) {
-            playerWeap->spawnProj(zEngine, PLAYER_ID);
-            playerWeap->timeSinceUse = 0;
-        }
-        #ifdef DEBUG
-            else {
-                printf("Weapon has cooldown, can't shoot\n");
-            }
-        #endif
-    }
 
     Uint64 velDenseIdx = zEngine->ecs->components[VELOCITY_COMPONENT].sparse[page][pageIdx];
     VelocityComponent *playerSpeed = (VelocityComponent *)(zEngine->ecs->components[VELOCITY_COMPONENT].dense[velDenseIdx]);
@@ -294,5 +316,29 @@ void handlePlayStateInput(ZENg zEngine) {
     } else {
         // If no movement input, stop the player
         playerSpeed->currVelocity = (Vec2) { .x = 0.0, .y = 0.0 };
+    }
+
+    if (isActionPressed(zEngine->inputMng, INPUT_SHOOT)) {
+        Uint64 weapDenseIdx = zEngine->ecs->components[WEAPON_COMPONENT].sparse[page][pageIdx];
+        WeaponComponent *playerWeap = (WeaponComponent *)zEngine->ecs->components[WEAPON_COMPONENT].dense[weapDenseIdx];
+        Weapon *currWeapon = (Weapon *)(playerWeap->currWeapon->data);
+
+        #ifdef DEBUG
+            printf(
+                "Trying to shoot... timeSinceUse: %.4f    timeRequired: %.4f\n",
+                currWeapon->timeSinceUse, (1.0 / currWeapon->fireRate)
+            );
+        #endif
+
+        if (currWeapon->timeSinceUse > (1.0 / currWeapon->fireRate)) {
+            currWeapon->spawnProj(zEngine, PLAYER_ID);
+            currWeapon->timeSinceUse = 0;
+        }
+        #ifdef DEBUG
+            else {
+                printf("Weapon has cooldown, can't shoot\n");
+            }
+        #endif
+        return;
     }
 }

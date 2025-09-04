@@ -358,16 +358,30 @@ RenderComponent* createRenderComponent(SDL_Texture *texture, int x, int y, int w
  * =====================================================================================================================
  */
 
-WeaponComponent* createWeaponComponent(char *name, double_t fireRate, void (*spawnProj)(ZENg, Entity)) {
+Weapon* createWeapon(char *name, double_t fireRate, void (*spawnProj)(ZENg, Entity)) {
+    Weapon *weap = calloc(1, sizeof(Weapon));
+    if (!weap) {
+        printf("Failed to allocate memory for weapon\n");
+        exit(EXIT_FAILURE);
+    }
+    weap->fireRate = fireRate;
+    weap->timeSinceUse = 0;
+    weap->name = name;
+    weap->spawnProj = spawnProj;
+    return weap;
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+WeaponComponent *createWeaponComponent(CDLLNode *currWeapon) {
     WeaponComponent *comp = calloc(1, sizeof(WeaponComponent));
     if (!comp) {
         printf("Failed to allocate memory for weapon component\n");
         exit(EXIT_FAILURE);
     }
-    comp->fireRate = fireRate;
-    comp->timeSinceUse = 0;
-    comp->name = name;
-    comp->spawnProj = spawnProj;
+    comp->currWeapon = currWeapon;
     return comp;
 }
 
@@ -452,7 +466,6 @@ void addComponent(ECS ecs, Entity id, ComponentType compType, void *component) {
     const ComponentType fineGrainedType[] = {
         HEALTH_COMPONENT,
         BUTTON_COMPONENT,
-        WEAPON_COMPONENT
     };
     const size_t fineGrainedCount = sizeof(fineGrainedType) / sizeof(ComponentType);
     for (size_t i = 0; i < fineGrainedCount; i++) {
@@ -793,7 +806,23 @@ void deleteEntity(ECS ecs, Entity id) {
                         }
                         case WEAPON_COMPONENT: {
                             WeaponComponent *weap = (WeaponComponent*)component;
-                            if (weap->name) free(weap->name);
+                            // Free the list of weapons
+                            if (!weap->currWeapon) return;
+
+                            CDLLNode *current = weap->currWeapon->next;
+                            while (current != weap->currWeapon) {
+                                CDLLNode *next = current->next;
+                                Weapon *weaponData = (Weapon *)current->data;
+                                if (weaponData->name) free(weaponData->name);
+                                free(weaponData);
+                                free(current);
+                                current = next;
+                            }
+                            Weapon *weaponData = (Weapon *)weap->currWeapon->data;
+                            free(weaponData->name);
+                            free(weap->currWeapon->data);
+                            free(weap->currWeapon);
+                            weap->currWeapon = NULL;
                         }
                     }
                     free(component);
@@ -880,6 +909,10 @@ void sweepState(ECS ecs, GameStateType stateType) {
 
 void freeECS(ECS ecs) {
     if (ecs) {
+        // Free all entities' components first
+        for (Uint64 i = 0; i < ecs->entityCount; i++) {
+            deleteEntity(ecs, ecs->activeEntities[i]);
+        }
         if (ecs->componentsFlags) {
             free(ecs->componentsFlags);
         }
@@ -887,47 +920,6 @@ void freeECS(ECS ecs) {
             free(ecs->activeEntities);
         }
         if (ecs->components) {
-            for (Uint64 i = 0; i < COMPONENT_COUNT; i++) {
-                if (ecs->components[i].dense) {
-                    for (Uint64 j = 0; j < ecs->components[i].denseSize; j++) {
-                        void *curr = ecs->components[i].dense[j];
-                        if (curr) {
-                            switch (ecs->components[i].type) {
-                                case TEXT_COMPONENT: {
-                                    if ((*(TextComponent *)(curr)).texture) SDL_DestroyTexture((*(TextComponent *)(curr)).texture);
-                                    if ((*(TextComponent *)(curr)).text) free((*(TextComponent *)(curr)).text);
-                                    if ((*(TextComponent *)(curr)).destRect) free((*(TextComponent *)(curr)).destRect);
-                                    break;
-                                }
-                                case RENDER_COMPONENT: {
-                                    if ((*(RenderComponent *)(curr)).texture) SDL_DestroyTexture((*(RenderComponent *)(curr)).texture);
-                                    if ((*(RenderComponent *)(curr)).destRect) free((*(RenderComponent *)(curr)).destRect);
-                                    break;
-                                }
-                                case COLLISION_COMPONENT: {
-                                    if ((*(CollisionComponent *)(curr)).hitbox) free((*(CollisionComponent *)(curr)).hitbox);
-                                    break;
-                                }
-                                case WEAPON_COMPONENT: {
-                                    if ((*(WeaponComponent *)(curr)).name) free((*(WeaponComponent *)(curr)).name);
-                                }
-                            }
-                            free(ecs->components[i].dense[j]);
-                        }
-                    }
-                    free(ecs->components[i].dense);
-                    free(ecs->components[i].denseToEntity);
-                }
-                if (ecs->components[i].sparse) {
-                    for (Uint64 j = 0; j < ecs->components[i].pageCount; j++) {
-                        if (ecs->components[i].sparse[j]) free(ecs->components[i].sparse[j]);
-                    }
-                    free(ecs->components[i].sparse);
-                }
-                if (ecs->components[i].dirtyEntities) {
-                    free(ecs->components[i].dirtyEntities);
-                }
-            }
             free(ecs->components);
         }
         if (ecs->freeEntities) {
