@@ -163,11 +163,22 @@ void onEnterPlayState(ZENg zEngine);
 void onExitPlayState(ZENg zEngine);
 
 /**
- * Spawns a bullet with a given owner entity
+ * Spawns a bullet type projectile
  * @param zEngine pointer to the engine
  * @param owner the owner entity of the bullet
+ * @param bulletW width of the bullet
+ * @param bulletH height of the bullet
+ * @param speed speed of the bullet
+ * @param projComp pointer to the ProjectileComponent describing the bullet's behavior
+ * @param lifeTime how long the bullet lasts before disappearing, in seconds
+ * @param texture pointer to the SDL_Texture of the bullet
+ * @param sound pointer to the Mix_Chunk sound that plays when the bullet is fired
  */
-void spawnBulletProjectile(ZENg zEngine, Entity owner);
+void spawnBulletProjectile(
+    ZENg zEngine, Entity owner, int bulletW, int bulletH,
+    double_t speed, ProjectileComponent *projComp,
+    double_t lifeTime, SDL_Texture *texture, Mix_Chunk *sound
+);
 
 /**
  * Handles the events in the play state

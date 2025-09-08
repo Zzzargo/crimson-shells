@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(MindBlowingGame C)
+project(CrimsonShells C)
 
 # Need this to make SDLTTF work
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
@@ -28,8 +28,8 @@ find_package(SDL2_mixer REQUIRED)
 include_directories(${SDL2_MIXER_INCLUDE_DIRS})
 
 # Executable
-add_executable(GOATGame ${SOURCES})
-target_link_libraries(GOATGame PRIVATE
+add_executable(crimshells ${SOURCES})
+target_link_libraries(crimshells PRIVATE
     ${SDL2_LIBRARIES}
     ${SDL2_TTF_LIBRARIES}
     ${SDL2_IMAGE_LIBRARIES}
@@ -37,7 +37,18 @@ target_link_libraries(GOATGame PRIVATE
     m # math lib
 )
 
-# Copy assets into build folder after build
-add_custom_command(TARGET GOATGame POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-    ${CMAKE_SOURCE_DIR}/assets $<TARGET_FILE_DIR:GOATGame>/assets)
+# Create symlinks to resources
+add_custom_target(symlinks ALL
+    COMMAND ${CMAKE_COMMAND} -E create_symlink
+    ${CMAKE_SOURCE_DIR}/assets ${CMAKE_BINARY_DIR}/assets
+
+    COMMAND ${CMAKE_COMMAND} -E create_symlink
+    ${CMAKE_SOURCE_DIR}/arenatest ${CMAKE_BINARY_DIR}/arenatest
+
+    COMMAND ${CMAKE_COMMAND} -E create_symlink
+    ${CMAKE_SOURCE_DIR}/settings.ini ${CMAKE_BINARY_DIR}/settings.ini
+    COMMENT "Creating symbolic links..."
+)
+
+# Make the main target depend on the assets symlink
+add_dependencies(crimshells symlinks)

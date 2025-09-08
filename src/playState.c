@@ -116,11 +116,12 @@ void onExitPlayState(ZENg zEngine) {
     systems[SYS_TRANSFORM]->isActive = 0;
 }
 
-void spawnBulletProjectile(ZENg zEngine, Entity shooter) {
+void spawnBulletProjectile(
+    ZENg zEngine, Entity shooter, int bulletW, int bulletH,
+    double_t speed, ProjectileComponent *projComp,
+    double_t lifeTime, SDL_Texture *texture, Mix_Chunk *sound
+) {
     Entity bulletID = createEntity(zEngine->ecs, STATE_PLAYING);
-
-    // Bullet size
-    int bulletW = TILE_SIZE / 3, bulletH = TILE_SIZE / 3;
 
     // get the shooter components
     Uint64 shooterPage = shooter / PAGE_SIZE;
@@ -154,22 +155,11 @@ void spawnBulletProjectile(ZENg zEngine, Entity shooter) {
     addComponent(zEngine->ecs, bulletID, POSITION_COMPONENT, (void *)bulletPos);
 
     VelocityComponent *bulletSpeed = createVelocityComponent(
-        (Vec2) {bulletDir->x * 500, bulletDir->y * 500},
-        500.0, *bulletPos, AXIS_NONE, 1
+        (Vec2) {bulletDir->x * speed, bulletDir->y * speed},
+        speed, *bulletPos, AXIS_NONE, 1
     );
     addComponent(zEngine->ecs, bulletID, VELOCITY_COMPONENT, (void *)bulletSpeed);
 
-    ProjectileComponent *projComp = calloc(1, sizeof(ProjectileComponent));
-    if (!projComp) {
-        printf("Failed to allocate memory for bullet projectile component\n");
-        exit(EXIT_FAILURE);
-    }
-    *projComp = (ProjectileComponent) {
-        .dmg = 15,
-        .piercing = 0,
-        .exploding = 0,
-        .friendly = (shooter == PLAYER_ID) ? 1 : 0
-    };
     addComponent(zEngine->ecs, bulletID, PROJECTILE_COMPONENT, (void *)projComp);
 
     LifetimeComponent *lifeComp = calloc(1, sizeof(LifetimeComponent));
@@ -178,7 +168,7 @@ void spawnBulletProjectile(ZENg zEngine, Entity shooter) {
         exit(EXIT_FAILURE);
     }
     *lifeComp = (LifetimeComponent) {
-        .lifeTime = 5,  // 5s
+        .lifeTime = lifeTime,
         .timeAlive = 0
     };
     addComponent(zEngine->ecs, bulletID, LIFETIME_COMPONENT, (void *)lifeComp);
@@ -190,9 +180,8 @@ void spawnBulletProjectile(ZENg zEngine, Entity shooter) {
     addComponent(zEngine->ecs, bulletID, COLLISION_COMPONENT, (void *)bulletColl);
 
     RenderComponent *bulletRender = createRenderComponent(
-        getTexture(zEngine->resources, "assets/textures/bullet.png"),
-        (int)bulletPos->x, (int)bulletPos->y, bulletW, bulletH,
-        1, 0
+        texture, (int)bulletPos->x, (int)bulletPos->y,
+        bulletW, bulletH, 1, 0
     );
     addComponent(zEngine->ecs, bulletID, RENDER_COMPONENT, (void *)bulletRender);
 
@@ -247,10 +236,10 @@ Uint8 handlePlayStateEvents(SDL_Event *e, ZENg zEngine) {
                 Weapon *currWeapon = (Weapon *)(playerWeap->currWeapon->data);
 
                 playerWeap->currWeapon = playerWeap->currWeapon->prev;
-                // #ifdef DEBUG
+                #ifdef DEBUG
                     Weapon *newWeapon = (Weapon *)(playerWeap->currWeapon->data);
                     printf("Switched weapon left: %s -> %s\n", currWeapon->name, newWeapon->name);
-                // #endif
+                #endif
                 return 1;
             }
 
@@ -260,10 +249,10 @@ Uint8 handlePlayStateEvents(SDL_Event *e, ZENg zEngine) {
                 Weapon *currWeapon = (Weapon *)(playerWeap->currWeapon->data);
 
                 playerWeap->currWeapon = playerWeap->currWeapon->next;
-                // #ifdef DEBUG
+                #ifdef DEBUG
                     Weapon *newWeapon = (Weapon *)(playerWeap->currWeapon->data);
                     printf("Switched weapon right: %s -> %s\n", currWeapon->name, newWeapon->name);
-                // #endif
+                #endif
                 return 1;
             }
         }
@@ -331,7 +320,23 @@ void handlePlayStateInput(ZENg zEngine) {
         #endif
 
         if (currWeapon->timeSinceUse > (1.0 / currWeapon->fireRate)) {
-            currWeapon->spawnProj(zEngine, PLAYER_ID);
+            if (strcmp(currWeapon->name, "Machine Gun") == 0) {
+                ProjectileComponent *projComp = createProjectileComponent(10, 0, 0, 1);
+
+                currWeapon->spawnProj(
+                    zEngine, PLAYER_ID, TILE_SIZE / 3, TILE_SIZE / 3,
+                    400.0, projComp, 4.0, getTexture(zEngine->resources, "assets/textures/bullet.png"),
+                    getSound(zEngine->resources, "assets/sounds/rifle.mp3")
+                );
+            } else if (strcmp(currWeapon->name, "Pistol") == 0) {
+                ProjectileComponent *projComp = createProjectileComponent(45, 0, 0, 1);
+
+                currWeapon->spawnProj(
+                    zEngine, PLAYER_ID, TILE_SIZE / 2, TILE_SIZE / 2,
+                    600.0, projComp, 3.0, getTexture(zEngine->resources, "assets/textures/bullet.png"),
+                    getSound(zEngine->resources, "assets/sounds/mg.mp3")
+                );
+            }
             currWeapon->timeSinceUse = 0;
         }
         #ifdef DEBUG

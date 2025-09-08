@@ -24,7 +24,7 @@ void loadSettings(ZENg zEngine, const char *filePath) {
         
         // the function above doesn't create the window and the renderer
         zEngine->display->window = SDL_CreateWindow(
-            "Adele's Adventure",
+            "Crimson Shells",
             SDL_WINDOWPOS_CENTERED,
             SDL_WINDOWPOS_CENTERED,
             zEngine->display->currentMode.w,
@@ -141,7 +141,7 @@ void loadSettings(ZENg zEngine, const char *filePath) {
 
     // Create the window with the read settings
     zEngine->display->window = SDL_CreateWindow(
-        "Adele's Adventure",
+        "Crimson Shells",
         SDL_WINDOWPOS_CENTERED,
         SDL_WINDOWPOS_CENTERED,
         zEngine->display->currentMode.w,

@@ -87,7 +87,9 @@ typedef struct {
     double_t fireRate;  // How fast can the weapon shoot, in seconds
     double_t timeSinceUse;  // How much time has passed since projectile spawn
 
-    void (*spawnProj)(ZENg, Entity);  // Pointer to the function spawning the weapon's projectile
+    void (*spawnProj)(
+        ZENg, Entity, int, int, double_t, ProjectileComponent *, double_t, SDL_Texture *, Mix_Chunk *
+    );  // Pointer to the function spawning the weapon's projectile
 } Weapon;
 
 typedef struct {
@@ -422,7 +424,11 @@ RenderComponent* createRenderComponent(SDL_Texture *texture, int x, int y, int w
  * @param spawnProj pointer to the projectile spawn function
  * @return freshly allocated weapon
  */
-Weapon* createWeapon(char *name, double_t fireRate, void (*spawnProj)(ZENg, Entity));
+Weapon* createWeapon(
+    char *name, double_t fireRate, void (*spawnProj)(
+        ZENg, Entity, int, int, double_t, ProjectileComponent *, double_t, SDL_Texture *, Mix_Chunk *
+    )
+);
 
 /**
  * Creates a weapon component
@@ -430,6 +436,15 @@ Weapon* createWeapon(char *name, double_t fireRate, void (*spawnProj)(ZENg, Enti
  * @return a pointer to a WeaponComponent
  */
 WeaponComponent *createWeaponComponent(CDLLNode *currWeapon);
+
+/**
+ * Creates a projectile component
+ * @param dmg damage the projectile will deal on hit
+ * @param piercing whether the projectile can pierce through entities (1) or not (0)
+ * @param exploding whether the projectile explodes on impact (1) or not (0)
+ * @return a pointer to a ProjectileComponent
+ */
+ProjectileComponent *createProjectileComponent(Int32 dmg, Uint8 piercing, Uint8 exploding, Uint8 friendly);
 
 /**
  * Adds a component to an entity in an ECS

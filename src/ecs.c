@@ -358,7 +358,11 @@ RenderComponent* createRenderComponent(SDL_Texture *texture, int x, int y, int w
  * =====================================================================================================================
  */
 
-Weapon* createWeapon(char *name, double_t fireRate, void (*spawnProj)(ZENg, Entity)) {
+Weapon* createWeapon(
+    char *name, double_t fireRate, void (*spawnProj)(
+        ZENg, Entity, int, int, double_t, ProjectileComponent *, double_t, SDL_Texture *, Mix_Chunk *
+    )
+) {
     Weapon *weap = calloc(1, sizeof(Weapon));
     if (!weap) {
         printf("Failed to allocate memory for weapon\n");
@@ -382,6 +386,23 @@ WeaponComponent *createWeaponComponent(CDLLNode *currWeapon) {
         exit(EXIT_FAILURE);
     }
     comp->currWeapon = currWeapon;
+    return comp;
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+ProjectileComponent *createProjectileComponent(Int32 dmg, Uint8 piercing, Uint8 exploding, Uint8 friendly) {
+    ProjectileComponent *comp = calloc(1, sizeof(ProjectileComponent));
+    if (!comp) {
+        printf("Failed to allocate memory for projectile component\n");
+        exit(EXIT_FAILURE);
+    }
+    comp->dmg = dmg;
+    comp->piercing = piercing;
+    comp->exploding = exploding;
+    comp->friendly = friendly;
     return comp;
 }
 
