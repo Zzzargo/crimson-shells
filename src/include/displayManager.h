@@ -3,6 +3,17 @@
 
 #include <global.h>
 
+#define LOGICAL_WIDTH 1280
+#define LOGICAL_HEIGHT 720
+
+/**
+ * 1280x720 => tilesize = 1280 / (16 * k) = 80 / k
+ * An integer k makes the tiles square and integer sized
+ * I chose k = 4 => TILE_SIZE = 20
+ * So the arena will be 64x36 tiles
+ * Keep in mind that the level files are going to be written for this arena size only
+ */
+
 typedef struct displaymng {
     SDL_Window *window;  // pointer to the game's window
     SDL_Renderer *renderer;  // pointer to the renderer

@@ -1,9 +1,6 @@
 #include "include/stateManager.h"
 
 void onEnterPauseState(ZENg zEngine) {
-    int screenH = zEngine->display->currentMode.h;
-    int screenW = zEngine->display->currentMode.w;
-
     // Percentages from the top of the screen
     double titlePos = 0.3;
     double listStartPos = 0.45;
@@ -14,7 +11,7 @@ void onEnterPauseState(ZENg zEngine) {
         "Resume", "Exit to main menu"
     };
     // this is amazing
-    void (*buttonActions[])(ZENg) = {
+    void (*buttonActions[])(ZENg, void *data) = {
         &pauseToPlay, &pauseToMMenu
     };
 
@@ -25,14 +22,15 @@ void onEnterPauseState(ZENg zEngine) {
             getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf"),
             strdup(buttonLabels[orderIdx]), 
             orderIdx == 0 ? COLOR_YELLOW : COLOR_WHITE, // First button selected (color)
-            buttonActions[orderIdx], 
+            buttonActions[orderIdx],
+            NULL, // these buttons have no extra data
             orderIdx == 0 ? 1 : 0,  // First button selected (field flag)
             orderIdx
         );
-        
-        button->destRect->x = (screenW - button->destRect->w) / 2;
-        button->destRect->y = screenH * (listStartPos + orderIdx * listItemsSpacing);
-        
+
+        button->destRect->x = (LOGICAL_WIDTH - button->destRect->w) / 2;
+        button->destRect->y = LOGICAL_HEIGHT * (listStartPos + orderIdx * listItemsSpacing);
+
         id = createEntity(zEngine->ecs, STATE_PAUSED);
         addComponent(zEngine->ecs, id, BUTTON_COMPONENT, (void *)button);
     }
@@ -87,7 +85,7 @@ Uint8 handlePauseStateEvents(SDL_Event *e, ZENg zEngine) {
  * =====================================================================================================================
  */
 
-void pauseToPlay(ZENg zEngine) {
+void pauseToPlay(ZENg zEngine, void *data) {
     popState(zEngine);
 }
 
@@ -95,7 +93,7 @@ void pauseToPlay(ZENg zEngine) {
  * =====================================================================================================================
  */
 
-void pauseToMMenu(ZENg zEngine) {
+void pauseToMMenu(ZENg zEngine, void *data) {
     popState(zEngine);  // -> play
     popState(zEngine);  // -> Menu
 }

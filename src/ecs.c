@@ -194,7 +194,7 @@ TextComponent* createTextComponent(SDL_Renderer *rdr, TTF_Font *font, char *text
 
 ButtonComponent* createButtonComponent(
     SDL_Renderer *rdr, TTF_Font *font, char *text, SDL_Color color,
-    void (*onClick)(ZENg), Uint8 selected, Uint8 orderIdx
+    void (*onClick)(ZENg, void*), void *data, Uint8 selected, Uint8 orderIdx
 ) {
     ButtonComponent *comp = calloc(1, sizeof(ButtonComponent));
     if (!comp) {
@@ -205,6 +205,7 @@ ButtonComponent* createButtonComponent(
     comp->selected = selected;
     comp->orderIdx = orderIdx;
     comp->onClick = onClick;
+    comp->data = data;
     comp->font = font;
     comp->text = text;
     comp->color = color;

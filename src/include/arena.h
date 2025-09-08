@@ -3,8 +3,8 @@
 
 #include "global.h"
 
-#define ARENA_WIDTH 48  // Arena width, in tiles
-#define ARENA_HEIGHT 27  // Arena height, in tiles
+#define ARENA_WIDTH 64  // Arena width, in tiles
+#define ARENA_HEIGHT 36  // Arena height, in tiles
 extern Uint32 TILE_SIZE;  // Size of a tile, in pixels
 
 typedef enum {
@@ -31,8 +31,6 @@ typedef struct {
 typedef struct map {
     Tile tileDefs[TILE_COUNT];  // Definitions for each tile type, initialized at engine start
     Tile **tiles;  // 2D array of tiles representing the arena
-    int offsetX;  // Offset for centering arena horizontally
-    int offsetY;  // Offset for centering arena vertically
 } *Arena;
 
 /**

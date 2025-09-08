@@ -30,23 +30,12 @@ Uint8 handleMenuNavigation(SDL_Event *event, ZENg zEngine, char *firstItem, char
 /**
  * Exits the game
  * @param zEngine pointer to the engine
+ * @param data unused
  * @note This function just sets the current state to STATE_EXIT
  */
-void prepareExit(ZENg zEngine);
+void prepareExit(ZENg zEngine, void *data);
 
 // ============================================ MAIN MENU STATE ========================================================
-
-/**
- * Transition from main menu to play state
- * @param zEngine pointer to the engine
- */
-void mMenuToPlay(ZENg zEngine);
-
-/**
- * Transition from main menu to options state
- * @param zEngine pointer to the engine
- */
-void mMenuToOptions(ZENg zEngine);
 
 /**
  * Loads the main menu UI components into the UI ECS
@@ -68,37 +57,19 @@ void onExitMainMenu(ZENg zEngine);
  */
 Uint8 handleMainMenuEvents(SDL_Event *event, ZENg zEngine);
 
+/**
+ * Transition from main menu to play state
+ * @param zEngine pointer to the engine
+ */
+void mMenuToPlay(ZENg zEngine, void *data);
+
+/**
+ * Transition from main menu to options state
+ * @param zEngine pointer to the engine
+ */
+void mMenuToOptions(ZENg zEngine, void *data);
+
 // ============================================= OPTIONS STATE =========================================================
-
-/**
- * Transition from options menu to game options
- * @param zEngine pointer to the engine
- */
-void optionsToGameOpt(ZENg zEngine);
-
-/**
- * Transition from options menu to audio options
- * @param zEngine pointer to the engine
- */
-void optionsToAudioOpt(ZENg zEngine);
-
-/**
- * Transition from options menu to video options
- * @param zEngine pointer to the engine
- */
-void optionsToVideoOpt(ZENg zEngine);
-
-/**
- * Transition from options menu to controls options
- * @param zEngine pointer to the engine
- */
-void optionsToControlsOpt(ZENg zEngine);
-
-/**
- * Transition from options menu to main menu
- * @param zEngine pointer to the engine
- */
-void optionsToMMenu(ZENg zEngine);
 
 /**
  * Loads the options menu UI components into the ECS
@@ -120,6 +91,36 @@ void onExitOptionsMenu(ZENg zEngine);
  */
 Uint8 handleOptionsMenuEvents(SDL_Event *event, ZENg zEngine);
 
+/**
+ * Transition from options menu to game options
+ * @param zEngine pointer to the engine
+ */
+void optionsToGameOpt(ZENg zEngine, void *data);
+
+/**
+ * Transition from options menu to audio options
+ * @param zEngine pointer to the engine
+ */
+void optionsToAudioOpt(ZENg zEngine, void *data);
+
+/**
+ * Transition from options menu to video options
+ * @param zEngine pointer to the engine
+ */
+void optionsToVideoOpt(ZENg zEngine, void *data);
+
+/**
+ * Transition from options menu to controls options
+ * @param zEngine pointer to the engine
+ */
+void optionsToControlsOpt(ZENg zEngine, void *data);
+
+/**
+ * Transition from options menu to main menu
+ * @param zEngine pointer to the engine
+ */
+void optionsToMMenu(ZENg zEngine, void *data);
+
 // ============================================= VIDEO OPTIONS STATE ===================================================
 
 /**
@@ -134,6 +135,14 @@ void onEnterVideoOptions(ZENg zEngine);
  */
 void onExitVideoOptions(ZENg zEngine);
 
+
+/**
+ * Button action to change the display resolution
+ * @param zEngine pointer to the engine
+ * @param data pointer to an SDL_DisplayMode struct describing the new display mode
+ */
+void changeRes(ZENg zEngine, void *data);
+
 /**
  * Handles the events in the video options menu
  * @param event pointer to the SDL_Event
@@ -145,8 +154,9 @@ Uint8 handleVideoOptionsEvents(SDL_Event *event, ZENg zEngine);
 /**
  * Transition from video options to options menu
  * @param zEngine pointer to the engine
+ * @param data unused
  */
-void videoOptToOpt(ZENg zEngine);
+void videoOptToOpt(ZENg zEngine, void *data);
 
 // ================================================ PLAY STATE =========================================================
 
@@ -197,26 +207,6 @@ void handlePlayStateInput(ZENg zEngine);
 // ================================================ PAUSE STATE ========================================================
 
 /**
- * Transitions from the pause state to the play state
- * @param zEngine pointer to the engine
- */
-void pauseToPlay(ZENg zEngine);
-
-/**
- * Transitions from the pause state to the main menu
- * @param zEngine pointer to the engine
- */
-void pauseToMMenu(ZENg zEngine);
-
-/**
- * Handles events in the pause state
- * @param e pointer to the SDL_Event
- * @param zEngine pointer to the engine
- * @return 0 if the event is trying to exit the game, 1 otherwise
- */
-Uint8 handlePauseStateEvents(SDL_Event *e, ZENg zEngine);
-
-/**
  * Loads the pause menu UI components into the ECS
  * @param zEngine pointer to the engine
  */
@@ -227,6 +217,28 @@ void onEnterPauseState(ZENg zEngine);
  * @param zEngine pointer to the engine
  */
 void onExitPauseState(ZENg zEngine);
+
+/**
+ * Transitions from the pause state to the play state
+ * @param zEngine pointer to the engine
+ * @param data unused
+ */
+void pauseToPlay(ZENg zEngine, void *data);
+
+/**
+ * Transitions from the pause state to the main menu
+ * @param zEngine pointer to the engine
+ * @param data unused
+ */
+void pauseToMMenu(ZENg zEngine, void *data);
+
+/**
+ * Handles events in the pause state
+ * @param e pointer to the SDL_Event
+ * @param zEngine pointer to the engine
+ * @return 0 if the event is trying to exit the game, 1 otherwise
+ */
+Uint8 handlePauseStateEvents(SDL_Event *e, ZENg zEngine);
 
 // =====================================================================================================================
 

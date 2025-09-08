@@ -1,9 +1,6 @@
 #include "include/stateManager.h"
 
 void onEnterOptionsMenu(ZENg zEngine) {
-    int screenW = zEngine->display->currentMode.w;
-    int screenH = zEngine->display->currentMode.h;
-
     // Percentages from the top of the screen
     double listStartPos = 0.35;
     double listItemsSpacing = 0.08;
@@ -13,7 +10,7 @@ void onEnterOptionsMenu(ZENg zEngine) {
         "Game", "Audio", "Display", "Controls", "Back"
     };
     // this is amazing
-    void (*buttonActions[])(ZENg) = {
+    void (*buttonActions[])(ZENg, void *) = {
         &optionsToGameOpt, &optionsToAudioOpt, &optionsToVideoOpt, 
         &optionsToControlsOpt, &optionsToMMenu
     };
@@ -27,12 +24,13 @@ void onEnterOptionsMenu(ZENg zEngine) {
             strdup(buttonLabels[orderIdx]), 
             orderIdx == 0 ? COLOR_YELLOW : COLOR_WHITE, // First button selected (color)
             buttonActions[orderIdx], 
+            NULL, // these buttons have no extra data
             orderIdx == 0 ? 1 : 0,  // First button selected (field flag)
             orderIdx
         );
         
-        button->destRect->x = (screenW - button->destRect->w) / 2;
-        button->destRect->y = screenH * (listStartPos + orderIdx * listItemsSpacing);
+        button->destRect->x = (LOGICAL_WIDTH - button->destRect->w) / 2;
+        button->destRect->y = LOGICAL_HEIGHT * (listStartPos + orderIdx * listItemsSpacing);
         
         id = createEntity(zEngine->ecs, STATE_OPTIONS);
         addComponent(zEngine->ecs, id, BUTTON_COMPONENT, (void *)button);
@@ -63,7 +61,7 @@ Uint8 handleOptionsMenuEvents(SDL_Event *event, ZENg zEngine) {
  * =====================================================================================================================
  */
 
- void optionsToGameOpt(ZENg zEngine) {
+ void optionsToGameOpt(ZENg zEngine, void *data) {
 
  }
 
@@ -71,7 +69,7 @@ Uint8 handleOptionsMenuEvents(SDL_Event *event, ZENg zEngine) {
  * =====================================================================================================================
  */
 
-void optionsToAudioOpt(ZENg zEngine) {
+void optionsToAudioOpt(ZENg zEngin, void *data) {
 
 }
 
@@ -79,7 +77,7 @@ void optionsToAudioOpt(ZENg zEngine) {
  * =====================================================================================================================
  */
 
-void optionsToVideoOpt(ZENg zEngine) {
+void optionsToVideoOpt(ZENg zEngine, void *data) {
     GameState *videoOpt = calloc(1, sizeof(GameState));
     if (!videoOpt) {
         printf("Failed to allocate memory for the video options state");
@@ -97,7 +95,7 @@ void optionsToVideoOpt(ZENg zEngine) {
  * =====================================================================================================================
  */
 
-void optionsToControlsOpt(ZENg zEngine) {
+void optionsToControlsOpt(ZENg zEngine, void *data) {
 
 }
 
@@ -105,6 +103,6 @@ void optionsToControlsOpt(ZENg zEngine) {
  * =====================================================================================================================
  */
 
-void optionsToMMenu(ZENg zEngine) {
+void optionsToMMenu(ZENg zEngine, void *data) {
     popState(zEngine);  // -> Main menu
 }

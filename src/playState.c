@@ -13,8 +13,6 @@ void onEnterPlayState(ZENg zEngine) {
     Uint32 playerStartTileX = ARENA_WIDTH / 2;
     Uint32 playerStartTileY = ARENA_HEIGHT - 4;  // bottom
     Int32 playerStartTile = playerStartTileY * ARENA_WIDTH + playerStartTileX;
-    int wW, wH;
-    SDL_GetWindowSize(zEngine->display->window, &wW, &wH);
 
     PositionComponent *posComp = createPositionComponent(tileToWorld(zEngine->map, playerStartTile));
     addComponent(zEngine->ecs, id, POSITION_COMPONENT, (void *)posComp);
@@ -49,8 +47,8 @@ void onEnterPlayState(ZENg zEngine) {
     addComponent(zEngine->ecs, id, WEAPON_COMPONENT, (void *)weapComp);
 
     // test entity
-    Int32 testEStartTileX = playerStartTileX + 5;
-    Int32 testEStartTileY = playerStartTileY - 5;
+    Int32 testEStartTileX = ARENA_WIDTH / 2;
+    Int32 testEStartTileY = 5;
     Int32 testEStartTileIdx = testEStartTileY * ARENA_WIDTH + testEStartTileX;
 
     id = createEntity(zEngine->ecs, STATE_PLAYING);

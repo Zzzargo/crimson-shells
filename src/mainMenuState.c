@@ -1,10 +1,7 @@
 #include "include/stateManager.h"
 
 void onEnterMainMenu(ZENg zEngine) {
-    int screenW = zEngine->display->currentMode.w;
-    int screenH = zEngine->display->currentMode.h;
-
-    // Percentages from the top of the screen
+    // Percentages from the top of the (logical) screen
     double titlePos = 0.3;
     double footerPos = 0.8;
     double listStartPos = 0.45;
@@ -15,7 +12,7 @@ void onEnterMainMenu(ZENg zEngine) {
         "Play", "Options", "Exit"
     };
     // this is amazing
-    void (*buttonActions[])(ZENg) = {
+    void (*buttonActions[])(ZENg, void *) = {
         &mMenuToPlay, &mMenuToOptions, &prepareExit
     };
 
@@ -24,8 +21,8 @@ void onEnterMainMenu(ZENg zEngine) {
         zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf"),
         strdup("Adele's Adventure"), COLOR_WHITE, 1
     );
-    title->destRect->x = (screenW - title->destRect->w) / 2;
-    title->destRect->y = screenH * titlePos;
+    title->destRect->x = (LOGICAL_WIDTH - title->destRect->w) / 2;
+    title->destRect->y = LOGICAL_HEIGHT * titlePos;
 
     Entity id = createEntity(zEngine->ecs, STATE_MAIN_MENU);
     addComponent(zEngine->ecs, id, TEXT_COMPONENT, (void *)title);
@@ -37,13 +34,14 @@ void onEnterMainMenu(ZENg zEngine) {
             strdup(buttonLabels[orderIdx]), 
             orderIdx == 0 ? COLOR_YELLOW : COLOR_WHITE, // First button selected (color)
             buttonActions[orderIdx], 
+            NULL,  // these buttons have no extra data
             orderIdx == 0 ? 1 : 0,  // First button selected (field flag)
             orderIdx
         );
         
-        button->destRect->x = (screenW - button->destRect->w) / 2;
-        button->destRect->y = screenH * (listStartPos + orderIdx * listItemsSpacing);
-        
+        button->destRect->x = (LOGICAL_WIDTH - button->destRect->w) / 2;
+        button->destRect->y = LOGICAL_HEIGHT * (listStartPos + orderIdx * listItemsSpacing);
+
         id = createEntity(zEngine->ecs, STATE_MAIN_MENU);
         addComponent(zEngine->ecs, id, BUTTON_COMPONENT, (void *)button);
     }
@@ -65,8 +63,8 @@ void onEnterMainMenu(ZENg zEngine) {
         zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf"),
         instrText, COLOR_WHITE_TRANSPARENT, 1
     );
-    instructions->destRect->x = (screenW - instructions->destRect->w) / 2;
-    instructions->destRect->y = screenH * footerPos;
+    instructions->destRect->x = (LOGICAL_WIDTH - instructions->destRect->w) / 2;
+    instructions->destRect->y = LOGICAL_HEIGHT * footerPos;
 
     id = createEntity(zEngine->ecs, STATE_MAIN_MENU);  // get a new entity's ID
     addComponent(zEngine->ecs, id, TEXT_COMPONENT, (void *)instructions);
@@ -193,7 +191,7 @@ Uint8 handleMenuNavigation(SDL_Event *event, ZENg zEngine, char *firstItem, char
                 for (Uint64 i = 0; i < zEngine->ecs->components[BUTTON_COMPONENT].denseSize; i++) {
                     ButtonComponent *curr = (ButtonComponent *)(zEngine->ecs->components[BUTTON_COMPONENT].dense[i]);
                     if (curr->selected) {
-                        curr->onClick(zEngine);
+                        curr->onClick(zEngine, curr->data);
                     }
                 }
                 return 1;
@@ -213,7 +211,7 @@ Uint8 handleMenuNavigation(SDL_Event *event, ZENg zEngine, char *firstItem, char
  * =====================================================================================================================
  */
 
-void mMenuToPlay(ZENg zEngine) {
+void mMenuToPlay(ZENg zEngine, void *data) {
     // push the play state to the gamestate stack
     GameState *playState = calloc(1, sizeof(GameState));
     if (!playState) {
@@ -232,7 +230,7 @@ void mMenuToPlay(ZENg zEngine) {
  * =====================================================================================================================
  */
 
-void mMenuToOptions(ZENg zEngine) {
+void mMenuToOptions(ZENg zEngine, void *data) {
     // push the options state to the gamestate stack
     GameState *optionsState = calloc(1, sizeof(GameState));
     if (!optionsState) {
@@ -252,6 +250,6 @@ void mMenuToOptions(ZENg zEngine) {
  * =====================================================================================================================
  */
 
-void prepareExit(ZENg zEngine) {
+void prepareExit(ZENg zEngine, void *data) {
     getCurrState(zEngine->stateMng)->type = STATE_EXIT;
 }

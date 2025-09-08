@@ -106,38 +106,25 @@ void setDisplayMode(DisplayManager mgr, const SDL_DisplayMode *mode) {
 
     // If fullscreen mode switch to windowed mode to change the size
     Uint8 isFullscreen = mgr->wdwFlags & SDL_WINDOW_FULLSCREEN;
-    if (isFullscreen) SDL_SetWindowFullscreen(mgr->window, SDL_WINDOW_SHOWN);
+    if (isFullscreen) SDL_SetWindowFullscreen(mgr->window, 0);
 
     // Then set the new size
+    SDL_SetWindowDisplayMode(mgr->window, mode);
     SDL_SetWindowSize(mgr->window, mgr->currentMode.w, mgr->currentMode.h);
 
     // Switch back to fullscreen mode with the new resolution if was fullscreen
     if (isFullscreen) {
-        SDL_SetWindowDisplayMode(mgr->window, mode);
         SDL_SetWindowFullscreen(mgr->window, SDL_WINDOW_FULLSCREEN);
         mgr->wdwFlags |= SDL_WINDOW_FULLSCREEN;  // just in case
     }
-
-    // SDL has some utility in this case
-    SDL_RenderSetLogicalSize(mgr->renderer, mgr->currentMode.w, mgr->currentMode.h);
-
-    printf(
-        "Display mode set to %dx%d @ %dHz\n",
-        mgr->currentMode.w, mgr->currentMode.h, mgr->currentMode.refresh_rate
-    );
+    
+    #ifdef DEBUG
+        printf(
+            "Display mode set to %dx%d @ %dHz\n",
+            mgr->currentMode.w, mgr->currentMode.h, mgr->currentMode.refresh_rate
+        );
+    #endif
 }
-
-// void handleDisplayEvent(DisplayManager mgr, SDL_Event *event) {
-//     if (!mgr || event->type != SDL_WINDOWEVENT) return;
-
-//     switch (event->window.event) {
-//         case SDL_WINDOWEVENT_RESIZED:
-//             mgr->width = event->window.data1;
-//             mgr->height = event->window.data2;
-//             SDL_RenderSetLogicalSize(mgr->renderer, mgr->width, mgr->height);
-//             break;
-//     }
-// }
 
 void saveDisplaySettings(DisplayManager mgr, const char *filePath) {
     if (!mgr || !filePath) return;

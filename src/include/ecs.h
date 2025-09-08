@@ -133,9 +133,10 @@ typedef struct {
 typedef struct engine *ZENg;  // forward declaration of the engine
 typedef struct {
     SDL_Color color;  // Color of the button text
-    void (*onClick)(ZENg);  // What the button does
+    void (*onClick)(ZENg, void *);  // What the button does
     TTF_Font *font;  // Font used by the button text
     char *text;
+    void *data;  // Pointer to any data the button might need
     SDL_Texture *texture;
     SDL_Rect *destRect;  // Where to render the button
     Uint8 selected;  // For UI components
@@ -341,18 +342,19 @@ TextComponent* createTextComponent(SDL_Renderer *rdr, TTF_Font *font, char *text
 
 /**
  * Creates a button component for menus
- * @param rdr
- * @param font
- * @param text
- * @param color
- * @param onClick
- * @param selected
- * @param orderIdx
+ * @param rdr pointer to the SDL renderer
+ * @param font font to be used for the button text
+ * @param text button text
+ * @param color button color
+ * @param onClick function to be called when the button is clicked
+ * @param data pointer to any data the button might need
+ * @param selected indicates if the button is selected
+ * @param orderIdx the order index of the button
  * @note the returned button component is created @ 0x0, so further positioning is needed
  */
 ButtonComponent* createButtonComponent(
     SDL_Renderer *rdr, TTF_Font *font, char *text, SDL_Color color,
-    void (*onClick)(ZENg), Uint8 selected, Uint8 orderIdx
+    void (*onClick)(ZENg, void*), void *data, Uint8 selected, Uint8 orderIdx
 );
 
 /**
