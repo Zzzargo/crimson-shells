@@ -32,8 +32,16 @@ void loadSettings(ZENg zEngine, const char *filePath);
 
 /**
  * Initializes a level arena from a file
+ * @param zEngine pointer to the engine
+ * @param levelFilePath path to the level file
  */
 void initLevel(ZENg zEngine, const char *levelFilePath);
+
+/**
+ * Destroys the current level
+ * @param zEngine pointer to the engine
+ */
+void clearLevel(ZENg zEngine);
 
 /**
  * Initialises the game engine

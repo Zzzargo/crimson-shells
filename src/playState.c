@@ -22,7 +22,7 @@ void onEnterPlayState(ZENg zEngine) {
 
     VelocityComponent *speedComp = createVelocityComponent(
         (Vec2){0.0, 0.0},
-        250.0, *posComp, AXIS_NONE, 1
+        200.0, *posComp, AXIS_NONE, 1
     );
     addComponent(zEngine->ecs, id, VELOCITY_COMPONENT, (void *)speedComp);
 
@@ -33,18 +33,45 @@ void onEnterPlayState(ZENg zEngine) {
     addComponent(zEngine->ecs, id, COLLISION_COMPONENT, (void *)colComp);
 
     RenderComponent *renderComp = createRenderComponent(
-        getTexture(zEngine->resources, "assets/textures/tank.png"),
+        getTexture(zEngine->resources, "assets/textures/tank2.png"),
         posComp->x, posComp->y, TILE_SIZE * 2, TILE_SIZE * 2,
         1, 0
     );
     addComponent(zEngine->ecs, id, RENDER_COMPONENT, (void *)renderComp);
 
-    Weapon *weap = createWeapon(strdup("Machine Gun"), 10.0, &spawnBulletProjectile);
-    CDLLNode *weapList = initList((void *)weap);
-    Weapon *weap2 = createWeapon(strdup("Pistol"), 2.0, &spawnBulletProjectile);
-    CDLLInsertLast(weapList, (void *)weap2);
-    WeaponComponent *weapComp = createWeaponComponent(weapList);
-    addComponent(zEngine->ecs, id, WEAPON_COMPONENT, (void *)weapComp);
+    Entity mainGunID = createEntity(zEngine->ecs, STATE_PLAYING);
+    ProjectileComponent *mainProjComp = createProjectileComponent(45, 0, 0, 1);
+    WeaponComponent *mainG = createWeaponComponent(
+        strdup("Main Gun"), 1.0, &spawnBulletProjectile, 20, 20, 400.0,
+        mainProjComp, 5.0, getTexture(zEngine->resources, "assets/textures/bullet.png"),
+        getSound(zEngine->resources, "assets/sounds/shell1.mp3")
+    );
+    addComponent(zEngine->ecs, mainGunID, WEAPON_COMPONENT, (void *)mainG);
+
+    Entity secGun1ID = createEntity(zEngine->ecs, STATE_PLAYING);
+    ProjectileComponent *secProjComp1 = createProjectileComponent(15, 0, 0, 1);
+    WeaponComponent *secG1 = createWeaponComponent(
+        strdup("Coaxial Machine Gun 1"), 5.0, &spawnBulletProjectile, 10, 10, 300.0,
+        secProjComp1, 3.0, getTexture(zEngine->resources, "assets/textures/bullet.png"),
+        getSound(zEngine->resources, "assets/sounds/coaxmg1.mp3")
+    );
+    addComponent(zEngine->ecs, secGun1ID, WEAPON_COMPONENT, (void *)secG1);
+    CDLLNode *weapList = initList((void *)secG1);
+
+    Entity secGun2ID = createEntity(zEngine->ecs, STATE_PLAYING);
+    ProjectileComponent *secProjComp2 = createProjectileComponent(10, 0, 0, 1);
+    WeaponComponent *secG2 = createWeaponComponent(
+        strdup("Coaxial Machine Gun 2"), 6.5, &spawnBulletProjectile, 10, 10, 300.0,
+        secProjComp2, 3.0, getTexture(zEngine->resources, "assets/textures/bullet.png"),
+        getSound(zEngine->resources, "assets/sounds/coaxmg2.mp3")
+    );
+    addComponent(zEngine->ecs, secGun2ID, WEAPON_COMPONENT, (void *)secG2);
+    CDLLInsertLast(weapList, (void *)secG2);
+
+    Entity hullID = createEntity(zEngine->ecs, STATE_PLAYING);
+    Entity moduleID = createEntity(zEngine->ecs, STATE_PLAYING);
+    LoadoutComponent *loadout = createLoadoutComponent(mainGunID, weapList, hullID, moduleID);
+    addComponent(zEngine->ecs, id, LOADOUT_COMPONENT, (void *)loadout);
 
     // test entity
     Int32 testEStartTileX = ARENA_WIDTH / 2;
@@ -98,9 +125,7 @@ void onExitPlayState(ZENg zEngine) {
     sweepState(zEngine->ecs, STATE_PLAYING);
 
     // Destroy the arena memory
-    if (zEngine->map) {
-        free(zEngine->map);
-    }
+    clearLevel(zEngine);
 
     // Disable the play state's systems
     SystemNode **systems = zEngine->ecs->depGraph->nodes;
@@ -114,11 +139,8 @@ void onExitPlayState(ZENg zEngine) {
     systems[SYS_TRANSFORM]->isActive = 0;
 }
 
-void spawnBulletProjectile(
-    ZENg zEngine, Entity shooter, int bulletW, int bulletH,
-    double_t speed, ProjectileComponent *projComp,
-    double_t lifeTime, SDL_Texture *texture, Mix_Chunk *sound
-) {
+void spawnBulletProjectile( ZENg zEngine, Entity shooter, int bulletW, int bulletH,
+    double_t speed, ProjectileComponent *projComp, double_t lifeTime, SDL_Texture *texture, Mix_Chunk *sound ) {
     Entity bulletID = createEntity(zEngine->ecs, STATE_PLAYING);
 
     // get the shooter components
@@ -158,7 +180,10 @@ void spawnBulletProjectile(
     );
     addComponent(zEngine->ecs, bulletID, VELOCITY_COMPONENT, (void *)bulletSpeed);
 
-    addComponent(zEngine->ecs, bulletID, PROJECTILE_COMPONENT, (void *)projComp);
+    ProjectileComponent *projCompCopy = createProjectileComponent(
+        projComp->dmg, projComp->piercing, projComp->exploding, projComp->friendly
+    );  // Copy the gun's projectile component to prevent deleting the original at bullet collision
+    addComponent(zEngine->ecs, bulletID, PROJECTILE_COMPONENT, (void *)projCompCopy);
 
     LifetimeComponent *lifeComp = calloc(1, sizeof(LifetimeComponent));
     if (!lifeComp) {
@@ -183,24 +208,8 @@ void spawnBulletProjectile(
     );
     addComponent(zEngine->ecs, bulletID, RENDER_COMPONENT, (void *)bulletRender);
 
-    Uint64 weapDenseIdx = zEngine->ecs->components[WEAPON_COMPONENT].sparse[shooterPage][shooterPageIdx];
-    WeaponComponent *shooterWeap = (WeaponComponent *)zEngine->ecs->components[WEAPON_COMPONENT].dense[weapDenseIdx];
-    Weapon *currWeapon = (Weapon *)(shooterWeap->currWeapon->data);
-    if (strcmp(currWeapon->name, "Machine Gun") == 0) {
-        Mix_Chunk *buttonSound = getSound(zEngine->resources, "assets/sounds/rifle.mp3");
-        if (!buttonSound) {
-            printf("Failed to load button sound: %s\n", Mix_GetError());
-            exit(EXIT_FAILURE);
-        }
-        Mix_PlayChannel(-1, buttonSound, 0);
-    } else if (strcmp(currWeapon->name, "Pistol") == 0) {
-        Mix_Chunk *buttonSound = getSound(zEngine->resources, "assets/sounds/mg.mp3");
-        if (!buttonSound) {
-            printf("Failed to load button sound: %s\n", Mix_GetError());
-            exit(EXIT_FAILURE);
-        }
-        Mix_PlayChannel(-1, buttonSound, 0);
-    }
+    // Play firing sound
+    Mix_PlayChannel(-1, sound, 0);
 }
 
 Uint8 handlePlayStateEvents(SDL_Event *e, ZENg zEngine) {
@@ -229,27 +238,43 @@ Uint8 handlePlayStateEvents(SDL_Event *e, ZENg zEngine) {
                 return 1;
             }
             case INPUT_SWITCH_LEFT: {
-                Uint64 weapDenseIdx = zEngine->ecs->components[WEAPON_COMPONENT].sparse[page][pageIdx];
-                WeaponComponent *playerWeap = (WeaponComponent *)zEngine->ecs->components[WEAPON_COMPONENT].dense[weapDenseIdx];
-                Weapon *currWeapon = (Weapon *)(playerWeap->currWeapon->data);
+                Uint64 loadDenseIdx = zEngine->ecs->components[LOADOUT_COMPONENT].sparse[page][pageIdx];
+                LoadoutComponent *playerLoadout = (LoadoutComponent *)zEngine->ecs->components[LOADOUT_COMPONENT].dense[loadDenseIdx];
 
-                playerWeap->currWeapon = playerWeap->currWeapon->prev;
+                CDLLNode *currSecGun = playerLoadout->currSecondaryGun;
+                WeaponComponent *secGun = (WeaponComponent *)currSecGun->data;
+                if (!secGun) {
+                    #ifdef DEBUG
+                        printf("No secondary weapons to switch to!\n");
+                    #endif
+                    return 1;
+                }
+
+                playerLoadout->currSecondaryGun = currSecGun->prev;
                 #ifdef DEBUG
-                    Weapon *newWeapon = (Weapon *)(playerWeap->currWeapon->data);
-                    printf("Switched weapon left: %s -> %s\n", currWeapon->name, newWeapon->name);
+                    WeaponComponent *newWeapon = (WeaponComponent *)(playerLoadout->currSecondaryGun->data);
+                    printf("Switched weapon left: %s -> %s\n", secGun->name, newWeapon->name);
                 #endif
                 return 1;
             }
 
             case INPUT_SWITCH_RIGHT: {
-                Uint64 weapDenseIdx = zEngine->ecs->components[WEAPON_COMPONENT].sparse[page][pageIdx];
-                WeaponComponent *playerWeap = (WeaponComponent *)zEngine->ecs->components[WEAPON_COMPONENT].dense[weapDenseIdx];
-                Weapon *currWeapon = (Weapon *)(playerWeap->currWeapon->data);
+                Uint64 loadDenseIdx = zEngine->ecs->components[LOADOUT_COMPONENT].sparse[page][pageIdx];
+                LoadoutComponent *playerLoadout = (LoadoutComponent *)zEngine->ecs->components[LOADOUT_COMPONENT].dense[loadDenseIdx];
 
-                playerWeap->currWeapon = playerWeap->currWeapon->next;
+                CDLLNode *currSecGun = playerLoadout->currSecondaryGun;
+                WeaponComponent *secGun = (WeaponComponent *)currSecGun->data;
+                if (!secGun) {
+                    #ifdef DEBUG
+                        printf("No secondary weapons to switch to!\n");
+                    #endif
+                    return 1;
+                }
+
+                playerLoadout->currSecondaryGun = currSecGun->next;
                 #ifdef DEBUG
-                    Weapon *newWeapon = (Weapon *)(playerWeap->currWeapon->data);
-                    printf("Switched weapon right: %s -> %s\n", currWeapon->name, newWeapon->name);
+                    WeaponComponent *newWeapon = (WeaponComponent *)(playerLoadout->currSecondaryGun->data);
+                    printf("Switched weapon right: %s -> %s\n", secGun->name, newWeapon->name);
                 #endif
                 return 1;
             }
@@ -305,43 +330,68 @@ void handlePlayStateInput(ZENg zEngine) {
         playerSpeed->currVelocity = (Vec2) { .x = 0.0, .y = 0.0 };
     }
 
+    // Shooting
+
     if (isActionPressed(zEngine->inputMng, INPUT_SHOOT)) {
-        Uint64 weapDenseIdx = zEngine->ecs->components[WEAPON_COMPONENT].sparse[page][pageIdx];
-        WeaponComponent *playerWeap = (WeaponComponent *)zEngine->ecs->components[WEAPON_COMPONENT].dense[weapDenseIdx];
-        Weapon *currWeapon = (Weapon *)(playerWeap->currWeapon->data);
+        Uint64 loadoutDenseIdx = zEngine->ecs->components[LOADOUT_COMPONENT].sparse[page][pageIdx];
+        LoadoutComponent *playerLoadout = (LoadoutComponent *)zEngine->ecs->components[LOADOUT_COMPONENT].dense[loadoutDenseIdx];
+        Entity mainGunID = playerLoadout->primaryGun;
+        Uint64 mainGunPage = mainGunID / PAGE_SIZE;
+        Uint64 mainGunPageIdx = mainGunID % PAGE_SIZE;
+
+        Uint64 mainGunDenseIdx = zEngine->ecs->components[WEAPON_COMPONENT].sparse[mainGunPage][mainGunPageIdx];
+        WeaponComponent *mainGun = (WeaponComponent *)zEngine->ecs->components[WEAPON_COMPONENT].dense[mainGunDenseIdx];
 
         #ifdef DEBUG
             printf(
                 "Trying to shoot... timeSinceUse: %.4f    timeRequired: %.4f\n",
-                currWeapon->timeSinceUse, (1.0 / currWeapon->fireRate)
+                mainGun->timeSinceUse, (1.0 / mainGun->fireRate)
             );
         #endif
 
-        if (currWeapon->timeSinceUse > (1.0 / currWeapon->fireRate)) {
-            if (strcmp(currWeapon->name, "Machine Gun") == 0) {
-                ProjectileComponent *projComp = createProjectileComponent(10, 0, 0, 1);
-
-                currWeapon->spawnProj(
-                    zEngine, PLAYER_ID, TILE_SIZE / 3, TILE_SIZE / 3,
-                    400.0, projComp, 4.0, getTexture(zEngine->resources, "assets/textures/bullet.png"),
-                    getSound(zEngine->resources, "assets/sounds/rifle.mp3")
-                );
-            } else if (strcmp(currWeapon->name, "Pistol") == 0) {
-                ProjectileComponent *projComp = createProjectileComponent(45, 0, 0, 1);
-
-                currWeapon->spawnProj(
-                    zEngine, PLAYER_ID, TILE_SIZE / 2, TILE_SIZE / 2,
-                    600.0, projComp, 3.0, getTexture(zEngine->resources, "assets/textures/bullet.png"),
-                    getSound(zEngine->resources, "assets/sounds/mg.mp3")
-                );
-            }
-            currWeapon->timeSinceUse = 0;
+        if (mainGun->timeSinceUse > (1.0 / mainGun->fireRate)) {
+            mainGun->spawnProj(
+                zEngine, PLAYER_ID,
+                mainGun->projW, mainGun->projH,
+                mainGun->projSpeed, mainGun->projComp,
+                mainGun->projLifeTime, mainGun->projTexture,
+                mainGun->projSound
+            );
+            mainGun->timeSinceUse = 0;
         }
         #ifdef DEBUG
             else {
                 printf("Weapon has cooldown, can't shoot\n");
             }
         #endif
-        return;
+    }
+
+    if (isActionPressed(zEngine->inputMng, INPUT_SECONDARY)) {
+        Uint64 loadoutDenseIdx = zEngine->ecs->components[LOADOUT_COMPONENT].sparse[page][pageIdx];
+        LoadoutComponent *playerLoadout = (LoadoutComponent *)zEngine->ecs->components[LOADOUT_COMPONENT].dense[loadoutDenseIdx];
+        WeaponComponent *currSecGun = playerLoadout->currSecondaryGun->data;
+
+        #ifdef DEBUG
+            printf(
+                "Trying to shoot... timeSinceUse: %.4f    timeRequired: %.4f\n",
+                currSecGun->timeSinceUse, (1.0 / currSecGun->fireRate)
+            );
+        #endif
+
+        if (currSecGun->timeSinceUse > (1.0 / currSecGun->fireRate)) {
+            currSecGun->spawnProj(
+                zEngine, PLAYER_ID,
+                currSecGun->projW, currSecGun->projH,
+                currSecGun->projSpeed, currSecGun->projComp,
+                currSecGun->projLifeTime, currSecGun->projTexture,
+                currSecGun->projSound
+            );
+            currSecGun->timeSinceUse = 0;
+        }
+        #ifdef DEBUG
+            else {
+                printf("Weapon has cooldown, can't shoot\n");
+            }
+        #endif
     }
 }

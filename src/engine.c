@@ -80,7 +80,6 @@ void loadSettings(ZENg zEngine, const char *filePath) {
         
         char setting[64], value[64];
         if (sscanf(line, "%[^=]=%s", setting, value) != 2) continue;  // format is [SETTING]=[VALUE]
-
         switch (currSect) {
             case SECTION_DISPLAY: {
                 if (strcmp(setting, "WIDTH") == 0) {
@@ -118,6 +117,8 @@ void loadSettings(ZENg zEngine, const char *filePath) {
                     zEngine->inputMng->bindings[INPUT_INTERACT] = scancode;
                 } else if (strcmp(setting, "SHOOT") == 0) {
                     zEngine->inputMng->bindings[INPUT_SHOOT] = scancode;
+                } else if (strcmp(setting, "SECONDARY_SHOOT") == 0) {
+                    zEngine->inputMng->bindings[INPUT_SECONDARY] = scancode;
                 } else if (strcmp(setting, "SWITCH_LEFT") == 0) {
                     zEngine->inputMng->bindings[INPUT_SWITCH_LEFT] = scancode;
                 } else if (strcmp(setting, "SWITCH_RIGHT") == 0) {
@@ -194,9 +195,6 @@ void initLevel(ZENg zEngine, const char *levelFilePath) {
         fprintf(stderr, "Failed to allocate memory for the arena map\n");
         exit(EXIT_FAILURE);
     }
-
-    int screenW = zEngine->display->currentMode.w;
-    int screenH = zEngine->display->currentMode.h;
 
     zEngine->map->tiles = calloc(ARENA_HEIGHT, sizeof(Tile*));
     if (!zEngine->map->tiles) {
@@ -299,6 +297,28 @@ void initLevel(ZENg zEngine, const char *levelFilePath) {
         }
     }
     fclose(fin);
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+void clearLevel(ZENg zEngine) {
+    if (!zEngine || !zEngine->map) {
+        fprintf(stderr, "Invalid engine or map, cannot clear level\n");
+        return;
+    }
+
+    if (zEngine->map->tiles) {
+        for (Uint32 i = 0; i < ARENA_HEIGHT; i++) {
+            free(zEngine->map->tiles[i]);
+        }
+        free(zEngine->map->tiles);
+    }
+
+    // Free the map structure
+    free(zEngine->map);
+    zEngine->map = NULL;
 }
 
 /**
@@ -950,8 +970,7 @@ void weaponSystem(ZENg zEngine, double_t deltaTime) {
     #endif
 
     for (Uint64 i = 0; i < zEngine->ecs->components[WEAPON_COMPONENT].denseSize; i++) {
-        WeaponComponent *weapComp = (WeaponComponent *)(zEngine->ecs->components[WEAPON_COMPONENT].dense[i]);
-        Weapon *currWeapon = (Weapon *)(weapComp->currWeapon->data);
+        WeaponComponent *currWeapon = (WeaponComponent *)(zEngine->ecs->components[WEAPON_COMPONENT].dense[i]);
 
         // Prevent overflow
         if (currWeapon->timeSinceUse > (1 / currWeapon->fireRate + EPSILON)) {
@@ -1090,6 +1109,17 @@ void renderSystem(ZENg zEngine, double_t deltaTime) {
         SDL_SetRenderDrawBlendMode(zEngine->display->renderer, SDL_BLENDMODE_NONE); // Reset if needed
     }
 
+    for (Uint64 i = 0; i < zEngine->ecs->components[TEXT_COMPONENT].denseSize; i++) {
+        TextComponent *text = (TextComponent *)(zEngine->ecs->components[TEXT_COMPONENT].dense[i]);
+
+        if (text && text->texture && text->destRect) {
+            SDL_RenderCopy(zEngine->display->renderer, text->texture, NULL, text->destRect);
+        } else {
+            Entity owner = (zEngine->ecs->components[TEXT_COMPONENT].denseToEntity[i]);
+            printf("Warning: Entity %ld has an invalid text component\n", owner);
+        }
+    }
+
     for (Uint64 i = 0; i < zEngine->ecs->components[BUTTON_COMPONENT].denseSize; i++) {
         ButtonComponent *button = (ButtonComponent *)(zEngine->ecs->components[BUTTON_COMPONENT].dense[i]);
 
@@ -1104,15 +1134,6 @@ void renderSystem(ZENg zEngine, double_t deltaTime) {
     // Should propagate the dirtiness here, but the render system is pretty much always the last
     // Rendering should always be done every frame
     // zEngine->ecs->depGraph->nodes[SYS_RENDER]->isDirty = 0;
-
-    #ifdef DEBUG
-        int logicalW, logicalH;
-        SDL_RenderGetLogicalSize(zEngine->display->renderer, &logicalW, &logicalH);
-        printf(
-            "Logical size: %dx%d. Current display mode: %dx%d\n", logicalW, logicalH,
-            zEngine->display->currentMode.w, zEngine->display->currentMode.h
-        );
-    #endif
 }
 
 /**
@@ -1173,17 +1194,6 @@ void renderArena(ZENg zEngine) {
                 .w = TILE_SIZE,
                 .h = TILE_SIZE
             };
-
-            // World limits
-            // if ((x == 0 || x == ARENA_WIDTH - 1) || (y == 0 || y == ARENA_HEIGHT - 1)) {
-            //     SDL_RenderCopy(
-            //         zEngine->display->renderer,
-            //         getTexture(zEngine->resources, "assets/textures/adele.png"),
-            //         NULL,
-            //         &tileRect
-            //     );
-            //     continue;
-            // }
             if (zEngine->map->tiles[y][x].texture) {
                 SDL_RenderCopy(
                     zEngine->display->renderer,
@@ -1209,7 +1219,7 @@ void renderDebugGrid(ZENg zEngine) {
         SDL_RenderDrawLine(
             zEngine->display->renderer,
             x * TILE_SIZE, 0,
-            x * TILE_SIZE, zEngine->display->currentMode.h
+            x * TILE_SIZE, LOGICAL_HEIGHT
         );
     }
     
@@ -1218,7 +1228,7 @@ void renderDebugGrid(ZENg zEngine) {
         SDL_RenderDrawLine(
             zEngine->display->renderer,
             0, y * TILE_SIZE,
-            zEngine->display->currentMode.w, y * TILE_SIZE
+            LOGICAL_WIDTH, y * TILE_SIZE
         );
     }
 }

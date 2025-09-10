@@ -7,6 +7,24 @@
 
 #include "global.h"
 
+// Available game states enum - declared in advance for the StateTagComponent
+typedef enum {
+    STATE_MAIN_MENU,
+    STATE_OPTIONS,
+    STATE_OPTIONS_AUDIO,
+    STATE_OPTIONS_VIDEO,
+    STATE_OPTIONS_CONTROLS,
+    STATE_PLAYING,
+    STATE_PAUSED,
+    STATE_GAME_OVER,
+    STATE_EXIT,
+} GameStateType;
+
+// A state tag component tells which state an entity belongs to (was created in)
+typedef GameStateType StateTagComponent;
+
+typedef struct engine *ZENg;  // Forward declaration
+
 // =================================================ENTITIES============================================================
 
 typedef Uint64 Entity;  // In an ECS, an entity is just an ID
@@ -22,6 +40,7 @@ typedef enum {
     VELOCITY_COMPONENT,
     DIRECTION_COMPONENT,
     WEAPON_COMPONENT,
+    LOADOUT_COMPONENT,
     PROJECTILE_COMPONENT,
     LIFETIME_COMPONENT,
     COLLISION_COMPONENT,
@@ -36,8 +55,8 @@ typedef enum {
 
 // General definition of a component with its sparse and dense arrays
 typedef struct {
-    Uint64 **sparse;  // Sparse set - array of arrays  sparse[page][offset] = denseIndex
-    void **dense;  // Dense set - dense[index] = (void *)component
+    Uint64 **sparse;  // Array of index arrays -- sparse[page][offset] = denseIndex
+    void **dense;  // Array of components -- dense[index] = (void *)component
     Entity *denseToEntity;  // Maps component in dense array to its owner entity's ID
     Uint64 denseSize;  // Current size of the dense array
     Uint64 pageCount;  // Number of pages allocated for this component
@@ -64,13 +83,6 @@ typedef struct {
     Uint8 active;
 } VelocityComponent;
 
-// Moving directions - pay attention to the direction of the Y axis in SDL
-
-#define DIR_LEFT (Vec2){-1.0, 0.0}
-#define DIR_RIGHT (Vec2){1.0, 0.0}
-#define DIR_UP (Vec2){0.0, -1.0}
-#define DIR_DOWN (Vec2){0.0, 1.0}
-
 typedef Vec2 DirectionComponent;
 
 typedef struct {
@@ -79,22 +91,6 @@ typedef struct {
     Uint8 exploding;
     Uint8 friendly;  // Indicates whether the projectile can damage the player
 } ProjectileComponent;
-
-typedef struct engine *ZENg;  // Forward declaration
-
-typedef struct {
-    char *name;  // Name of the weapon
-    double_t fireRate;  // How fast can the weapon shoot, in seconds
-    double_t timeSinceUse;  // How much time has passed since projectile spawn
-
-    void (*spawnProj)(
-        ZENg, Entity, int, int, double_t, ProjectileComponent *, double_t, SDL_Texture *, Mix_Chunk *
-    );  // Pointer to the function spawning the weapon's projectile
-} Weapon;
-
-typedef struct {
-    CDLLNode *currWeapon;  // Pointer to a circular doubly linked list node
-} WeaponComponent;
 
 typedef struct {
     double_t lifeTime;
@@ -143,21 +139,33 @@ typedef struct {
     Uint8 orderIdx;  // Used to maintain order in UI entities
 } ButtonComponent;
 
-// Available game states enum
-typedef enum {
-    STATE_MAIN_MENU,
-    STATE_OPTIONS,
-    STATE_OPTIONS_AUDIO,
-    STATE_OPTIONS_VIDEO,
-    STATE_OPTIONS_CONTROLS,
-    STATE_PLAYING,
-    STATE_PAUSED,
-    STATE_GAME_OVER,
-    STATE_EXIT,
-} GameStateType;
 
-// A state tag component tells which state an entity belongs to (was created in)
-typedef GameStateType StateTagComponent;
+// =========================================================== LOADOUT =================================================
+
+typedef struct {
+    char *name;  // Name of the weapon
+    double_t fireRate;  // How fast can the weapon shoot, in seconds
+    double_t timeSinceUse;  // How much time has passed since projectile spawn
+
+    int projW;  // Width of the projectile
+    int projH;  // Height of the projectile
+    double_t projSpeed;  // Speed of the projectile
+    ProjectileComponent *projComp;  // Pointer to the projectile component describing the projectile's behavior
+    double_t projLifeTime;  // How long the projectile lasts before disappearing, in seconds
+    SDL_Texture *projTexture;  // Pointer to the texture of the projectile
+    Mix_Chunk *projSound;  // Pointer to the sound that plays when the gun fires
+
+    void (*spawnProj)(
+        ZENg, Entity, int, int, double_t, ProjectileComponent *, double_t, SDL_Texture *, Mix_Chunk *
+    );  // Pointer to the function spawning the weapon's projectile
+} WeaponComponent;
+
+typedef struct {
+    Entity primaryGun;  // Entity ID of the primary weapon
+    CDLLNode *currSecondaryGun;  // A circular doubly linked list containing secondary guns
+    Entity hull;  // Entity ID of the hull
+    Entity module;  // Entity ID of the equipped module
+} LoadoutComponent;
 
 // ===============================================SYSTEMS===============================================================
 
@@ -424,20 +432,32 @@ RenderComponent* createRenderComponent(SDL_Texture *texture, int x, int y, int w
  * @param name weapon's name
  * @param fireRate weapon's firerate, in seconds
  * @param spawnProj pointer to the projectile spawn function
+ * @param projW width of the fired projectile
+ * @param projH height of the fired projectile
+ * @param projSpeed speed of the fired projectile
+ * @param projComp pointer to the projectile component describing the projectile's behavior
+ * @param projLifeTime how long the projectile lasts before disappearing, in seconds
+ * @param projTexture pointer to the texture of the projectile
+ * @param projSound pointer to the sound that plays when the gun fires
  * @return freshly allocated weapon
+ * @note a mess of a function but very general
  */
-Weapon* createWeapon(
+WeaponComponent* createWeaponComponent(
     char *name, double_t fireRate, void (*spawnProj)(
         ZENg, Entity, int, int, double_t, ProjectileComponent *, double_t, SDL_Texture *, Mix_Chunk *
-    )
+    ), int projW, int projH, double_t projSpeed, ProjectileComponent *projComp, double_t projLifeTime,
+    SDL_Texture *projTexture, Mix_Chunk *projSound
 );
 
 /**
- * Creates a weapon component
- * @param currWeapon pointer to a circular doubly linked list node, holding the current weapon
+ * Creates a loadout component
+ * @param primaryGun entity ID of the primary weapon
+ * @param currSecondaryGun pointer to a circular doubly linked list node, holding the current weapon
+ * @param hull entity ID of the hull
+ * @param module entity ID of the equipped module
  * @return a pointer to a WeaponComponent
  */
-WeaponComponent *createWeaponComponent(CDLLNode *currWeapon);
+LoadoutComponent *createLoadoutComponent(Entity primaryGun, CDLLNode *currSecondaryGun, Entity hull, Entity module);
 
 /**
  * Creates a projectile component

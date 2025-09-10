@@ -18,8 +18,8 @@ void onEnterMainMenu(ZENg zEngine) {
 
     // Create the title text component first
     TextComponent *title = createTextComponent(
-        zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf"),
-        strdup("Adele's Adventure"), COLOR_WHITE, 1
+        zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf#48"),
+        strdup("Crimson Shells"), COLOR_CRIMSON, 1
     );
     title->destRect->x = (LOGICAL_WIDTH - title->destRect->w) / 2;
     title->destRect->y = LOGICAL_HEIGHT * titlePos;
@@ -30,7 +30,7 @@ void onEnterMainMenu(ZENg zEngine) {
     for (Uint8 orderIdx = 0; orderIdx < (sizeof(buttonLabels) / sizeof(buttonLabels[0])); orderIdx++) {
         ButtonComponent *button = createButtonComponent(
             zEngine->display->renderer,
-            getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf"),
+            getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf#28"),
             strdup(buttonLabels[orderIdx]), 
             orderIdx == 0 ? COLOR_YELLOW : COLOR_WHITE, // First button selected (color)
             buttonActions[orderIdx], 
@@ -60,7 +60,7 @@ void onEnterMainMenu(ZENg zEngine) {
 
     // Instructions cause I want to flex the input manager
     TextComponent *instructions = createTextComponent(
-        zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf"),
+        zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf#28"),
         instrText, COLOR_WHITE_TRANSPARENT, 1
     );
     instructions->destRect->x = (LOGICAL_WIDTH - instructions->destRect->w) / 2;

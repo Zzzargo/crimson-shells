@@ -51,16 +51,15 @@ void CDLLRemoveLast(CDLLNode *head) {
 }
 
 void freeList(CDLLNode **head) {
-    if (!head) return;
+    if (!head || !*head) return;
 
     CDLLNode *current = (*head)->next;
     while (current != *head) {
         CDLLNode *next = current->next;
-        free(current->data);
         free(current);
         current = next;
     }
-    free((*head)->data);
+    // Could have freed the data but in my case it's better to do it outside
     free(*head);
     *head = NULL;  // The double pointer was to prevent this dangling pointer
 }

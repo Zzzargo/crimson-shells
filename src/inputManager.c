@@ -16,6 +16,7 @@ void saveKeyBindings(InputManager inputMng, const char *filePath) {
         "BACK",
         "INTERACT",
         "SHOOT",
+        "SECONDARY_SHOOT",
         "SWITCH_RIGHT",
         "SWITCH_LEFT",
         "SPECIAL"
@@ -47,6 +48,7 @@ void setDefaultBindings(InputManager inputMng) {
     inputMng->bindings[INPUT_BACK] = SDL_SCANCODE_ESCAPE;
     inputMng->bindings[INPUT_INTERACT] = SDL_SCANCODE_SPACE;
     inputMng->bindings[INPUT_SHOOT] = SDL_SCANCODE_J;
+    inputMng->bindings[INPUT_SECONDARY] = SDL_SCANCODE_K;
     inputMng->bindings[INPUT_SWITCH_RIGHT] = SDL_SCANCODE_E;
     inputMng->bindings[INPUT_SWITCH_LEFT] = SDL_SCANCODE_Q;
     inputMng->bindings[INPUT_SPECIAL] = SDL_SCANCODE_L;

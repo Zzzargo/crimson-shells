@@ -13,6 +13,7 @@ typedef enum {
     INPUT_BACK,
     INPUT_INTERACT,
     INPUT_SHOOT,
+    INPUT_SECONDARY,  // Secondary weapon
     INPUT_SWITCH_RIGHT,
     INPUT_SWITCH_LEFT,
     INPUT_SPECIAL,

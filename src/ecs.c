@@ -359,12 +359,13 @@ RenderComponent* createRenderComponent(SDL_Texture *texture, int x, int y, int w
  * =====================================================================================================================
  */
 
-Weapon* createWeapon(
+WeaponComponent* createWeaponComponent(
     char *name, double_t fireRate, void (*spawnProj)(
         ZENg, Entity, int, int, double_t, ProjectileComponent *, double_t, SDL_Texture *, Mix_Chunk *
-    )
+    ), int projW, int projH, double_t projSpeed, ProjectileComponent *projComp, double_t projLifeTime,
+    SDL_Texture *projTexture, Mix_Chunk *projSound
 ) {
-    Weapon *weap = calloc(1, sizeof(Weapon));
+    WeaponComponent *weap = calloc(1, sizeof(WeaponComponent));
     if (!weap) {
         printf("Failed to allocate memory for weapon\n");
         exit(EXIT_FAILURE);
@@ -373,6 +374,13 @@ Weapon* createWeapon(
     weap->timeSinceUse = 0;
     weap->name = name;
     weap->spawnProj = spawnProj;
+    weap->projW = projW;
+    weap->projH = projH;
+    weap->projSpeed = projSpeed;
+    weap->projComp = projComp;
+    weap->projLifeTime = projLifeTime;
+    weap->projTexture = projTexture;
+    weap->projSound = projSound;
     return weap;
 }
 
@@ -380,13 +388,16 @@ Weapon* createWeapon(
  * =====================================================================================================================
  */
 
-WeaponComponent *createWeaponComponent(CDLLNode *currWeapon) {
-    WeaponComponent *comp = calloc(1, sizeof(WeaponComponent));
+LoadoutComponent *createLoadoutComponent(Entity primaryGun, CDLLNode *currSecondaryGun, Entity hull, Entity module) {
+    LoadoutComponent *comp = calloc(1, sizeof(LoadoutComponent));
     if (!comp) {
-        printf("Failed to allocate memory for weapon component\n");
+        printf("Failed to allocate memory for loadout component\n");
         exit(EXIT_FAILURE);
     }
-    comp->currWeapon = currWeapon;
+    comp->primaryGun = primaryGun;
+    comp->currSecondaryGun = currSecondaryGun;
+    comp->hull = hull;
+    comp->module = module;
     return comp;
 }
 
@@ -575,7 +586,8 @@ void unmarkComponentDirty(ECS ecs, ComponentType compType) {
     }
 
     // The first entity becomes clean
-    ecs->components[compType].dirtyEntities[0] = ecs->components[compType].dirtyEntities[--ecs->components[compType].dirtyCount];
+    Component *comp = &ecs->components[compType];
+    comp->dirtyEntities[0] = comp->dirtyEntities[--comp->dirtyCount];
 }
 
 SystemNode* createSystemNode(SystemType type, void (*update)(ZENg, double_t), Uint8 isFineGrained) {
@@ -603,7 +615,6 @@ SystemType componentToSystem(ComponentType compType) {
             return SYS_WEAPONS;
         case VELOCITY_COMPONENT:
             return SYS_VELOCITY;
-            return SYS_ENTITY_COLLISIONS;
         case POSITION_COMPONENT:
             return SYS_POSITION;
         case HEALTH_COMPONENT:
@@ -792,14 +803,15 @@ void deleteEntity(ECS ecs, Entity id) {
             // Find the component in the sparse set
             Uint64 page = id / PAGE_SIZE;
             Uint64 index = id % PAGE_SIZE;
+            Component *comp = &ecs->components[i];
             
             if (
-                ecs->components[i].sparse && 
-                page < ecs->components[i].pageCount &&
-                ecs->components[i].dense
+                comp->sparse && 
+                page < comp->pageCount &&
+                comp->dense
             ) {
-                Uint64 denseIndex = ecs->components[i].sparse[page][index];
-                void *component = ecs->components[i].dense[denseIndex];
+                Uint64 denseIndex = comp->sparse[page][index];
+                void *component = comp->dense[denseIndex];
                 
                 // Free the component data based on its type
                 if (component) {
@@ -826,50 +838,42 @@ void deleteEntity(ECS ecs, Entity id) {
                             if (button->destRect) free(button->destRect);
                             break;
                         }
+                        case LOADOUT_COMPONENT: {
+                            LoadoutComponent *loadout = (LoadoutComponent*)component;
+                            // Only the nodes get freed, the weapons are freed as separate entities
+                            freeList(&loadout->currSecondaryGun);
+                            break;
+                        }
                         case WEAPON_COMPONENT: {
-                            WeaponComponent *weap = (WeaponComponent*)component;
-                            // Free the list of weapons
-                            if (!weap->currWeapon) return;
-
-                            CDLLNode *current = weap->currWeapon->next;
-                            while (current != weap->currWeapon) {
-                                CDLLNode *next = current->next;
-                                Weapon *weaponData = (Weapon *)current->data;
-                                if (weaponData->name) free(weaponData->name);
-                                free(weaponData);
-                                free(current);
-                                current = next;
-                            }
-                            Weapon *weaponData = (Weapon *)weap->currWeapon->data;
-                            free(weaponData->name);
-                            free(weap->currWeapon->data);
-                            free(weap->currWeapon);
-                            weap->currWeapon = NULL;
+                            WeaponComponent *weapComp = (WeaponComponent*)component;
+                            if (weapComp->name) free(weapComp->name);
+                            if (weapComp->projComp) free(weapComp->projComp);
+                            break;
                         }
                     }
                     free(component);
                     
                     // Remove from dense array by swapping with the last element
-                    Uint64 lastDenseIndex = ecs->components[i].denseSize - 1;
+                    Uint64 lastDenseIndex = comp->denseSize - 1;
                     if (denseIndex != lastDenseIndex) {
                         // Move the last element to the position of the removed element
-                        ecs->components[i].dense[denseIndex] = ecs->components[i].dense[lastDenseIndex];
+                        comp->dense[denseIndex] = comp->dense[lastDenseIndex];
                         
                         // Use the reverse mapping
-                        Entity lastEntity = ecs->components[i].denseToEntity[lastDenseIndex];
+                        Entity lastEntity = comp->denseToEntity[lastDenseIndex];
                         
                         // Update the sparse pointer for the moved entity
                         Uint64 lastPage = lastEntity / PAGE_SIZE;
                         Uint64 lastIndex = lastEntity % PAGE_SIZE;
-                        ecs->components[i].sparse[lastPage][lastIndex] = denseIndex;
+                        comp->sparse[lastPage][lastIndex] = denseIndex;
 
                         // update the denseToEntity mapping
-                        ecs->components[i].denseToEntity[denseIndex] = lastEntity;
+                        comp->denseToEntity[denseIndex] = lastEntity;
                     }
                     
                     // Decrease the size of the dense array
-                    ecs->components[i].denseSize--;
-                    ecs->components[i].dense[lastDenseIndex] = NULL;  // avoid dangling pointer
+                    comp->denseSize--;
+                    comp->dense[lastDenseIndex] = NULL;  // avoid dangling pointer
                 }
             }
         }
@@ -932,7 +936,7 @@ void sweepState(ECS ecs, GameStateType stateType) {
 void freeECS(ECS ecs) {
     if (ecs) {
         // Free all entities' components first
-        for (Uint64 i = 0; i < ecs->entityCount; i++) {
+        for (Int64 i = ecs->activeEntities[ecs->entityCount - 1]; i >= 0; i--) {
             deleteEntity(ecs, ecs->activeEntities[i]);
         }
         if (ecs->componentsFlags) {
@@ -942,6 +946,29 @@ void freeECS(ECS ecs) {
             free(ecs->activeEntities);
         }
         if (ecs->components) {
+            for (Uint64 i = 0; i < COMPONENT_COUNT; i++) {
+                if (ecs->components[i].dirtyEntities) {
+                    free(ecs->components[i].dirtyEntities);
+                    ecs->components[i].dirtyEntities = NULL;
+                }
+                if (ecs->components[i].sparse) {
+                    for (Uint64 j = 0; j < ecs->components[i].pageCount; j++) {
+                        if (ecs->components[i].sparse[j]) {
+                            free(ecs->components[i].sparse[j]);
+                        }
+                    }
+                    free(ecs->components[i].sparse);
+                    ecs->components[i].sparse = NULL;
+                }
+                if (ecs->components[i].dense) {
+                    free(ecs->components[i].dense);
+                    ecs->components[i].dense = NULL;
+                }
+                if (ecs->components[i].denseToEntity) {
+                    free(ecs->components[i].denseToEntity);
+                    ecs->components[i].denseToEntity = NULL;
+                }
+            }
             free(ecs->components);
         }
         if (ecs->freeEntities) {

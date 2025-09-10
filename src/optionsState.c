@@ -20,7 +20,7 @@ void onEnterOptionsMenu(ZENg zEngine) {
     for (Uint8 orderIdx = 0; orderIdx < (sizeof(buttonLabels) / sizeof(buttonLabels[0])); orderIdx++) {
         ButtonComponent *button = createButtonComponent(
             zEngine->display->renderer, 
-            getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf"),
+            getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf#28"),
             strdup(buttonLabels[orderIdx]), 
             orderIdx == 0 ? COLOR_YELLOW : COLOR_WHITE, // First button selected (color)
             buttonActions[orderIdx], 

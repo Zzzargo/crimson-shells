@@ -33,7 +33,7 @@ void onEnterVideoOptions(ZENg zEngine) {
     for (orderIdx = 0; orderIdx <= modesCount; orderIdx++) {
         ButtonComponent *button = createButtonComponent(
             zEngine->display->renderer,
-            getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf"),
+            getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf#28"),
             strdup(buttonLabels[orderIdx]),
             orderIdx == 0 ? COLOR_YELLOW : COLOR_WHITE, // First button selected (color)
             orderIdx == modesCount ? &videoOptToOpt : &changeRes,

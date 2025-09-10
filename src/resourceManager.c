@@ -170,8 +170,21 @@ void *getOrLoadResource(ResourceManager resMng, SDL_Renderer *renderer, const ch
         }
 
         case RESOURCE_FONT: {
-            // Example: you might parse size from key or pass size as param
-            resource = TTF_OpenFont(key, 24); // 24 as default size or from params
+            int pSize = 0;
+            char *sizeStr = strchr(key, '#'); // look for '#' separator
+            size_t pathLen = 0;
+            if (sizeStr) {
+                pathLen = sizeStr - key; // Yes this is valid pointer arithmetic
+                pSize = atoi(sizeStr + 1); // Convert the size part to an integer
+            } else {
+                fprintf(stderr, "Font size not specified in key %s. Use format 'path#size'.\n", key);
+                return NULL;
+            }
+
+            char pathBuff[pathLen + 1];
+            strncpy(pathBuff, key, pathLen);
+            pathBuff[pathLen] = '\0'; // Null-terminate the string
+            resource = TTF_OpenFont(pathBuff, pSize);
             if (!resource) {
                 fprintf(stderr, "Failed to load font %s: %s\n", key, TTF_GetError());
             }
@@ -230,17 +243,21 @@ void preloadResources(ResourceManager resMng, SDL_Renderer *renderer) {
         fprintf(stderr, "IMG_Init: %s\n", IMG_GetError());
         exit(EXIT_FAILURE);
     }
-    getOrLoadResource(resMng, renderer, "assets/fonts/ByteBounce.ttf", RESOURCE_FONT);
-    getOrLoadResource(resMng, renderer, "assets/textures/adele.png", RESOURCE_TEXTURE);
-    getOrLoadResource(resMng, renderer, "assets/textures/mira.png", RESOURCE_TEXTURE);
+    getOrLoadResource(resMng, renderer, "assets/fonts/ByteBounce.ttf#28", RESOURCE_FONT);
+    getOrLoadResource(resMng, renderer, "assets/fonts/ByteBounce.ttf#48", RESOURCE_FONT);
     getOrLoadResource(resMng, renderer, "assets/textures/tank.png", RESOURCE_TEXTURE);
+    getOrLoadResource(resMng, renderer, "assets/textures/tank2.png", RESOURCE_TEXTURE);
     getOrLoadResource(resMng, renderer, "assets/textures/bullet.png", RESOURCE_TEXTURE);
     getOrLoadResource(resMng, renderer, "assets/textures/brick.jpg", RESOURCE_TEXTURE);
     getOrLoadResource(resMng, renderer, "assets/textures/rocks.jpg", RESOURCE_TEXTURE);
     getOrLoadResource(resMng, renderer, "assets/sounds/button-press.mp3", RESOURCE_SOUND);
     getOrLoadResource(resMng, renderer, "assets/sounds/mg.mp3", RESOURCE_SOUND);
-    getOrLoadResource(resMng, renderer, "assets/sounds/music.mp3", RESOURCE_SOUND);
     getOrLoadResource(resMng, renderer, "assets/sounds/rifle.mp3", RESOURCE_SOUND);
+    getOrLoadResource(resMng, renderer, "assets/sounds/shell1.mp3", RESOURCE_SOUND);
+    getOrLoadResource(resMng, renderer, "assets/sounds/shell2.mp3", RESOURCE_SOUND);
+    getOrLoadResource(resMng, renderer, "assets/sounds/coaxmg1.mp3", RESOURCE_SOUND);
+    getOrLoadResource(resMng, renderer, "assets/sounds/coaxmg2.mp3", RESOURCE_SOUND);
+    getOrLoadResource(resMng, renderer, "assets/sounds/coaxmg3.mp3", RESOURCE_SOUND);
 }
 
 /**

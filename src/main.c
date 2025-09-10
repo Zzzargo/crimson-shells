@@ -23,7 +23,7 @@ int main(int argc, char* argv[]) {
         if (deltaTime > 0.1) deltaTime = 0.1;  // max 100 ms per frame
 
         #ifdef DEBUG
-            printf("============================================\nDelta time for this frame: %.4f seconds\n", deltaTime);
+            printf("============================================\n");
         #endif
 
         GameState *currState = getCurrState(zEngine->stateMng);
@@ -31,12 +31,18 @@ int main(int argc, char* argv[]) {
         while (SDL_PollEvent(&event)) {
             running = currState->handleEvents(&event, zEngine);
             currState = getCurrState(zEngine->stateMng);  // get the current state after handling events
-            if (!running) printf("Event handler returned 0 for the main loop\n");
+            #ifdef DEBUG
+                if (!running) printf("Event handler returned 0 for the main loop\n");
+            #endif
             
             if (event.type == SDL_QUIT || (currState && currState->type == STATE_EXIT)) {
+                #ifdef DEBUG
+                    printf("Quit event received or current state is EXIT\n");
+                #endif
                 running = 0;
             }
         }
+        if (!running) break;
         
         // Clear the screen
         SDL_SetRenderDrawColor(zEngine->display->renderer, 0, 0, 0, 255);  // Pitch black
