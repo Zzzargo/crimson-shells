@@ -3,92 +3,28 @@
 void onEnterPlayState(ZENg zEngine) {
     initLevel(zEngine, "arenatest");
 
-    // Add the initial game entities to the ECS
-    Entity id = createEntity(zEngine->ecs, STATE_PLAYING);
-    PLAYER_ID = id;  // set the global player ID
-
-    HealthComponent *healthComp = createHealthComponent(100, 100, 1);
-    addComponent(zEngine->ecs, id, HEALTH_COMPONENT, (void *)healthComp);
-
-    Uint32 playerStartTileX = ARENA_WIDTH / 2;
-    Uint32 playerStartTileY = ARENA_HEIGHT - 4;  // bottom
-    Int32 playerStartTile = playerStartTileY * ARENA_WIDTH + playerStartTileX;
-
-    PositionComponent *posComp = createPositionComponent(tileToWorld(zEngine->map, playerStartTile));
-    addComponent(zEngine->ecs, id, POSITION_COMPONENT, (void *)posComp);
-
-    DirectionComponent *dirComp = createDirectionComponent(DIR_UP);
-    addComponent(zEngine->ecs, id, DIRECTION_COMPONENT, (void *)dirComp);
-
-    VelocityComponent *speedComp = createVelocityComponent(
-        (Vec2){0.0, 0.0},
-        200.0, *posComp, AXIS_NONE, 1
-    );
-    addComponent(zEngine->ecs, id, VELOCITY_COMPONENT, (void *)speedComp);
-
-    CollisionComponent *colComp = createCollisionComponent(
-        posComp->x, posComp->y, TILE_SIZE * 2, TILE_SIZE * 2,
-        1, COL_ACTOR
-    );
-    addComponent(zEngine->ecs, id, COLLISION_COMPONENT, (void *)colComp);
-
-    RenderComponent *renderComp = createRenderComponent(
-        getTexture(zEngine->resources, "assets/textures/tank2.png"),
-        posComp->x, posComp->y, TILE_SIZE * 2, TILE_SIZE * 2,
-        1, 0
-    );
-    addComponent(zEngine->ecs, id, RENDER_COMPONENT, (void *)renderComp);
-
+    // Add some weapons to the player while testing the arena parser
     Entity mainGunID = createEntity(zEngine->ecs, STATE_PLAYING);
     WeaponPrefab *mainGunPrefab = getWeaponPrefab(zEngine->prefabs, "Bigfella");
-    WeaponComponent *mainG = instantiateWeapon(zEngine, mainGunPrefab, id);
+    WeaponComponent *mainG = instantiateWeapon(zEngine, mainGunPrefab, PLAYER_ID);
     addComponent(zEngine->ecs, mainGunID, WEAPON_COMPONENT, (void *)mainG);
 
     Entity secGun1ID = createEntity(zEngine->ecs, STATE_PLAYING);
     WeaponPrefab *secGun1Prefab = getWeaponPrefab(zEngine->prefabs, "PKT");
-    WeaponComponent *secGun1 = instantiateWeapon(zEngine, secGun1Prefab, id);
+    WeaponComponent *secGun1 = instantiateWeapon(zEngine, secGun1Prefab, PLAYER_ID);
     addComponent(zEngine->ecs, secGun1ID, WEAPON_COMPONENT, (void *)secGun1);
     CDLLNode *weapList = initList((void *)secGun1);
 
     Entity secGun2ID = createEntity(zEngine->ecs, STATE_PLAYING);
     WeaponPrefab *secGun2Prefab = getWeaponPrefab(zEngine->prefabs, "M240C");
-    WeaponComponent *secGun2 = instantiateWeapon(zEngine, secGun2Prefab, id);
+    WeaponComponent *secGun2 = instantiateWeapon(zEngine, secGun2Prefab, PLAYER_ID);
     addComponent(zEngine->ecs, secGun2ID, WEAPON_COMPONENT, (void *)secGun2);
     CDLLInsertLast(weapList, (void *)secGun2);
 
     Entity hullID = createEntity(zEngine->ecs, STATE_PLAYING);
     Entity moduleID = createEntity(zEngine->ecs, STATE_PLAYING);
     LoadoutComponent *loadout = createLoadoutComponent(mainGunID, weapList, hullID, moduleID);
-    addComponent(zEngine->ecs, id, LOADOUT_COMPONENT, (void *)loadout);
-
-    // test entity
-    Int32 testEStartTileX = ARENA_WIDTH / 2;
-    Int32 testEStartTileY = 5;
-    Int32 testEStartTileIdx = testEStartTileY * ARENA_WIDTH + testEStartTileX;
-
-    id = createEntity(zEngine->ecs, STATE_PLAYING);
-    HealthComponent *ThealthComp = createHealthComponent(
-        100, 100, 1
-    );
-    addComponent(zEngine->ecs, id, HEALTH_COMPONENT, (void *)ThealthComp);
-
-    PositionComponent *TposComp = createPositionComponent(
-        tileToWorld(zEngine->map, testEStartTileIdx)
-    );
-    addComponent(zEngine->ecs, id, POSITION_COMPONENT, (void *)TposComp);
-
-    CollisionComponent *TcolComp = createCollisionComponent(
-        TposComp->x, TposComp->y,
-        TILE_SIZE * 2, TILE_SIZE * 2, 1, COL_ACTOR
-    );
-    addComponent(zEngine->ecs, id, COLLISION_COMPONENT, (void *)TcolComp);
-
-    RenderComponent *TrenderComp = createRenderComponent(
-        getTexture(zEngine->resources, "assets/textures/tank.png"),
-        TposComp->x, TposComp->y, TILE_SIZE * 2, TILE_SIZE * 2,
-        1, 0
-    );
-    addComponent(zEngine->ecs, id, RENDER_COMPONENT, (void *)TrenderComp);
+    addComponent(zEngine->ecs, PLAYER_ID, LOADOUT_COMPONENT, (void *)loadout);
 
     // Enable the systems required by the play state
     SystemNode **systems = zEngine->ecs->depGraph->nodes;
@@ -152,6 +88,49 @@ WeaponComponent* instantiateWeapon(ZENg zEngine, WeaponPrefab *prefab, Entity ow
         prefab->dmg, prefab->isPiercing, prefab->isExplosive, owner == PLAYER_ID ? 1 : 0
     );
     return weap;
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+Entity instantiateTank(ZENg zEngine, TankPrefab *prefab, Vec2 position) {
+    Entity id = createEntity(zEngine->ecs, STATE_PLAYING);
+    if (prefab->entityType == ENTITY_PLAYER) {
+        PLAYER_ID = id;  // set the global player ID
+    }
+
+    HealthComponent *healthComp = createHealthComponent(prefab->maxHealth, prefab->maxHealth, 1);
+    addComponent(zEngine->ecs, id, HEALTH_COMPONENT, (void *)healthComp);
+
+    Uint32 playerStartTileX = ARENA_WIDTH / 2;
+    Uint32 playerStartTileY = ARENA_HEIGHT - 4;  // bottom
+    Int32 playerStartTile = playerStartTileY * ARENA_WIDTH + playerStartTileX;
+
+    PositionComponent *posComp = createPositionComponent(position);
+    addComponent(zEngine->ecs, id, POSITION_COMPONENT, (void *)posComp);
+
+    DirectionComponent *dirComp = createDirectionComponent(DIR_UP);  // Default direction
+    addComponent(zEngine->ecs, id, DIRECTION_COMPONENT, (void *)dirComp);
+
+    VelocityComponent *speedComp = createVelocityComponent(
+        (Vec2){0.0, 0.0},
+        prefab->maxSpeed, *posComp, AXIS_NONE, 1
+    );
+    addComponent(zEngine->ecs, id, VELOCITY_COMPONENT, (void *)speedComp);
+
+    CollisionComponent *colComp = createCollisionComponent(
+        posComp->x, posComp->y, prefab->w * TILE_SIZE, prefab->h * TILE_SIZE,
+        1, COL_ACTOR
+    );
+    addComponent(zEngine->ecs, id, COLLISION_COMPONENT, (void *)colComp);
+
+    RenderComponent *renderComp = createRenderComponent(
+        getTexture(zEngine->resources, prefab->texturePath),
+        posComp->x, posComp->y, colComp->hitbox->w, colComp->hitbox->h,
+        1, 0
+    );
+    addComponent(zEngine->ecs, id, RENDER_COMPONENT, (void *)renderComp);
 }
 
 /**

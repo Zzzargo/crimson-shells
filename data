@@ -6,3 +6,11 @@ WEAPON:Bigfella:1.0:20:20:500:42:1:1:5.0:assets/textures/bullet.png:assets/sound
 WEAPON:PKT:4.5:10:10:400:15:0:0:3.0:assets/textures/bullet.png:assets/sounds/coaxmg1.mp3
 WEAPON:M240C:6.5:8:8:350:10:0:0:3.0:assets/textures/bullet.png:assets/sounds/coaxmg2.mp3
 WEAPON:L94A1:4.0:12:12:450:20:1:0:3.0:assets/textures/bullet.png:assets/sounds/coaxmg3.mp3
+# Available entity types:
+# Player = 0
+# Basic tank = 1
+# Light tank = 2
+# Heavy tank = 3
+# Tanks Format: <prefabType>:<prefabName>:<entityType>:<Health>:<maxSpeed>:<width(in tiles)>:<height(in tiles)>:<isSolid>:<texturePath>
+TANK:player:0:100:200:2:2:1:assets/textures/tank2.png
+TANK:tankBasic:1:100:200:2:2:1:assets/textures/tank.png

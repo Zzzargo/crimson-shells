@@ -10,6 +10,18 @@ typedef enum {
     BUILDER_COUNT  // automatically counts
 } BuilderType;
 
+/**
+ * This enum is used to differentiate between entity types only at creation, for example in arena initialization
+ * It should never be added as a component to an entity for the sake of ECS purity
+*/
+typedef enum {
+    ENTITY_PLAYER,  // Your tank
+    ENTITY_TANK_BASIC,
+    ENTITY_TANK_LIGHT,
+    ENTITY_TANK_HEAVY,
+    ENTITY_TYPE_COUNT  // Automatically counts
+} EntityType;
+
 typedef struct {
     char *name;
     char *projTexturePath;  // path to the projectile texture
@@ -23,6 +35,17 @@ typedef struct {
     Uint8 isPiercing;  // does the projectile pierce through targets
     Uint8 isExplosive;  // does the projectile explode on impact
 } WeaponPrefab;
+
+typedef struct {
+    char *name;
+    EntityType entityType;  // Get rid of this asap
+    Int32 maxHealth;
+    double_t maxSpeed;
+    int w;  // Width of the tank sprite (in tiles)
+    int h;  // Height of the tank sprite (in tiles)
+    Uint8 isSolid;  // Is the tank solid (for collisions)
+    char *texturePath;  // Path to the tank texture
+} TankPrefab;
 
 #ifndef HASHMAP_SIZE  // I have another hashmap somewhere here :))
 #define HASHMAP_SIZE 256
@@ -71,6 +94,14 @@ BuilderEntry* getPrefab(PrefabsManager prefabMng, const char *key);
 WeaponPrefab* getWeaponPrefab(PrefabsManager prefabMng, const char *key);
 
 /**
+ * Gets a tank prefab from the PrefabsManager
+ * @param prefabMng the PrefabsManager = struct prefabsmng*
+ * @param key the prefab's key
+ * @return pointer to the TankPrefab if found, NULL otherwise
+ */
+TankPrefab* getTankPrefab(PrefabsManager prefabMng, const char *key);
+
+/**
  * Adds a prefab entry to the hashmap
  * @param prefabMng the PrefabsManager = struct prefabsmng*
  * @param key the prefab's key
@@ -116,7 +147,7 @@ void freePrefabsManager(PrefabsManager *prefabmng);
  * @param projTexturePath path to the projectile texture
  * @param projHitSoundPath path to the projectile hit sound
  * @return pointer to the created WeaponPrefab
- * @note the paths should be allocated before calling this function
+ * @note the strings should be allocated before calling this function
  */
 WeaponPrefab* createWeaponPrefab(
     const char *name,
@@ -130,6 +161,30 @@ WeaponPrefab* createWeaponPrefab(
     double_t projLifeTime,
     const char *projTexturePath,
     const char *projHitSoundPath
+);
+
+/**
+ * Creates a tank prefab
+ * @param name the name of the tank
+ * @param entityType the type of the tank entity (EntityType enum)
+ * @param maxHealth the maximum health of the tank
+ * @param maxSpeed the maximum speed of the tank
+ * @param w width of the tank sprite (in tiles)
+ * @param h height of the tank sprite (in tiles)
+ * @param isSolid is the tank solid (for collisions)
+ * @param texturePath path to the tank texture
+ * @return pointer to the created TankPrefab
+ * @note the strings should be allocated before calling this function
+ */
+TankPrefab* createTankPrefab(
+    const char *name,
+    EntityType entityType,
+    Int32 maxHealth,
+    double_t maxSpeed,
+    int w,
+    int h,
+    Uint8 isSolid,
+    const char *texturePath
 );
 
 #endif // BUILDER_H

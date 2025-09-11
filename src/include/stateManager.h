@@ -190,6 +190,15 @@ void onExitPlayState(ZENg zEngine);
 WeaponComponent* instantiateWeapon(ZENg zEngine, WeaponPrefab *prefab, Entity owner);
 
 /**
+ * Instantiates a tank from a prefab
+ * @param zEngine pointer to the engine
+ * @param prefab pointer to a tank prefab
+ * @param position initial position of the tank
+ * @return entity ID of the newly created tank
+ */
+Entity instantiateTank(ZENg zEngine, TankPrefab *prefab, Vec2 position);
+
+/**
  * Spawns a bullet type projectile
  * @param zEngine pointer to the engine
  * @param owner the owner entity of the bullet

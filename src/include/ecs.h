@@ -28,18 +28,6 @@ typedef struct engine *ZENg;  // Forward declaration
 
 // =================================================ENTITIES============================================================
 
-/**
- * This enum is used to differentiate between entity types only at creation, for example in arena initialization
- * It should never be added as a component to an entity for the sake of ECS purity
-*/
-typedef enum {
-    ENTITY_PLAYER,  // Your tank
-    ENTITY_TANK_BASIC,
-    ENTITY_TANK_LIGHT,
-    ENTITY_TANK_HEAVY,
-    ENTITY_TYPE_COUNT  // Automatically counts
-} EntityType;
-
 typedef Uint64 Entity;  // In an ECS, an entity is just an ID
 extern Entity PLAYER_ID;  // Global variable for the player entity ID
 typedef Uint64 bitset;  // A bitset to indicate which components an entity has

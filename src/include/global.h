@@ -1,7 +1,7 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
-#define DEBUG
+// #define DEBUG
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>

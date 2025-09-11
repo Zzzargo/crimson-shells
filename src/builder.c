@@ -57,6 +57,19 @@ WeaponPrefab* getWeaponPrefab(PrefabsManager prefabMng, const char *key) {
  * =====================================================================================================================
  */
 
+TankPrefab* getTankPrefab(PrefabsManager prefabMng, const char *key) {
+    BuilderEntry *entry = getPrefab(prefabMng, key);
+    if (entry && entry->type == BUILDER_TANKS) {
+        return (TankPrefab *)entry->data;  // cast the data to TankPrefab
+    }
+    fprintf(stderr, "Tank prefab with key '%s' not found or wrong type\n", key);
+    return NULL;  // tank prefab not found or wrong type
+}
+
+/**
+ * =====================================================================================================================
+ */
+
 void addPrefab(PrefabsManager prefabMng, const char *key, void *data, BuilderType type) {
     Uint32 idx = hashFunc(key);  // index at which to add the prefab
     BuilderEntry *new = calloc(1, sizeof(BuilderEntry));
@@ -180,6 +193,25 @@ void loadPrefabs(PrefabsManager prefabMng, const char *filePath) {
             addPrefab(prefabMng, key, (void *)prefab, type);
         } else if (strcmp(typeStr, "TANK") == 0) {
             type = BUILDER_TANKS;
+            EntityType entityType = 0;
+            Int32 maxHealth = 0;
+            double_t speed = 0.0;
+            int w = 0, h = 0;
+            Uint8 isSolid = 0;
+            char *texturePath = calloc(256, sizeof(char));
+            sscanf(dataStr, "%d:%d:%lf:%d:%d:%hhu:%s",
+                (int *)&entityType, &maxHealth, &speed, &w, &h, &isSolid, texturePath
+            );
+            #ifdef DEBUG
+                printf("Parsed tank prefab - name: %s, entityType: %d, maxHealth: %d, maxSpeed: %.2f\n",
+                    key, entityType, maxHealth, speed
+                );
+                printf("Width: %d, height: %d, isSolid: %hhu, texture: %s\n", w, h, isSolid, texturePath);
+            #endif
+            TankPrefab *prefab = createTankPrefab(
+                strdup(key), entityType, maxHealth, speed, w, h, isSolid, texturePath
+            );
+            addPrefab(prefabMng, key, (void *)prefab, type);
         } else if (strcmp(typeStr, "PROJECTILE") == 0) {
             type = BUILDER_PROJECTILES;
         } else {
@@ -251,6 +283,32 @@ WeaponPrefab* createWeaponPrefab(
     prefab->projLifeTime = projLifeTime;
     prefab->projTexturePath = projTexturePath;
     prefab->projHitSoundPath = projHitSoundPath;
+
+    return prefab;
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+TankPrefab* createTankPrefab(
+    const char *name, EntityType entityType, Int32 maxHealth, double_t maxSpeed, int w, int h,
+    Uint8 isSolid, const char *texturePath
+) {
+    TankPrefab *prefab = calloc(1, sizeof(TankPrefab));
+    if (!prefab) {
+        fprintf(stderr, "Failed to allocate memory for TankPrefab\n");
+        exit(EXIT_FAILURE);
+    }
+
+    prefab->name = name;
+    prefab->entityType = entityType;
+    prefab->maxHealth = maxHealth;
+    prefab->maxSpeed = maxSpeed;
+    prefab->w = w;
+    prefab->h = h;
+    prefab->isSolid = isSolid;
+    prefab->texturePath = texturePath;
 
     return prefab;
 }

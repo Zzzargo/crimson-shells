@@ -302,14 +302,20 @@ void initLevel(ZENg zEngine, const char *levelFilePath) {
                 if (!token) break;
                 EntityType entityType = (EntityType)atoi(token);
                 #ifdef DEBUG
-                    printf("Spawning entity %d @ (%d, %d)\n", entityType, x, y);
+                    printf("Spawning entity type %d @ (%d, %d)\n", entityType, x, y);
                 #endif
 
                 switch (entityType) {
                     case ENTITY_PLAYER: {
+                        instantiateTank(
+                            zEngine, getTankPrefab(zEngine->prefabs, "player"),
+                            (Vec2){.x = x * TILE_SIZE, .y = y * TILE_SIZE}
+                        );
                         break;
                     }
                     case ENTITY_TANK_BASIC: {
+                        instantiateTank(zEngine, getTankPrefab(zEngine->prefabs, "tankBasic"),
+                        (Vec2){.x = x * TILE_SIZE, .y = y * TILE_SIZE});
                         break;
                     }
                 }
