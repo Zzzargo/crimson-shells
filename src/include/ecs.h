@@ -6,6 +6,7 @@
 // Using sparse sets with pagination for efficiency
 
 #include "global.h"
+#include "builder.h"
 
 // Available game states enum - declared in advance for the StateTagComponent
 typedef enum {
@@ -26,6 +27,18 @@ typedef GameStateType StateTagComponent;
 typedef struct engine *ZENg;  // Forward declaration
 
 // =================================================ENTITIES============================================================
+
+/**
+ * This enum is used to differentiate between entity types only at creation, for example in arena initialization
+ * It should never be added as a component to an entity for the sake of ECS purity
+*/
+typedef enum {
+    ENTITY_PLAYER,  // Your tank
+    ENTITY_TANK_BASIC,
+    ENTITY_TANK_LIGHT,
+    ENTITY_TANK_HEAVY,
+    ENTITY_TYPE_COUNT  // Automatically counts
+} EntityType;
 
 typedef Uint64 Entity;  // In an ECS, an entity is just an ID
 extern Entity PLAYER_ID;  // Global variable for the player entity ID
@@ -425,29 +438,6 @@ CollisionComponent* createCollisionComponent(int x, int y, int w, int h, Uint8 i
  * @return a pointer to a RenderComponent
  */
 RenderComponent* createRenderComponent(SDL_Texture *texture, int x, int y, int w, int h, Uint8 active, Uint8 selected);
-
-
-/**
- * Creates a weapon
- * @param name weapon's name
- * @param fireRate weapon's firerate, in seconds
- * @param spawnProj pointer to the projectile spawn function
- * @param projW width of the fired projectile
- * @param projH height of the fired projectile
- * @param projSpeed speed of the fired projectile
- * @param projComp pointer to the projectile component describing the projectile's behavior
- * @param projLifeTime how long the projectile lasts before disappearing, in seconds
- * @param projTexture pointer to the texture of the projectile
- * @param projSound pointer to the sound that plays when the gun fires
- * @return freshly allocated weapon
- * @note a mess of a function but very general
- */
-WeaponComponent* createWeaponComponent(
-    char *name, double_t fireRate, void (*spawnProj)(
-        ZENg, Entity, int, int, double_t, ProjectileComponent *, double_t, SDL_Texture *, Mix_Chunk *
-    ), int projW, int projH, double_t projSpeed, ProjectileComponent *projComp, double_t projLifeTime,
-    SDL_Texture *projTexture, Mix_Chunk *projSound
-);
 
 /**
  * Creates a loadout component

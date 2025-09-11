@@ -359,35 +359,6 @@ RenderComponent* createRenderComponent(SDL_Texture *texture, int x, int y, int w
  * =====================================================================================================================
  */
 
-WeaponComponent* createWeaponComponent(
-    char *name, double_t fireRate, void (*spawnProj)(
-        ZENg, Entity, int, int, double_t, ProjectileComponent *, double_t, SDL_Texture *, Mix_Chunk *
-    ), int projW, int projH, double_t projSpeed, ProjectileComponent *projComp, double_t projLifeTime,
-    SDL_Texture *projTexture, Mix_Chunk *projSound
-) {
-    WeaponComponent *weap = calloc(1, sizeof(WeaponComponent));
-    if (!weap) {
-        printf("Failed to allocate memory for weapon\n");
-        exit(EXIT_FAILURE);
-    }
-    weap->fireRate = fireRate;
-    weap->timeSinceUse = 0;
-    weap->name = name;
-    weap->spawnProj = spawnProj;
-    weap->projW = projW;
-    weap->projH = projH;
-    weap->projSpeed = projSpeed;
-    weap->projComp = projComp;
-    weap->projLifeTime = projLifeTime;
-    weap->projTexture = projTexture;
-    weap->projSound = projSound;
-    return weap;
-}
-
-/**
- * =====================================================================================================================
- */
-
 LoadoutComponent *createLoadoutComponent(Entity primaryGun, CDLLNode *currSecondaryGun, Entity hull, Entity module) {
     LoadoutComponent *comp = calloc(1, sizeof(LoadoutComponent));
     if (!comp) {
@@ -847,7 +818,6 @@ void deleteEntity(ECS ecs, Entity id) {
                         case WEAPON_COMPONENT: {
                             WeaponComponent *weapComp = (WeaponComponent*)component;
                             if (weapComp->name) free(weapComp->name);
-                            if (weapComp->projComp) free(weapComp->projComp);
                             break;
                         }
                     }

@@ -172,6 +172,23 @@ void onEnterPlayState(ZENg zEngine);
  */
 void onExitPlayState(ZENg zEngine);
 
+// /**
+//  * Spawns a tank entity and sets it up with components
+//  * 
+//  */
+// void spawnTank(
+//     ZENg zEngine, Uint32 tileIdx, Int32 maxHealth,
+// );
+
+/**
+ * Instantiates a weapon from a prefab
+ * @param zEngine pointer to the engine
+ * @param prefab pointer to a weapon prefab
+ * @param owner entity ID of the weapon's owner
+ * @return freshly allocated weapon
+ */
+WeaponComponent* instantiateWeapon(ZENg zEngine, WeaponPrefab *prefab, Entity owner);
+
 /**
  * Spawns a bullet type projectile
  * @param zEngine pointer to the engine

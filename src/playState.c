@@ -40,33 +40,21 @@ void onEnterPlayState(ZENg zEngine) {
     addComponent(zEngine->ecs, id, RENDER_COMPONENT, (void *)renderComp);
 
     Entity mainGunID = createEntity(zEngine->ecs, STATE_PLAYING);
-    ProjectileComponent *mainProjComp = createProjectileComponent(45, 0, 0, 1);
-    WeaponComponent *mainG = createWeaponComponent(
-        strdup("Main Gun"), 1.0, &spawnBulletProjectile, 20, 20, 400.0,
-        mainProjComp, 5.0, getTexture(zEngine->resources, "assets/textures/bullet.png"),
-        getSound(zEngine->resources, "assets/sounds/shell1.mp3")
-    );
+    WeaponPrefab *mainGunPrefab = getWeaponPrefab(zEngine->prefabs, "Bigfella");
+    WeaponComponent *mainG = instantiateWeapon(zEngine, mainGunPrefab, id);
     addComponent(zEngine->ecs, mainGunID, WEAPON_COMPONENT, (void *)mainG);
 
     Entity secGun1ID = createEntity(zEngine->ecs, STATE_PLAYING);
-    ProjectileComponent *secProjComp1 = createProjectileComponent(15, 0, 0, 1);
-    WeaponComponent *secG1 = createWeaponComponent(
-        strdup("Coaxial Machine Gun 1"), 5.0, &spawnBulletProjectile, 10, 10, 300.0,
-        secProjComp1, 3.0, getTexture(zEngine->resources, "assets/textures/bullet.png"),
-        getSound(zEngine->resources, "assets/sounds/coaxmg1.mp3")
-    );
-    addComponent(zEngine->ecs, secGun1ID, WEAPON_COMPONENT, (void *)secG1);
-    CDLLNode *weapList = initList((void *)secG1);
+    WeaponPrefab *secGun1Prefab = getWeaponPrefab(zEngine->prefabs, "PKT");
+    WeaponComponent *secGun1 = instantiateWeapon(zEngine, secGun1Prefab, id);
+    addComponent(zEngine->ecs, secGun1ID, WEAPON_COMPONENT, (void *)secGun1);
+    CDLLNode *weapList = initList((void *)secGun1);
 
     Entity secGun2ID = createEntity(zEngine->ecs, STATE_PLAYING);
-    ProjectileComponent *secProjComp2 = createProjectileComponent(10, 0, 0, 1);
-    WeaponComponent *secG2 = createWeaponComponent(
-        strdup("Coaxial Machine Gun 2"), 6.5, &spawnBulletProjectile, 10, 10, 300.0,
-        secProjComp2, 3.0, getTexture(zEngine->resources, "assets/textures/bullet.png"),
-        getSound(zEngine->resources, "assets/sounds/coaxmg2.mp3")
-    );
-    addComponent(zEngine->ecs, secGun2ID, WEAPON_COMPONENT, (void *)secG2);
-    CDLLInsertLast(weapList, (void *)secG2);
+    WeaponPrefab *secGun2Prefab = getWeaponPrefab(zEngine->prefabs, "M240C");
+    WeaponComponent *secGun2 = instantiateWeapon(zEngine, secGun2Prefab, id);
+    addComponent(zEngine->ecs, secGun2ID, WEAPON_COMPONENT, (void *)secGun2);
+    CDLLInsertLast(weapList, (void *)secGun2);
 
     Entity hullID = createEntity(zEngine->ecs, STATE_PLAYING);
     Entity moduleID = createEntity(zEngine->ecs, STATE_PLAYING);
@@ -115,10 +103,11 @@ void onEnterPlayState(ZENg zEngine) {
 
     // Force a systems run
     systems[SYS_VELOCITY]->isDirty = 1;
-
-    // Mix_Chunk *music = getSound(zEngine->resources, "assets/sounds/music.mp3");
-    // Mix_PlayChannel(-1, music, -1);
 }
+
+/**
+ * =====================================================================================================================
+ */
 
 void onExitPlayState(ZENg zEngine) {
     // Delete game entities
@@ -138,6 +127,36 @@ void onExitPlayState(ZENg zEngine) {
     systems[SYS_HEALTH]->isActive = 0;
     systems[SYS_TRANSFORM]->isActive = 0;
 }
+
+/**
+ * =====================================================================================================================
+ */
+
+WeaponComponent* instantiateWeapon(ZENg zEngine, WeaponPrefab *prefab, Entity owner) {
+    WeaponComponent *weap = calloc(1, sizeof(WeaponComponent));
+    if (!weap) {
+        printf("Failed to allocate memory for weapon\n");
+        exit(EXIT_FAILURE);
+    }
+    weap->name = prefab->name;
+    weap->fireRate = prefab->fireRate;
+    weap->timeSinceUse = 0.0;
+    weap->spawnProj = &spawnBulletProjectile;
+    weap->projW = prefab->projW;
+    weap->projH = prefab->projH;
+    weap->projSpeed = prefab->projSpeed;
+    weap->projLifeTime = prefab->projLifeTime;
+    weap->projTexture = getTexture(zEngine->resources, prefab->projTexturePath);
+    weap->projSound = getSound(zEngine->resources, prefab->projHitSoundPath);
+    weap->projComp = createProjectileComponent(
+        prefab->dmg, prefab->isPiercing, prefab->isExplosive, owner == PLAYER_ID ? 1 : 0
+    );
+    return weap;
+}
+
+/**
+ * =====================================================================================================================
+ */
 
 void spawnBulletProjectile( ZENg zEngine, Entity shooter, int bulletW, int bulletH,
     double_t speed, ProjectileComponent *projComp, double_t lifeTime, SDL_Texture *texture, Mix_Chunk *sound ) {
@@ -212,6 +231,10 @@ void spawnBulletProjectile( ZENg zEngine, Entity shooter, int bulletW, int bulle
     Mix_PlayChannel(-1, sound, 0);
 }
 
+/**
+ * =====================================================================================================================
+ */
+
 Uint8 handlePlayStateEvents(SDL_Event *e, ZENg zEngine) {
     if (e->type == SDL_KEYDOWN) {
         InputAction action = scancodeToAction(zEngine->inputMng, e->key.keysym.scancode);
@@ -282,6 +305,10 @@ Uint8 handlePlayStateEvents(SDL_Event *e, ZENg zEngine) {
     }
     return 1;
 }
+
+/**
+ * =====================================================================================================================
+ */
 
 void handlePlayStateInput(ZENg zEngine) {
     // Keyboard state

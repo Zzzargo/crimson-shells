@@ -244,6 +244,8 @@ void initLevel(ZENg zEngine, const char *levelFilePath) {
 
         // Skip empty lines
         if (strlen(line) == 0) continue;
+        // Skip comments
+        if (line[0] == '#') continue;
 
         // Section headers
         if (strcmp(line, "[TILES]") == 0) {
@@ -255,11 +257,11 @@ void initLevel(ZENg zEngine, const char *levelFilePath) {
             continue;
         }
 
-        // Skip comments
-        if (line[0] == '#') continue;
-
         switch (currSect) {
             case SECTION_TILES: {
+                // Skip comments
+                if (line[0] == '#') continue;
+
                 if (tileRow >= ARENA_HEIGHT) {
                     fprintf(stderr, "Warning: More tile rows in level file than expected (%d). Ignoring extra rows.\n", ARENA_HEIGHT);
                     continue;
@@ -284,6 +286,33 @@ void initLevel(ZENg zEngine, const char *levelFilePath) {
                 break;
             }
             case SECTION_ENTITIES: {
+                // Skip comments
+                if (line[0] == '#') continue;
+
+                // Format: <X> <Y>=<ENTITY_TYPE>
+                char *token = strtok(line, " ");
+                if (!token) break;
+                int x = atoi(token);
+
+                token = strtok(NULL, "=");
+                if (!token) break;
+                int y = atoi(token);
+
+                token = strtok(NULL, "\n");
+                if (!token) break;
+                EntityType entityType = (EntityType)atoi(token);
+                #ifdef DEBUG
+                    printf("Spawning entity %d @ (%d, %d)\n", entityType, x, y);
+                #endif
+
+                switch (entityType) {
+                    case ENTITY_PLAYER: {
+                        break;
+                    }
+                    case ENTITY_TANK_BASIC: {
+                        break;
+                    }
+                }
                 break;
             }
             case NONE: {
@@ -414,6 +443,10 @@ DependencyGraph* initDependencyGraph() {
 
 ZENg initGame() {
     ZENg zEngine = calloc(1, sizeof(struct engine));
+    if (!zEngine) {
+        printf("Failed to allocate memory for the game engine\n");
+        exit(EXIT_FAILURE);
+    }
     // Initialize SDL
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0) {
         printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
@@ -426,8 +459,7 @@ ZENg initGame() {
         exit(EXIT_FAILURE);
     }
 
-    // Hope this won't eat too much performance
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "best");
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
 
     // Initalize the display and input managers by reading settings file if existent
     loadSettings(zEngine, "settings.ini");
@@ -447,6 +479,10 @@ ZENg initGame() {
     // Initialize the resource manager and preload resources
     initResourceManager(&zEngine->resources);
     preloadResources(zEngine->resources, zEngine->display->renderer);
+
+    // Initialize the prefabs manager
+    initPrefabsManager(&zEngine->prefabs);
+    loadPrefabs(zEngine->prefabs, "data");
 
     // start on the main menu
     initStateManager(&zEngine->stateMng);
@@ -875,11 +911,18 @@ void worldCollisionSystem(ZENg zEngine, double_t deltaTime) {
 
         if (checkWorldCollision(zEngine, eColComp->hitbox, &collidedTile)) {
             if (eColComp->role == COL_BULLET) {
-                // If a bullet hit a wall, delete it
+                Uint64 projDenseIdx = zEngine->ecs->components[PROJECTILE_COMPONENT].sparse[page][index];
+                ProjectileComponent *projComp =
+                (ProjectileComponent *)(zEngine->ecs->components[PROJECTILE_COMPONENT].dense[projDenseIdx]);
+                if (
+                    (collidedTile.type == TILE_BRICKS && projComp->dmg >= 15)
+                    || (collidedTile.type == TILE_ROCK && projComp->dmg >= 30)
+                ) {
+                    Uint32 tileY = collidedTile.idx / ARENA_WIDTH;
+                    Uint32 tileX = collidedTile.idx % ARENA_WIDTH;
+                    zEngine->map->tiles[tileY][tileX] = zEngine->map->tileDefs[TILE_EMPTY];
+                }
                 deleteEntity(zEngine->ecs, e);
-                Uint32 tileY = collidedTile.idx / ARENA_WIDTH;
-                Uint32 tileX = collidedTile.idx % ARENA_WIDTH;
-                zEngine->map->tiles[tileY][tileX] = zEngine->map->tileDefs[TILE_EMPTY];
                 continue;
             }
 
@@ -899,10 +942,18 @@ void worldCollisionSystem(ZENg zEngine, double_t deltaTime) {
 
         if (checkWorldCollision(zEngine, eColComp->hitbox, &collidedTile)) {
             if (eColComp->role == COL_BULLET) {
+                Uint64 projDenseIdx = zEngine->ecs->components[PROJECTILE_COMPONENT].sparse[page][index];
+                ProjectileComponent *projComp =
+                (ProjectileComponent *)(zEngine->ecs->components[PROJECTILE_COMPONENT].dense[projDenseIdx]);
+                if (
+                    (collidedTile.type == TILE_BRICKS && projComp->dmg >= 15)
+                    || (collidedTile.type == TILE_ROCK && projComp->dmg >= 30)
+                ) {
+                    Uint32 tileY = collidedTile.idx / ARENA_WIDTH;
+                    Uint32 tileX = collidedTile.idx % ARENA_WIDTH;
+                    zEngine->map->tiles[tileY][tileX] = zEngine->map->tileDefs[TILE_EMPTY];
+                }
                 deleteEntity(zEngine->ecs, e);
-                Uint32 tileY = collidedTile.idx / ARENA_WIDTH;
-                Uint32 tileX = collidedTile.idx % ARENA_WIDTH;
-                zEngine->map->tiles[tileY][tileX] = zEngine->map->tileDefs[TILE_EMPTY];
                 continue;
             }
 

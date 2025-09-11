@@ -47,6 +47,10 @@ add_custom_target(symlinks ALL
 
     COMMAND ${CMAKE_COMMAND} -E create_symlink
     ${CMAKE_SOURCE_DIR}/settings.ini ${CMAKE_BINARY_DIR}/settings.ini
+
+    COMMAND ${CMAKE_COMMAND} -E create_symlink
+    ${CMAKE_SOURCE_DIR}/data ${CMAKE_BINARY_DIR}/data
+
     COMMENT "Creating symbolic links..."
 )
 

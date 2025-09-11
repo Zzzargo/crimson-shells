@@ -11,7 +11,9 @@ typedef enum {
     RESOURCE_COUNT  // automatically counts the number of resource types
 } ResourceType;
 
+#ifndef HASHMAP_SIZE
 #define HASHMAP_SIZE 256  // size of the resource hash map
+#endif
 
 typedef struct resEntry {
     char *key;  // an entry's key is the resource's path
@@ -27,8 +29,8 @@ typedef struct resmng {
 // allocates memory for a new ResourceManager
 void initResourceManager(ResourceManager *resMng);
 
-// hashes a string (resource path) to an index in the hashmap
-// uses djb2
+// Hashes a string (resource path) to an index in the hashmap
+// Uses djb2
 static inline Uint32 hashFunc(const char *key);
 
 // finds a resource in the hashmap

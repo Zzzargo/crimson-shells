@@ -4,6 +4,7 @@
 #include "ecs.h"
 #include "inputManager.h"
 #include "resourceManager.h"
+#include "builder.h"
 #include "displayManager.h"
 #include "arena.h"
 
@@ -14,6 +15,7 @@ typedef struct statemng *StateManager;
 typedef struct engine {
     DisplayManager display;  // Pointer to the display manager
     ResourceManager resources;  // Pointer to the resource manager
+    PrefabsManager prefabs;  // Pointer to the prefabs manager
     InputManager inputMng;  // Pointer to the input manager
     StateManager stateMng;  // Pointer to the state manager
     ECS ecs;  // Pointer to the game ECS
