@@ -20,7 +20,7 @@ int main(int argc, char* argv[]) {
         lastFrameTime = frameStart;
 
         // Cap delta time to prevent spikes after lags
-        if (deltaTime > 0.1) deltaTime = 0.1;  // max 100 ms per frame
+        if (deltaTime > 0.1) deltaTime = 0.1;  // Min 10 FPS
 
         #ifdef DEBUG
             printf("============================================\n");

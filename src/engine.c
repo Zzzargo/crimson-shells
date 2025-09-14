@@ -388,7 +388,7 @@ DependencyGraph* initDependencyGraph() {
         {SYS_HEALTH, &healthSystem, 1},
         {SYS_TRANSFORM, &transformSystem, 0},
         {SYS_RENDER, &renderSystem, 0},
-        {SYS_BUTTONS, &buttonSystem, 1},
+        {SYS_UI, &uiSystem, 1},
         {SYS_WEAPONS, &weaponSystem, 0}
     };
 
@@ -410,7 +410,7 @@ DependencyGraph* initDependencyGraph() {
         {SYS_ENTITY_COLLISIONS, SYS_HEALTH},
         {SYS_POSITION, SYS_TRANSFORM},
         {SYS_TRANSFORM, SYS_RENDER},
-        {SYS_BUTTONS, SYS_RENDER}
+        {SYS_UI, SYS_RENDER}
     };
     const size_t depCount = sizeof(dependencies) / sizeof(DependencyPair);
 
@@ -431,7 +431,7 @@ DependencyGraph* initDependencyGraph() {
                     "SYS_HEALTH",
                     "SYS_TRANSFORM",
                     "SYS_RENDER",
-                    "SYS_BUTTONS"
+                    "SYS_UI"
                 };
                 printf("Added system dependency: %s -> %s\n", sysNames[dependency->type], sysNames[dependent->type]);
             #endif
@@ -490,7 +490,9 @@ ZENg initGame() {
     initPrefabsManager(&zEngine->prefabs);
     loadPrefabs(zEngine->prefabs, "data");
 
-    // start on the main menu
+    zEngine->uiManager = initUIManager();
+
+    // Start on the main menu
     initStateManager(&zEngine->stateMng);
     GameState *mainMenuState = calloc(1, sizeof(GameState));
     if (!mainMenuState) {
@@ -1108,7 +1110,7 @@ void renderSystem(ZENg zEngine, double_t deltaTime) {
     }
 
     #ifdef DEBUG
-        Uint64 renderCount = zEngine->ecs->components[RENDER_COMPONENT].denseSize + zEngine->ecs->components[BUTTON_COMPONENT].denseSize;
+        Uint64 renderCount = zEngine->ecs->components[RENDER_COMPONENT].denseSize;
         printf("[RENDER SYSTEM] Running render system for %lu entities\n", renderCount);
     #endif
 
@@ -1166,27 +1168,7 @@ void renderSystem(ZENg zEngine, double_t deltaTime) {
         SDL_SetRenderDrawBlendMode(zEngine->display->renderer, SDL_BLENDMODE_NONE); // Reset if needed
     }
 
-    for (Uint64 i = 0; i < zEngine->ecs->components[TEXT_COMPONENT].denseSize; i++) {
-        TextComponent *text = (TextComponent *)(zEngine->ecs->components[TEXT_COMPONENT].dense[i]);
-
-        if (text && text->texture && text->destRect) {
-            SDL_RenderCopy(zEngine->display->renderer, text->texture, NULL, text->destRect);
-        } else {
-            Entity owner = (zEngine->ecs->components[TEXT_COMPONENT].denseToEntity[i]);
-            printf("Warning: Entity %ld has an invalid text component\n", owner);
-        }
-    }
-
-    for (Uint64 i = 0; i < zEngine->ecs->components[BUTTON_COMPONENT].denseSize; i++) {
-        ButtonComponent *button = (ButtonComponent *)(zEngine->ecs->components[BUTTON_COMPONENT].dense[i]);
-
-        if (button && button->texture && button->destRect) {
-            SDL_RenderCopy(zEngine->display->renderer, button->texture, NULL, button->destRect);
-        } else {
-            Entity owner = (zEngine->ecs->components[BUTTON_COMPONENT].denseToEntity[i]);
-            printf("Warning: Entity %ld has an invalid button component\n", owner);
-        }
-    }
+    UIrender(zEngine->uiManager, zEngine->display->renderer);  // Voila
 
     // Should propagate the dirtiness here, but the render system is pretty much always the last
     // Rendering should always be done every frame
@@ -1197,36 +1179,38 @@ void renderSystem(ZENg zEngine, double_t deltaTime) {
  * =====================================================================================================================
  */
 
-void buttonSystem(ZENg zEngine, double_t deltaTime) {
-    // Rerender the UI based on the entities' current components' states
-
+void uiSystem(ZENg zEngine, double_t deltaTime) {
     #ifdef DEBUG
-        printf("[BUTTON SYSTEM] There are %lu dirty button components\n", zEngine->ecs->components[BUTTON_COMPONENT].dirtyCount);
+        printf("[UI SYSTEM] There are %lu dirty UI components\n", zEngine->uiManager->dirtyCount);
     #endif
+    
+    while (zEngine->uiManager->dirtyCount > 0) {
+        UINode *dirtyNode = zEngine->uiManager->dirtyNodes[0];
+        switch (dirtyNode->type) {
+            case UI_BUTTON: {
+                // Recreate the button texture
+                UIButton *btn = (UIButton *)(dirtyNode->widget);
+                SDL_DestroyTexture(btn->texture);
 
-    while (zEngine->ecs->components[BUTTON_COMPONENT].dirtyCount > 0) {
-        Entity dirtyOwner  = zEngine->ecs->components[BUTTON_COMPONENT].dirtyEntities[0];
-        Uint64 page = dirtyOwner / PAGE_SIZE;
-        Uint64 index = dirtyOwner % PAGE_SIZE;
-        Uint64 buttDenseIdx = zEngine->ecs->components[BUTTON_COMPONENT].sparse[page][index];
-
-        ButtonComponent *curr = (ButtonComponent *)(zEngine->ecs->components[BUTTON_COMPONENT].dense[buttDenseIdx]);
-        if (!curr) {
-            printf("Warning: Entity %ld has an invalid button component\n", dirtyOwner);
-            continue;
+                SDL_Surface *btnSurface = TTF_RenderText_Solid(
+                    btn->font,
+                    btn->text,
+                    btn->currColor
+                );
+                if (!btnSurface) {
+                    printf("Failed to create button surface: %s\n", TTF_GetError());
+                    exit(EXIT_FAILURE);
+                }
+                btn->texture = SDL_CreateTextureFromSurface(zEngine->display->renderer, btnSurface);
+                SDL_FreeSurface(btnSurface);
+                if (!btn->texture) {
+                    printf("Failed to create button texture: %s\n", SDL_GetError());
+                    exit(EXIT_FAILURE);
+                }
+                break;
+            }
         }
-
-        // Update the texture
-        SDL_DestroyTexture(curr->texture);
-        SDL_Surface *surface = TTF_RenderText_Solid(
-            curr->font,
-            curr->text,
-            curr->selected ? COLOR_YELLOW : COLOR_WHITE
-        );
-        curr->texture = SDL_CreateTextureFromSurface(zEngine->display->renderer, surface);
-        SDL_FreeSurface(surface);
-
-        unmarkComponentDirty(zEngine->ecs, BUTTON_COMPONENT);
+        UIunmarkNodeDirty(zEngine->uiManager);
     }
 }
 
@@ -1351,8 +1335,12 @@ void destroyEngine(ZENg *zEngine) {
     free((*zEngine)->inputMng);
 
     freeResourceManager(&(*zEngine)->resources);
+    freePrefabsManager(&(*zEngine)->prefabs);
 
     freeECS((*zEngine)->ecs);
+
+    // Free the UI tree
+    UIclose((*zEngine)->uiManager);
 
     free((*zEngine)->stateMng->states[0]);  // free the main menu state
     free((*zEngine)->stateMng);

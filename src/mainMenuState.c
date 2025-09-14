@@ -7,79 +7,62 @@ void onEnterMainMenu(ZENg zEngine) {
     double listStartPos = 0.45;
     double listItemsSpacing = 0.08;
 
-    // Create buttons with evenly spaced positions
+    UINode *titleLabel = UIcreateLabel(
+        zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf#48"),
+        strdup("Crimson Shells"), COLOR_CRIMSON
+    );
+    UILabel *titleUILabel = (UILabel *)(titleLabel->widget);
+    titleUILabel->destRect->x = (LOGICAL_WIDTH - titleUILabel->destRect->w) / 2;
+    titleUILabel->destRect->y = LOGICAL_HEIGHT * titlePos;
+    UIinsertNode(zEngine->uiManager, zEngine->uiManager->root, titleLabel);
+
     char* buttonLabels[] = {
         "Play", "Options", "Exit"
     };
-    // this is amazing
+
+    size_t buttonCount = sizeof(buttonLabels) / sizeof(buttonLabels[0]);
+
     void (*buttonActions[])(ZENg, void *) = {
         &mMenuToPlay, &mMenuToOptions, &prepareExit
     };
 
-    // Create the title text component first
-    TextComponent *title = createTextComponent(
-        zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf#48"),
-        strdup("Crimson Shells"), COLOR_CRIMSON, 1
-    );
-    title->destRect->x = (LOGICAL_WIDTH - title->destRect->w) / 2;
-    title->destRect->y = LOGICAL_HEIGHT * titlePos;
-
-    Entity id = createEntity(zEngine->ecs, STATE_MAIN_MENU);
-    addComponent(zEngine->ecs, id, TEXT_COMPONENT, (void *)title);
-
-    for (Uint8 orderIdx = 0; orderIdx < (sizeof(buttonLabels) / sizeof(buttonLabels[0])); orderIdx++) {
-        ButtonComponent *button = createButtonComponent(
-            zEngine->display->renderer,
-            getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf#28"),
-            strdup(buttonLabels[orderIdx]), 
-            orderIdx == 0 ? COLOR_YELLOW : COLOR_WHITE, // First button selected (color)
-            buttonActions[orderIdx], 
-            NULL,  // these buttons have no extra data
-            orderIdx == 0 ? 1 : 0,  // First button selected (field flag)
-            orderIdx
+    for (Uint8 i = 0; i < buttonCount; i++) {
+        UINode *button = UIcreateButton(
+            zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf#28"),
+            strdup(buttonLabels[i]), i == 0 ? UI_STATE_FOCUSED : UI_STATE_NORMAL,
+            (SDL_Color[]){ COLOR_WHITE, COLOR_YELLOW, COLOR_WHITE_TRANSPARENT },
+            buttonActions[i], NULL
         );
-        
-        button->destRect->x = (LOGICAL_WIDTH - button->destRect->w) / 2;
-        button->destRect->y = LOGICAL_HEIGHT * (listStartPos + orderIdx * listItemsSpacing);
 
-        id = createEntity(zEngine->ecs, STATE_MAIN_MENU);
-        addComponent(zEngine->ecs, id, BUTTON_COMPONENT, (void *)button);
+        if (i == 0) {
+            // First button gets the focus
+            zEngine->uiManager->focusedNode = button;
+        }
+
+        UIButton *btnWidget = (UIButton *)(button->widget);
+        btnWidget->destRect->x = (LOGICAL_WIDTH - btnWidget->destRect->w) / 2;
+        btnWidget->destRect->y = LOGICAL_HEIGHT * (listStartPos + i * listItemsSpacing);
+        UIinsertNode(zEngine->uiManager, zEngine->uiManager->root, button);
     }
 
-    char *instrText = calloc(64, sizeof(char));
-    if (!instrText) {
-        printf("Failed to allocate memory for the instructions text\n");
-        exit(EXIT_FAILURE);
-    }
-    snprintf(
-        instrText, 64, "Use %s/%s to navigate, %s to select",
-        getHRKeyFromInputAction(zEngine->inputMng, INPUT_MOVE_UP),
-        getHRKeyFromInputAction(zEngine->inputMng, INPUT_MOVE_DOWN),
-        getHRKeyFromInputAction(zEngine->inputMng, INPUT_SELECT)
-    );
-
-    // Instructions cause I want to flex the input manager
-    TextComponent *instructions = createTextComponent(
+    UINode *footerLabel = UIcreateLabel(
         zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf#28"),
-        instrText, COLOR_WHITE_TRANSPARENT, 1
+        strdup("2024 © Zargo Games"), COLOR_WHITE_TRANSPARENT
     );
-    instructions->destRect->x = (LOGICAL_WIDTH - instructions->destRect->w) / 2;
-    instructions->destRect->y = LOGICAL_HEIGHT * footerPos;
-
-    id = createEntity(zEngine->ecs, STATE_MAIN_MENU);  // get a new entity's ID
-    addComponent(zEngine->ecs, id, TEXT_COMPONENT, (void *)instructions);
+    UILabel *footerUILabel = (UILabel *)(footerLabel->widget);
+    footerUILabel->destRect->x = (LOGICAL_WIDTH - footerUILabel->destRect->w) / 2;
+    footerUILabel->destRect->y = LOGICAL_HEIGHT * footerPos;
+    UIinsertNode(zEngine->uiManager, zEngine->uiManager->root, footerLabel);
 
     // Enable the needed systems
     zEngine->ecs->depGraph->nodes[SYS_RENDER]->isActive = 1;  // Render system will always be on
-    zEngine->ecs->depGraph->nodes[SYS_BUTTONS]->isActive = 1;
+    zEngine->ecs->depGraph->nodes[SYS_UI]->isActive = 1;
 }
 
 void onExitMainMenu(ZENg zEngine) {
     // Delete all main menu entities
     sweepState(zEngine->ecs, STATE_MAIN_MENU);
-
-    // Disable the buttons system
-    zEngine->ecs->depGraph->nodes[SYS_BUTTONS]->isActive = 0;
+    UIclear(zEngine->uiManager);
 }
 
 /**
@@ -93,11 +76,6 @@ Uint8 handleMainMenuEvents(SDL_Event *event, ZENg zEngine) {
 Uint8 handleMenuNavigation(SDL_Event *event, ZENg zEngine, char *firstItem, char *lastItem) {
     // Key press handling
     if (event->type == SDL_KEYDOWN) {
-        if (event->key.keysym.sym == SDLK_F11) {
-            // test feature - fullscreen switch
-            toggleFullscreen(zEngine->display);
-            return 1;
-        }
 
         // pass the pressed key to the input manager
         InputAction action = scancodeToAction(zEngine->inputMng, event->key.keysym.scancode);
@@ -108,90 +86,47 @@ Uint8 handleMenuNavigation(SDL_Event *event, ZENg zEngine, char *firstItem, char
 
         switch (action) {
             case INPUT_MOVE_UP: {
-                for (Uint64 i = 0; i < zEngine->ecs->components[BUTTON_COMPONENT].denseSize; i++) {
-                    ButtonComponent *curr = (ButtonComponent *)(zEngine->ecs->components[BUTTON_COMPONENT].dense[i]);
-                    if (curr->selected) {
-                        curr->selected = 0;
-                        if (strcmp(curr->text, firstItem) == 0) {
-                            // wrap around to the last list item
-                            // starting at 0 because the ids can be reused
-                            for (Uint64 j = 0; j < zEngine->ecs->components[BUTTON_COMPONENT].denseSize; j++) {
-                                ButtonComponent *fetch = (ButtonComponent *)(zEngine->ecs->components[BUTTON_COMPONENT].dense[j]);
-                                if (strcmp(fetch->text, lastItem) == 0) {
-                                    fetch->selected = 1;  // select the last item
-
-                                    Entity currOwner = zEngine->ecs->components[BUTTON_COMPONENT].denseToEntity[i];
-                                    Entity fetchOwner = zEngine->ecs->components[BUTTON_COMPONENT].denseToEntity[j];
-                                    markComponentDirty(zEngine->ecs, currOwner, BUTTON_COMPONENT);
-                                    markComponentDirty(zEngine->ecs, fetchOwner, BUTTON_COMPONENT);
-                                    break;
-                                }
-                            }
-                        } else {
-                            // select the previous option
-                            for (Uint64 j = 0; j < zEngine->ecs->components[BUTTON_COMPONENT].denseSize; j++) {
-                                ButtonComponent *fetch = (ButtonComponent *)(zEngine->ecs->components[BUTTON_COMPONENT].dense[j]);
-                                // find the previous item
-                                if (fetch->orderIdx == curr->orderIdx - 1) {
-                                    fetch->selected = 1;
-
-                                    Entity currOwner = zEngine->ecs->components[BUTTON_COMPONENT].denseToEntity[i];
-                                    Entity fetchOwner = zEngine->ecs->components[BUTTON_COMPONENT].denseToEntity[j];
-                                    markComponentDirty(zEngine->ecs, currOwner, BUTTON_COMPONENT);
-                                    markComponentDirty(zEngine->ecs, fetchOwner, BUTTON_COMPONENT);
-                                    break;
-                                }
-                            }
+                UINode *focused = zEngine->uiManager->focusedNode;
+                if (focused && focused->parent && focused->parent->childrenCount > 0) {
+                    // Search for the previous focusable node in the focused node's siblings
+                    UINode **siblings = focused->parent->children;
+                    size_t start = focused->siblingIndex;
+                    size_t childCount = focused->parent->childrenCount;
+                    for (size_t step = 1; step < childCount; step++) {
+                        size_t nextIdx = (start + childCount - step) % childCount;
+                        if (UIisNodeFocusable(siblings[nextIdx])) {
+                            UIrefocus(zEngine->uiManager, siblings[nextIdx]);
+                            return 1;
                         }
-                        return 1;
                     }
+                    printf("ANOMALY. Not found a previous focusable sibling for current focused node\n");
                 }
                 return 1;
             }
             case INPUT_MOVE_DOWN: {
-                for (Uint64 i = 0; i < zEngine->ecs->components[BUTTON_COMPONENT].denseSize; i++) {
-                    ButtonComponent *curr = (ButtonComponent *)(zEngine->ecs->components[BUTTON_COMPONENT].dense[i]);
-                    if (curr->selected) {
-                        curr->selected = 0;
-                        if (strcmp(curr->text, lastItem) == 0) {
-                            // wrap around to the last list item
-                            for (Uint64 j = 0; j < zEngine->ecs->components[BUTTON_COMPONENT].denseSize; j++) {
-                                ButtonComponent *fetch = (ButtonComponent *)(zEngine->ecs->components[BUTTON_COMPONENT].dense[j]);
-                                if (strcmp(fetch->text, firstItem) == 0) {
-                                    fetch->selected = 1;  // select the first item
-
-                                    Entity currOwner = zEngine->ecs->components[BUTTON_COMPONENT].denseToEntity[i];
-                                    Entity fetchOwner = zEngine->ecs->components[BUTTON_COMPONENT].denseToEntity[j];
-                                    markComponentDirty(zEngine->ecs, currOwner, BUTTON_COMPONENT);
-                                    markComponentDirty(zEngine->ecs, fetchOwner, BUTTON_COMPONENT);
-                                    break;
-                                }
-                            }
-                        } else {
-                            // select the next option
-                                for (Uint64 j = 0; j < zEngine->ecs->components[BUTTON_COMPONENT].denseSize; j++) {
-                                ButtonComponent *fetch = (ButtonComponent *)(zEngine->ecs->components[BUTTON_COMPONENT].dense[j]);
-                                if (fetch->orderIdx == curr->orderIdx + 1) {
-                                    fetch->selected = 1;
-
-                                    Entity currOwner = zEngine->ecs->components[BUTTON_COMPONENT].denseToEntity[i];
-                                    Entity fetchOwner = zEngine->ecs->components[BUTTON_COMPONENT].denseToEntity[j];
-                                    markComponentDirty(zEngine->ecs, currOwner, BUTTON_COMPONENT);
-                                    markComponentDirty(zEngine->ecs, fetchOwner, BUTTON_COMPONENT);
-                                    break;
-                                }
-                            }
+                UINode *focused = zEngine->uiManager->focusedNode;
+                if (focused && focused->parent && focused->parent->childrenCount > 0) {
+                    // Search for the next focusable node in the focused node's siblings
+                    UINode **siblings = focused->parent->children;
+                    size_t start = focused->siblingIndex;
+                    size_t childCount = focused->parent->childrenCount;
+                    for (size_t step = 1; step < childCount; step++) {
+                        size_t nextIdx = (start + step) % childCount;
+                        if (UIisNodeFocusable(siblings[nextIdx])) {
+                            UIrefocus(zEngine->uiManager, siblings[nextIdx]);
+                            return 1;
                         }
-                        return 1;
                     }
+                    printf("ANOMALY. Not found a next focusable sibling for current focused node\n");
                 }
                 return 1;
             }
             case INPUT_SELECT: {
-                for (Uint64 i = 0; i < zEngine->ecs->components[BUTTON_COMPONENT].denseSize; i++) {
-                    ButtonComponent *curr = (ButtonComponent *)(zEngine->ecs->components[BUTTON_COMPONENT].dense[i]);
-                    if (curr->selected) {
-                        curr->onClick(zEngine, curr->data);
+                UINode *focused = zEngine->uiManager->focusedNode;
+                if (focused && focused->type == UI_BUTTON) {
+                    UIButton *btnWidget = (UIButton *)(focused->widget);
+                    if (btnWidget->onClick) {
+                        btnWidget->onClick(zEngine, btnWidget->data);
                     }
                 }
                 return 1;

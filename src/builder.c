@@ -164,8 +164,8 @@ void loadPrefabs(PrefabsManager prefabMng, const char *filePath) {
         BuilderType type;
         if (strcmp(typeStr, "WEAPON") == 0) {
             type = BUILDER_WEAPONS;
-            char *projTexturePath = calloc(256, sizeof(char));
-            char *projHitSoundPath = calloc(256, sizeof(char));
+            char *projTexturePath = calloc(64, sizeof(char));
+            char *projHitSoundPath = calloc(64, sizeof(char));
             double_t fireRate = 0.0, projSpeed = 0.0, projLifetime = 0.0;
             int projW = 0, projH = 0, dmg = 0;
             Uint8 isPiercing = 0, isExplosive = 0;
@@ -245,7 +245,22 @@ void freePrefabsManager(PrefabsManager *prefabmng) {
                     if (wp->projHitSoundPath) {
                         free(wp->projHitSoundPath);
                     }
+                    if (wp->name) {
+                        free(wp->name);
+                    }
                     free(wp);
+                    break;
+                }
+                case BUILDER_TANKS: {
+                    TankPrefab *tp = (TankPrefab *)entry->data;
+                    if (tp->texturePath) {
+                        free(tp->texturePath);
+                    }
+                    if (tp->name) {
+                        free(tp->name);
+                    }
+                    free(tp);
+                    break;
                 }
             }
             free(entry->key);  // free the key string

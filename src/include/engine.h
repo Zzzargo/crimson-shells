@@ -7,6 +7,7 @@
 #include "builder.h"
 #include "displayManager.h"
 #include "arena.h"
+#include "uiManager.h"
 
 struct statemng;  // forward declaration
 typedef struct statemng *StateManager;
@@ -14,6 +15,7 @@ typedef struct statemng *StateManager;
 // Engine structure definition
 typedef struct engine {
     DisplayManager display;  // Pointer to the display manager
+    UIManager uiManager;  // Pointer to the UI manager
     ResourceManager resources;  // Pointer to the resource manager
     PrefabsManager prefabs;  // Pointer to the prefabs manager
     InputManager inputMng;  // Pointer to the input manager
@@ -152,11 +154,11 @@ void renderDebugGrid(ZENg zEngine);
 #endif
 
 /**
- * Updates buttons textures
+ * Updates UI elements
  * @param zEngine pointer to the engine
  * @param deltaTime time since the last frame in seconds
  */
-void buttonSystem(ZENg zEngine, double_t deltaTime);
+void uiSystem(ZENg zEngine, double_t deltaTime);
 
 /**
  * Saves the current settings to a file

@@ -1,39 +1,39 @@
 #include "include/stateManager.h"
 
 void onEnterPauseState(ZENg zEngine) {
-    // Percentages from the top of the screen
-    double titlePos = 0.3;
-    double listStartPos = 0.45;
-    double listItemsSpacing = 0.08;
+    // // Percentages from the top of the screen
+    // double titlePos = 0.3;
+    // double listStartPos = 0.45;
+    // double listItemsSpacing = 0.08;
 
-    // Create buttons with evenly spaced positions
-    char* buttonLabels[] = {
-        "Resume", "Exit to main menu"
-    };
-    // this is amazing
-    void (*buttonActions[])(ZENg, void *data) = {
-        &pauseToPlay, &pauseToMMenu
-    };
+    // // Create buttons with evenly spaced positions
+    // char* buttonLabels[] = {
+    //     "Resume", "Exit to main menu"
+    // };
+    // // this is amazing
+    // void (*buttonActions[])(ZENg, void *data) = {
+    //     &pauseToPlay, &pauseToMMenu
+    // };
 
-    Entity id;
-    for (Uint8 orderIdx = 0; orderIdx < (sizeof(buttonLabels) / sizeof(buttonLabels[0])); orderIdx++) {
-        ButtonComponent *button = createButtonComponent (
-            zEngine->display->renderer, 
-            getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf#28"),
-            strdup(buttonLabels[orderIdx]), 
-            orderIdx == 0 ? COLOR_YELLOW : COLOR_WHITE, // First button selected (color)
-            buttonActions[orderIdx],
-            NULL, // these buttons have no extra data
-            orderIdx == 0 ? 1 : 0,  // First button selected (field flag)
-            orderIdx
-        );
+    // Entity id;
+    // for (Uint8 orderIdx = 0; orderIdx < (sizeof(buttonLabels) / sizeof(buttonLabels[0])); orderIdx++) {
+    //     ButtonComponent *button = createButtonComponent (
+    //         zEngine->display->renderer, 
+    //         getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf#28"),
+    //         strdup(buttonLabels[orderIdx]), 
+    //         orderIdx == 0 ? COLOR_YELLOW : COLOR_WHITE, // First button selected (color)
+    //         buttonActions[orderIdx],
+    //         NULL, // these buttons have no extra data
+    //         orderIdx == 0 ? 1 : 0,  // First button selected (field flag)
+    //         orderIdx
+    //     );
 
-        button->destRect->x = (LOGICAL_WIDTH - button->destRect->w) / 2;
-        button->destRect->y = LOGICAL_HEIGHT * (listStartPos + orderIdx * listItemsSpacing);
+    //     button->destRect->x = (LOGICAL_WIDTH - button->destRect->w) / 2;
+    //     button->destRect->y = LOGICAL_HEIGHT * (listStartPos + orderIdx * listItemsSpacing);
 
-        id = createEntity(zEngine->ecs, STATE_PAUSED);
-        addComponent(zEngine->ecs, id, BUTTON_COMPONENT, (void *)button);
-    }
+    //     id = createEntity(zEngine->ecs, STATE_PAUSED);
+    //     addComponent(zEngine->ecs, id, BUTTON_COMPONENT, (void *)button);
+    // }
 
     SystemNode **systems = zEngine->ecs->depGraph->nodes;
     systems[SYS_LIFETIME]->isActive = 0;
@@ -45,7 +45,7 @@ void onEnterPauseState(ZENg zEngine) {
     systems[SYS_HEALTH]->isActive = 0;
     systems[SYS_TRANSFORM]->isActive = 0;
 
-    systems[SYS_BUTTONS]->isActive = 1;
+    systems[SYS_UI]->isActive = 1;
 }
 
 /**
@@ -58,7 +58,7 @@ void onExitPauseState(ZENg zEngine) {
 
     // Disable the pause state systems
     SystemNode **systems = zEngine->ecs->depGraph->nodes;
-    systems[SYS_BUTTONS]->isActive = 0;
+    systems[SYS_UI]->isActive = 0;
 
     // And enable the game's
     systems[SYS_LIFETIME]->isActive = 1;

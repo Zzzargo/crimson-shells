@@ -1,7 +1,7 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
-// #define DEBUG
+#define DEBUG
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
@@ -14,8 +14,21 @@
 #include "vec2.h"
 #include "DLinkList.h"
 
+typedef struct engine *ZENg;  // Forward declaration of the engine struct
+
 typedef int32_t Int32;
 typedef int64_t Int64;
+
+#define LOGICAL_WIDTH 1280
+#define LOGICAL_HEIGHT 720
+
+/**
+ * 1280x720 => tilesize = 1280 / (16 * k) = 80 / k
+ * An integer k makes the tiles square and integer sized
+ * I chose k = 4 => TILE_SIZE = 20
+ * So the arena will be 64x36 tiles
+ * Keep in mind that the level files are going to be written for this arena size only
+ */
 
 // Compare two SDL_Color structs for equal R,G,B,A values
 #define CMP_COLORS(c1, c2) \

@@ -148,100 +148,6 @@ Entity createEntity(ECS ecs, StateTagComponent state) {
  * =====================================================================================================================
  */
 
-TextComponent* createTextComponent(SDL_Renderer *rdr, TTF_Font *font, char *text, SDL_Color color, Uint8 active) {
-    TextComponent *comp = calloc(1, sizeof(TextComponent));
-    if (!comp) {
-        printf("Failed to allocate memory for text component\n");
-        exit(EXIT_FAILURE);
-    }
-
-    comp->font = font;
-    comp->text = text;
-    comp->color = color;
-    comp->active = active;
-
-    SDL_Surface *surface = TTF_RenderText_Solid(comp->font, comp->text, comp->color);
-    if (!surface) {
-        printf("Failed to create text surface: %s\n", TTF_GetError());
-        exit(EXIT_FAILURE);
-    }
-    comp->texture = SDL_CreateTextureFromSurface(rdr, surface);
-    if (!comp->texture) {
-        printf("Failed to create text texture: %s\n", SDL_GetError());
-        exit(EXIT_FAILURE);
-    }
-
-    comp->destRect = calloc(1, sizeof(SDL_Rect));
-    if (!comp->destRect) {
-        printf("Failed to allocate memory for text rectangle\n");
-        exit(EXIT_FAILURE);
-    }
-
-    *comp->destRect = (SDL_Rect) {
-        .x = 0,
-        .y = 0,
-        .w = surface->w,
-        .h = surface->h
-    };
-
-    SDL_FreeSurface(surface);
-    return comp;
-}
-
-/**
- * =====================================================================================================================
- */
-
-ButtonComponent* createButtonComponent(
-    SDL_Renderer *rdr, TTF_Font *font, char *text, SDL_Color color,
-    void (*onClick)(ZENg, void*), void *data, Uint8 selected, Uint8 orderIdx
-) {
-    ButtonComponent *comp = calloc(1, sizeof(ButtonComponent));
-    if (!comp) {
-        printf("Failed to allocate memory for button component\n");
-        exit(EXIT_FAILURE);
-    }
-
-    comp->selected = selected;
-    comp->orderIdx = orderIdx;
-    comp->onClick = onClick;
-    comp->data = data;
-    comp->font = font;
-    comp->text = text;
-    comp->color = color;
-
-    SDL_Surface *titleSurface = TTF_RenderText_Solid(comp->font, comp->text, comp->color);
-    if (!titleSurface) {
-        printf("Failed to create text surface: %s\n", TTF_GetError());
-        exit(EXIT_FAILURE);
-    }
-    comp->texture = SDL_CreateTextureFromSurface(rdr, titleSurface);
-    if (!comp->texture) {
-        printf("Failed to create text texture: %s\n", SDL_GetError());
-        exit(EXIT_FAILURE);
-    }
-
-    comp->destRect = calloc(1, sizeof(SDL_Rect));
-    if (!comp->destRect) {
-        printf("Failed to allocate memory for comp rectangle\n");
-        exit(EXIT_FAILURE);
-    }
-
-    *comp->destRect = (SDL_Rect) {
-        .x = 0,
-        .y = 0,
-        .w = titleSurface->w,
-        .h = titleSurface->h
-    };
-
-    SDL_FreeSurface(titleSurface);  // we don't need the surface anymore
-    return comp;
-}
-
-/**
- * =====================================================================================================================
- */
-
 DirectionComponent* createDirectionComponent(DirectionComponent dir) {
     DirectionComponent *comp = calloc(1, sizeof(DirectionComponent));
     if (!comp) {
@@ -469,7 +375,6 @@ void addComponent(ECS ecs, Entity id, ComponentType compType, void *component) {
 
     const ComponentType fineGrainedType[] = {
         HEALTH_COMPONENT,
-        BUTTON_COMPONENT,
     };
     const size_t fineGrainedCount = sizeof(fineGrainedType) / sizeof(ComponentType);
     for (size_t i = 0; i < fineGrainedCount; i++) {
@@ -503,7 +408,8 @@ void markComponentDirty(ECS ecs, Entity id, ComponentType compType) {
         // Resize the dirty entities array if needed
 
         // Double the capacity if it is full, begin with 4
-        ecs->components[compType].dirtyCapacity = ecs->components[compType].dirtyCapacity == 0 ? 4 : ecs->components[compType].dirtyCapacity * 2;
+        ecs->components[compType].dirtyCapacity =
+        ecs->components[compType].dirtyCapacity == 0 ? 4 : ecs->components[compType].dirtyCapacity * 2;
         Entity *newDirtyEntities = realloc(
             ecs->components[compType].dirtyEntities,
             ecs->components[compType].dirtyCapacity * sizeof(Entity)
@@ -516,7 +422,8 @@ void markComponentDirty(ECS ecs, Entity id, ComponentType compType) {
     }
 
     ecs->components[compType].dirtyEntities[ecs->components[compType].dirtyCount++] = id;
-    propagateSystemDirtiness(ecs->depGraph->nodes[componentToSystem(compType)]);  // Propagate the dirty state through the dependency graph
+    // Propagate the dirty state through the dependency graph
+    propagateSystemDirtiness(ecs->depGraph->nodes[componentToSystem(compType)]);
 }
 
 /**
@@ -592,8 +499,6 @@ SystemType componentToSystem(ComponentType compType) {
             return SYS_HEALTH;
         case RENDER_COMPONENT:
             return SYS_RENDER;
-        case BUTTON_COMPONENT:
-            return SYS_BUTTONS;
         default:
             fprintf(stderr, "No corresponding system for component type %d\n", compType);
             return -1;  // Invalid system type
@@ -675,7 +580,7 @@ void kahnTopSort(DependencyGraph *graph) {
         "SYS_HEALTH",
         "SYS_TRANSFORM",
         "SYS_RENDER",
-        "SYS_BUTTONS"
+        "SYS_UI"
     };
     printf("Performing Kahn's topological sort on the dependency graph with %lu nodes:\n", graph->nodeCount);
     for (Uint64 i = 0; i < graph->nodeCount; i++) {
@@ -792,21 +697,9 @@ void deleteEntity(ECS ecs, Entity id) {
                             if (colComp->hitbox) free(colComp->hitbox);
                             break;
                         }
-                        case TEXT_COMPONENT: {
-                            TextComponent *textComp = (TextComponent*)component;
-                            if (textComp->text) free(textComp->text);
-                            if (textComp->destRect) free(textComp->destRect);
-                            break;
-                        }
                         case RENDER_COMPONENT: {
                             RenderComponent *render = (RenderComponent*)component;
                             if (render->destRect) free(render->destRect);
-                            break;
-                        }
-                        case BUTTON_COMPONENT: {
-                            ButtonComponent *button = (ButtonComponent*)component;
-                            if (button->text) free(button->text);
-                            if (button->destRect) free(button->destRect);
                             break;
                         }
                         case LOADOUT_COMPONENT: {
@@ -906,8 +799,10 @@ void sweepState(ECS ecs, GameStateType stateType) {
 void freeECS(ECS ecs) {
     if (ecs) {
         // Free all entities' components first
-        for (Int64 i = ecs->activeEntities[ecs->entityCount - 1]; i >= 0; i--) {
-            deleteEntity(ecs, ecs->activeEntities[i]);
+        if (ecs->entityCount > 0) {
+            for (Int64 i = ecs->activeEntities[ecs->entityCount - 1]; i >= 0; i--) {
+                deleteEntity(ecs, ecs->activeEntities[i]);
+            }
         }
         if (ecs->componentsFlags) {
             free(ecs->componentsFlags);
