@@ -21,11 +21,9 @@ typedef struct state {
  * Generic function to handle menu navigation input
  * @param event SDL_Event pointer
  * @param zEngine pointer to the engine
- * @param firstItem label of the first menu item (for wrapping)
- * @param lastItem label of the last menu item (for wrapping)
  * @return 0 if the event is trying to exit the game, 1 otherwise
  */
-Uint8 handleMenuNavigation(SDL_Event *event, ZENg zEngine, char *firstItem, char *lastItem);
+Uint8 handleMenuNavigation(SDL_Event *event, ZENg zEngine);
 
 /**
  * Exits the game
@@ -135,6 +133,12 @@ void onEnterVideoOptions(ZENg zEngine);
  */
 void onExitVideoOptions(ZENg zEngine);
 
+/**
+ * Button action to toggle fullscreen/windowed mode
+ * @param zEngine pointer to the engine
+ * @param data pointer to an Uint8 representing the new window mode (0 = windowed, 1 = fullscreen)
+ */
+void changeWindowMode(ZENg zEngine, void *data);
 
 /**
  * Button action to change the display resolution

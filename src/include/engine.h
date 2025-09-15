@@ -132,6 +132,16 @@ void weaponSystem(ZENg zEngine, double_t deltaTime);
  */
 void transformSystem(ZENg zEngine, double_t deltaTime);
 
+#ifdef DEBUG
+/**
+ * Renders the UI node and its children with debug outlines
+ * @param rdr pointer to the SDL_Renderer
+ * @param uiManager pointer to the UI manager
+ * @param node pointer to the UI node to render
+*/
+void UIdebugRenderNode(SDL_Renderer *rdr, UIManager uiManager, UINode *node);
+#endif
+
 /**
  * Renders the current frame
  * @param zEngine pointer to the engine

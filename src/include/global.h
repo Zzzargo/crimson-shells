@@ -1,7 +1,7 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
-#define DEBUG
+// #define DEBUG
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
@@ -34,10 +34,25 @@ typedef int64_t Int64;
 #define CMP_COLORS(c1, c2) \
     ((c1).r == (c2).r && (c1).g == (c2).g && (c1).b == (c2).b && (c1).a == (c2).a)
 
-#define COLOR_WHITE_TRANSPARENT (SDL_Color){255, 255, 255, 155}  // Semi-transparent white
-#define COLOR_WHITE (SDL_Color){255, 255, 255, 255}  // Normal text color
-#define COLOR_YELLOW (SDL_Color){255, 255, 0, 255}  // Highlight color
-#define COLOR_CRIMSON (SDL_Color){220, 20, 60, 255}  // Crimson red color
+#define OPACITY_FULL 255
+#define OPACITY_HIGH 200
+#define OPACITY_MEDIUM 150
+#define OPACITY_LOW 100
+#define OPACITY_VERYLOW 50
+#define OPACITY_TRANSPARENT 0
+
+#define COLOR_WITH_ALPHA(c, a) (SDL_Color){(c).r, (c).g, (c).b, (a)}
+
+#define COLOR_WHITE (SDL_Color){255, 255, 255, 255}
+#define COLOR_BLACK (SDL_Color){0, 0, 0, 255}
+#define COLOR_GRAY (SDL_Color){128, 128, 128, 255}
+#define COLOR_RED (SDL_Color){255, 0, 0, 255}
+#define COLOR_GREEN (SDL_Color){0, 255, 0, 255}
+#define COLOR_BLUE (SDL_Color){0, 0, 255, 255}
+#define COLOR_YELLOW (SDL_Color){255, 255, 0, 255}
+#define COLOR_CYAN (SDL_Color){0, 255, 255, 255}
+#define COLOR_MAGENTA (SDL_Color){255, 0, 255, 255}
+#define COLOR_CRIMSON (SDL_Color){220, 20, 60, 255}
 
 // Coordinate system axis
 typedef enum {

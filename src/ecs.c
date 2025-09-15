@@ -711,6 +711,7 @@ void deleteEntity(ECS ecs, Entity id) {
                         case WEAPON_COMPONENT: {
                             WeaponComponent *weapComp = (WeaponComponent*)component;
                             if (weapComp->name) free(weapComp->name);
+                            if (weapComp->projComp) free(weapComp->projComp);
                             break;
                         }
                     }

@@ -48,8 +48,9 @@ void onEnterPlayState(ZENg zEngine) {
 void onExitPlayState(ZENg zEngine) {
     // Delete game entities
     sweepState(zEngine->ecs, STATE_PLAYING);
+    UIclear(zEngine->uiManager);
 
-    // Destroy the arena memory
+    // Destroy the arena
     clearLevel(zEngine);
 
     // Disable the play state's systems
@@ -74,7 +75,7 @@ WeaponComponent* instantiateWeapon(ZENg zEngine, WeaponPrefab *prefab, Entity ow
         printf("Failed to allocate memory for weapon\n");
         exit(EXIT_FAILURE);
     }
-    weap->name = prefab->name;
+    weap->name = strdup(prefab->name);
     weap->fireRate = prefab->fireRate;
     weap->timeSinceUse = 0.0;
     weap->spawnProj = &spawnBulletProjectile;

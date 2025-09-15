@@ -23,10 +23,12 @@ void toggleFullscreen(DisplayManager mgr) {
     if (curr) {
         SDL_SetWindowFullscreen(mgr->window, 0);
         mgr->wdwFlags &= ~SDL_WINDOW_FULLSCREEN;
+        mgr->fullscreen = 0;
     }
     else {
         SDL_SetWindowFullscreen(mgr->window, SDL_WINDOW_FULLSCREEN);
         mgr->wdwFlags |= SDL_WINDOW_FULLSCREEN;
+        mgr->fullscreen = 1;
     }
 }
 
@@ -62,7 +64,7 @@ SDL_DisplayMode* getAvailableDisplayModes(DisplayManager mgr, int *count) {
         return NULL;
     }
 
-    availableModes = malloc(modeCount * sizeof(SDL_DisplayMode));
+    availableModes = calloc(modeCount, sizeof(SDL_DisplayMode));
     if (!availableModes) {
         printf("Failed to allocate memory for display availableModes\n");
         return NULL;

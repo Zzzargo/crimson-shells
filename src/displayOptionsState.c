@@ -1,92 +1,166 @@
 #include "include/stateManager.h"
 
 void onEnterVideoOptions(ZENg zEngine) {
-    // // Percentages from the top of the screen
-    // double listStartPos = 0.3;
-    // double listItemsSpacing = 0.07;
-    // double titlePos = 0.15;
-    // double footerPos = 0.85;
+    double titleHeight = 0.3;  // 30% of the screen height
+    
+    double listHeight = 0.7;  // 70% of the screen height
+    double listPaddingTop = 0.1;  // 20% of the list height
+    double listSpacing = 0.08;
 
-    // Entity id = createEntity(zEngine->ecs, STATE_OPTIONS_VIDEO);
-    // Uint8 orderIdx = 0;
+    double windowModesHeight = 0.2;  // 30% of the list height
+    double windowModesPaddingH = 0.1;  // 20% of the div's width
+    double windowModesSpacing = 0.5;  // 50% of the div's width
 
-    // // Title
-    // TextComponent *title = createTextComponent(
-    //     zEngine->display->renderer,
-    //     getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf#48"),
-    //     strdup("Display Options"), COLOR_CRIMSON, 1
-    // );
-    // title->destRect->x = (LOGICAL_WIDTH - title->destRect->w) / 2;
-    // title->destRect->y = LOGICAL_HEIGHT * titlePos;
-    // addComponent(zEngine->ecs, id, TEXT_COMPONENT, (void *)title);
+    double resolutionsHeight = 0.2; // 20% of the list height
+    double resolutionsPaddingH = 0.1;  // 20% of the div's width
+    double resolutionsSpacing = 0.5;  // 50% of the div's width
 
-    // // Get the available display modes
-    // int modesCount = 0;
-    // SDL_DisplayMode *modes = getAvailableDisplayModes(zEngine->display, &modesCount);
+    Entity id = createEntity(zEngine->ecs, STATE_OPTIONS_VIDEO);
+    Uint8 orderIdx = 0;
 
-    // #ifdef DEBUG
-    //     for (Uint8 i = 0; i < modesCount; i++) {
-    //         printf("Available display mode %d: %dx%d @ %dHz\n", i, modes[i].w, modes[i].h, modes[i].refresh_rate);
-    //     }
-    // #endif
+    UINode *titleDiv = UIcreateContainer(
+        (SDL_Rect){.x = 0, .y = 0, .w = LOGICAL_WIDTH, .h = (int)(LOGICAL_HEIGHT * titleHeight)},
+        UIcreateLayout(
+            UI_LAYOUT_VERTICAL, (UIPadding){0.0, 0.0, 0.0, 0.0},
+            (UIAlignment){.h = UI_ALIGNMENT_CENTER, .v = UI_ALIGNMENT_END}, 0.0
+        )
+    );
+    UIinsertNode(zEngine->uiManager, zEngine->uiManager->root, titleDiv);
 
-    // char *resButtonLabels[modesCount];
-    // for (Uint8 i = 0; i < modesCount; i++) {
-    //     resButtonLabels[i] = calloc(64, sizeof(char));
-    //     if (!resButtonLabels[i]) {
-    //         printf("Failed to allocate memory for display mode button label\n");
-    //         exit(EXIT_FAILURE);
-    //     }
-    //     snprintf(resButtonLabels[i], 64, "%dx%d", modes[i].w, modes[i].h);
-    // }
+    UINode *titleLabel = UIcreateLabel(
+        zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf#48"),
+        strdup("Display Options"), COLOR_CRIMSON
+    );
+    UIinsertNode(zEngine->uiManager, titleDiv, titleLabel);
 
-    // char *leftButtonLabels[] = {
-    //     "Display mode", "Resolution"
-    // };
-    // void (*leftButtonActions[])(ZENg, void *) = {
-    //     NULL, &changeRes
-    // };
-    // size_t leftButtonCount = sizeof(leftButtonLabels) / sizeof(leftButtonLabels[0]);
 
-    // // Create the left column of buttons
-    // for (; orderIdx < leftButtonCount; orderIdx++) {
-    //     ButtonComponent *leftButton = createButtonComponent(
-    //         zEngine->display->renderer,
-    //         getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf#28"),
-    //         strdup(leftButtonLabels[orderIdx]),
-    //         orderIdx == 0 ? COLOR_YELLOW : COLOR_WHITE, // First leftButton selected (color)
-    //         &changeRes,
-    //         &modes[orderIdx],  // the leftButton data is a pointer to the current display mode
-    //         orderIdx == 0 ? 1 : 0,  // First leftButton selected (field flag)
-    //         orderIdx
-    //     );
+    UINode *listDiv = UIcreateContainer(
+        (SDL_Rect) {
+            .x = 0,
+            .y = (int)(LOGICAL_HEIGHT * titleHeight),
+            .w = LOGICAL_WIDTH,
+            .h = (int)(LOGICAL_HEIGHT * listHeight)
+        },
+        UIcreateLayout(
+            UI_LAYOUT_VERTICAL, (UIPadding){.top = listPaddingTop, .bottom = 0.0, .left = 0.0, .right = 0.0},
+            (UIAlignment){.h = UI_ALIGNMENT_CENTER, .v = UI_ALIGNMENT_START}, listSpacing
+        )
+    );
+    UIinsertNode(zEngine->uiManager, zEngine->uiManager->root, listDiv);
 
-    //     leftButton->destRect->x = (LOGICAL_WIDTH / 4) - (leftButton->destRect->w / 2);
-    //     leftButton->destRect->y = LOGICAL_HEIGHT * (listStartPos + orderIdx * listItemsSpacing);
+    char* optionCyclesLabels[] = {
+        "Display Mode", "Resolution"
+    };
+    void (*optionCyclesActions[])(ZENg, void *) = {
+        &changeWindowMode, &changeRes
+    };
+    size_t optionCyclesCount = sizeof(optionCyclesLabels) / sizeof(optionCyclesLabels[0]);
 
-    //     id = createEntity(zEngine->ecs, STATE_OPTIONS_VIDEO);
-    //     addComponent(zEngine->ecs, id, BUTTON_COMPONENT, (void *)leftButton);
-    // }
+    char* windowModes[] = {
+        "Windowed", "Fullscreen"
+    };
+    size_t windowModesCount = sizeof(windowModes) / sizeof(windowModes[0]);
 
-    // // Back button
-    // id = createEntity(zEngine->ecs, STATE_OPTIONS_VIDEO);
-    // ButtonComponent *backButton = createButtonComponent(
-    //     zEngine->display->renderer,
-    //     getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf#28"),
-    //     strdup("Back"),
-    //     COLOR_WHITE,
-    //     &videoOptToOpt,
-    //     NULL,  // no extra data needed
-    //     0,  // not selected
-    //     orderIdx  // last in order
-    // );
-    // backButton->destRect->x = (LOGICAL_WIDTH - backButton->destRect->w) / 2;
-    // backButton->destRect->y = LOGICAL_HEIGHT * footerPos;
-    // addComponent(zEngine->ecs, id, BUTTON_COMPONENT, (void *)backButton);
+    UINode *windowModeButton = UIcreateButton(
+        zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf#28"),
+        strdup(optionCyclesLabels[0]), UI_STATE_FOCUSED, (SDL_Color[]) {
+            COLOR_WHITE, COLOR_YELLOW, COLOR_WITH_ALPHA(COLOR_WHITE, OPACITY_MEDIUM)
+        }, optionCyclesActions[0], NULL  // Data is fetched from the current option in navigation
+    );
+
+    // Populate the options list
+    CDLLNode *windowModesOptions = NULL;
+    for (Uint8 i = 0; i < windowModesCount; i++) {
+        Uint8 *modeData = calloc(1, sizeof(Uint8));
+        if (!modeData) {
+            printf("Failed to allocate memory for window mode data\n");
+            exit(EXIT_FAILURE);
+        }
+        *modeData = i;  // 0 = windowed, 1 = fullscreen
+        UINode *button = UIcreateButton(
+            zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf#28"),
+            strdup(windowModes[i]), UI_STATE_NORMAL, (SDL_Color[]) {
+                COLOR_WHITE, COLOR_YELLOW, COLOR_WITH_ALPHA(COLOR_WHITE, OPACITY_MEDIUM)
+            }, NULL, (void *)modeData
+        );
+        if (i == 0) {
+            windowModesOptions = initList((void *)button);
+        } else {
+            CDLLInsertLast(windowModesOptions, (void *)button);
+        }
+    }
+    UINode *windowModeCycle = UIcreateOptionCycle(
+        (SDL_Rect){.x = 0, .y = 0, .w = LOGICAL_WIDTH * 0.8, .h = LOGICAL_HEIGHT * listHeight * windowModesHeight},
+        UIcreateLayout(
+            UI_LAYOUT_HORIZONTAL, (UIPadding){
+                .bottom = 0.0, .top = 0.0, .left = windowModesPaddingH, .right = windowModesPaddingH
+                }, (UIAlignment){.h = UI_ALIGNMENT_CENTER, .v = UI_ALIGNMENT_CENTER}, windowModesSpacing
+        ), windowModeButton, windowModesOptions
+    );
+    // Add those as children to apply layout
+    UIinsertNode(zEngine->uiManager, windowModeCycle, windowModeButton);
+    UIinsertNode(zEngine->uiManager, windowModeCycle, (UINode *)windowModesOptions->data);
+
+    UIinsertNode(zEngine->uiManager, listDiv, windowModeCycle);
+    zEngine->uiManager->focusedNode = windowModeCycle;  // Initial focus on the first option cycle
+
+    int resCount = 0;
+    SDL_DisplayMode *modes = getAvailableDisplayModes(zEngine->display, &resCount);
+    char **resolutions = calloc(resCount, sizeof(char *));
+    if (!resolutions) {
+        printf("Failed to allocate memory for resolutions strings\n");
+        exit(EXIT_FAILURE);
+    }
+    for (int i = 0; i < resCount; i++) {
+        resolutions[i] = calloc(16, sizeof(char));
+        if (!resolutions[i]) {
+            printf("Failed to allocate memory for a resolution string\n");
+            exit(EXIT_FAILURE);
+        }
+        snprintf(resolutions[i], 16, "%dx%d", modes[i].w, modes[i].h);
+    }
+
+    UINode *resButton = UIcreateButton(
+        zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf#28"),
+        strdup(optionCyclesLabels[1]), UI_STATE_NORMAL, (SDL_Color[]) {
+            COLOR_WHITE, COLOR_YELLOW, COLOR_WITH_ALPHA(COLOR_WHITE, OPACITY_MEDIUM)
+        }, optionCyclesActions[1], NULL  // Data is fetched from the current option in navigation
+    );
+
+    // Populate the resolutions list
+    CDLLNode *resOptions = NULL;
+    for (Uint8 i = 0; i < resCount; i++) {
+        UINode *button = UIcreateButton(
+            zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf#28"),
+            strdup(resolutions[i]), UI_STATE_NORMAL, (SDL_Color[]) {
+                COLOR_WHITE, COLOR_YELLOW, COLOR_WITH_ALPHA(COLOR_WHITE, OPACITY_MEDIUM)
+            }, NULL, (void *)(&modes[i])
+        );
+        if (i == 0) {
+            resOptions = initList((void *)button);
+        } else {
+            CDLLInsertLast(resOptions, (void *)button);
+        }
+    }
+    UINode *resCycle = UIcreateOptionCycle(
+        (SDL_Rect){.x = 0, .y = 0, .w = LOGICAL_WIDTH * 0.8, .h = LOGICAL_HEIGHT * listHeight * resolutionsHeight},
+        UIcreateLayout(
+            UI_LAYOUT_HORIZONTAL, (UIPadding){
+                .bottom = 0.0, .top = 0.0, .left = resolutionsPaddingH, .right = resolutionsPaddingH
+                }, (UIAlignment){.h = UI_ALIGNMENT_CENTER, .v = UI_ALIGNMENT_CENTER}, resolutionsSpacing
+        ), resButton, resOptions
+    );
+    // Add those as children to apply layout
+    UIinsertNode(zEngine->uiManager, resCycle, resButton);
+    UIinsertNode(zEngine->uiManager, resCycle, (UINode *)resOptions->data);
+
+    UIinsertNode(zEngine->uiManager, listDiv, resCycle);
+
+    UIapplyLayout(zEngine->uiManager->root);
 }
 
 void onExitVideoOptions(ZENg zEngine) {
-    sweepState(zEngine->ecs, STATE_OPTIONS_VIDEO);
+    UIclear(zEngine->uiManager);
 }
 
 void changeRes(ZENg zEngine, void *data) {
@@ -98,8 +172,20 @@ void changeRes(ZENg zEngine, void *data) {
     setDisplayMode(zEngine->display, mode);
 }
 
+void changeWindowMode(ZENg zEngine, void *data) {
+    if (!data) {
+        printf("No window mode data provided to changeWindowMode\n");
+        return;
+    }
+    Uint8 currMode = zEngine->display->fullscreen;
+    Uint8 newMode = *((Uint8 *)data);
+    if (currMode != newMode) {
+        toggleFullscreen(zEngine->display);
+    }
+}
+
 Uint8 handleVideoOptionsEvents(SDL_Event *event, ZENg zEngine) {
-    return handleMenuNavigation(event, zEngine, "Display mode", "Back");
+    return handleMenuNavigation(event, zEngine);
 }
 
 void videoOptToOpt(ZENg zEngine, void *data) {

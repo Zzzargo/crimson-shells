@@ -1101,6 +1101,47 @@ void transformSystem(ZENg zEngine, double_t deltaTime) {
 /**
  * =====================================================================================================================
  */
+
+#ifdef DEBUG
+void UIdebugRenderNode(SDL_Renderer *rdr, UIManager uiManager, UINode *node) {
+    if (!node || !node->isVisible) return;
+
+    // Base debug color by type
+    SDL_Color color;
+    switch (node->type) {
+        case UI_BUTTON:       color = COLOR_WITH_ALPHA(COLOR_RED, OPACITY_VERYLOW); break;
+        case UI_CONTAINER:    color = COLOR_WITH_ALPHA(COLOR_GREEN, OPACITY_VERYLOW); break;
+        case UI_LABEL:        color = COLOR_WITH_ALPHA(COLOR_BLUE, OPACITY_VERYLOW); break;
+        case UI_OPTION_CYCLE: color = COLOR_WITH_ALPHA(COLOR_YELLOW, OPACITY_VERYLOW); break;
+        default:              color = COLOR_WITH_ALPHA(COLOR_GRAY, OPACITY_VERYLOW); break;
+    }
+
+    // Fill with transparency
+    SDL_SetRenderDrawBlendMode(rdr, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(rdr, color.r, color.g, color.b, color.a);
+    SDL_RenderFillRect(rdr, node->rect);
+
+    // Outline in solid for clarity
+    SDL_SetRenderDrawColor(rdr, color.r, color.g, color.b, 255);
+    SDL_RenderDrawRect(rdr, node->rect);
+
+    // Highlight focused node
+    if (node == uiManager->focusedNode) {
+        SDL_SetRenderDrawColor(rdr, 255, 255, 0, 255); // Yellow
+        SDL_RenderDrawRect(rdr, node->rect);
+    }
+
+    // Recurse
+    for (size_t i = 0; i < node->childrenCount; i++) {
+        UIdebugRenderNode(rdr, uiManager, node->children[i]);
+    }
+}
+#endif
+
+/**
+ * =====================================================================================================================
+ */
+
 void renderSystem(ZENg zEngine, double_t deltaTime) {
     if (zEngine->ecs->depGraph->nodes[SYS_RENDER]->isDirty == 0) {
         #ifdef DEBUG
@@ -1168,6 +1209,12 @@ void renderSystem(ZENg zEngine, double_t deltaTime) {
         SDL_SetRenderDrawBlendMode(zEngine->display->renderer, SDL_BLENDMODE_NONE); // Reset if needed
     }
 
+    #ifdef DEBUG
+        // Render UI nodes with debug outlines
+        if (zEngine->uiManager->root) {
+            UIdebugRenderNode(zEngine->display->renderer, zEngine->uiManager, zEngine->uiManager->root);
+        }
+    #endif
     UIrender(zEngine->uiManager, zEngine->display->renderer);  // Voila
 
     // Should propagate the dirtiness here, but the render system is pretty much always the last
