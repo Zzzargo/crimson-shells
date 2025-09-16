@@ -118,6 +118,7 @@ void UIdeleteNode(UIManager uiManager, UINode *node) {
         node->childrenCapacity = 0;
     }
     if (node->parent) {
+        // If the current node has a parent, remove it from the parent's children
         UIremoveChild(node->parent, node);
     }
     switch (node->type) {
@@ -131,12 +132,35 @@ void UIdeleteNode(UIManager uiManager, UINode *node) {
             UIButton *btn = (UIButton *)(node->widget);
             if (btn->text) free(btn->text);
             if (btn->texture) SDL_DestroyTexture(btn->texture);
+            // Data should be owned by someone other than the button
             break;
         }
         case UI_OPTION_CYCLE: {
+            /**
+             * When deleting an option cycle keep in mind that
+             * the children (last option and the selector) are already deleted
+             */
             UIOptionCycle *optCycle = (UIOptionCycle *)(node->widget);
+
             CDLLNode *currOption = optCycle->currOption;
-            if (currOption) freeList(&currOption);
+            if (!currOption) {
+                break;
+            }
+            CDLLNode *head = currOption->next;
+            currOption->prev->next = currOption->next;  // Remove currOption from the list
+            free(currOption);  // The current option has the data already deleted (was a child)
+
+            CDLLNode *curr = head->next;
+            while (curr != head) {
+                CDLLNode *next = curr->next;
+                UIdeleteNode(uiManager, (UINode *)curr->data);  // Delete the option node
+                free(curr);
+                curr = next;
+            }
+
+            UIdeleteNode(uiManager, (UINode *)head->data);  // Delete the head option node
+            free(head);
+            optCycle->currOption = NULL;
             break;
         }
     }

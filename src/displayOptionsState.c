@@ -15,8 +15,7 @@ void onEnterVideoOptions(ZENg zEngine) {
     double resolutionsPaddingH = 0.1;  // 20% of the div's width
     double resolutionsSpacing = 0.5;  // 50% of the div's width
 
-    Entity id = createEntity(zEngine->ecs, STATE_OPTIONS_VIDEO);
-    Uint8 orderIdx = 0;
+    GameState *currState = getCurrState(zEngine->stateMng);
 
     UINode *titleDiv = UIcreateContainer(
         (SDL_Rect){.x = 0, .y = 0, .w = LOGICAL_WIDTH, .h = (int)(LOGICAL_HEIGHT * titleHeight)},
@@ -77,6 +76,8 @@ void onEnterVideoOptions(ZENg zEngine) {
             exit(EXIT_FAILURE);
         }
         *modeData = i;  // 0 = windowed, 1 = fullscreen
+        addStateData(currState, (void *)modeData, STATE_DATA_PLAIN);
+
         UINode *button = UIcreateButton(
             zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf#28"),
             strdup(windowModes[i]), UI_STATE_NORMAL, (SDL_Color[]) {
@@ -118,7 +119,13 @@ void onEnterVideoOptions(ZENg zEngine) {
             exit(EXIT_FAILURE);
         }
         snprintf(resolutions[i], 16, "%dx%d", modes[i].w, modes[i].h);
+
+        // Add each resolution string separately first
+        addStateData(currState, (void *)resolutions[i], STATE_DATA_PLAIN);
     }
+    // Then add the string array
+    addStateData(currState, (void *)resolutions, STATE_DATA_PLAIN);
+    addStateData(currState, (void *)modes, STATE_DATA_PLAIN);
 
     UINode *resButton = UIcreateButton(
         zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf#28"),

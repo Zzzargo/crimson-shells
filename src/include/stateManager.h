@@ -4,12 +4,28 @@
 #include "global.h"
 #include "engine.h"
 
+typedef enum {
+    STATE_DATA_PLAIN  // Value or array of values, need one free
+} StateDataType;
+
+typedef struct {
+    void *data;
+    StateDataType type;
+} StateData;
+
 // A game state is described by a set of functions that handle its lifecycle
 typedef struct state {
     void (*onEnter)(ZENg);  // load state's assets
     void (*onExit)(ZENg);  // unload state's assets
     Uint8 (*handleEvents)(SDL_Event*, ZENg);  // handle input via events
     void (*handleInput)(ZENg);  // handle continuous input like player movement
+
+    /**
+     * Note: the state data is added by piece, while the deletion is done all at once at popping
+     */
+    StateData *stateDataArray;  // Optional data needed by the state
+    size_t stateDataCount;  // number of elements in the stateDataArray
+    size_t stateDataCapacity;  // capacity of the stateDataArray
 
     GameStateType type;
     Uint8 isOverlay;  // for short lifetime states like pause state
@@ -282,7 +298,21 @@ typedef struct statemng {
  * @param stateMng pointer to StateManager = struct statemng**
  * @return void
  */
-void initStateManager(StateManager *stateMng);
+ void initStateManager(StateManager *stateMng);
+
+/**
+ * Adds data to a GameState's stateDataArray
+ * @param state pointer to the GameState
+ * @param data pointer to the data to add
+ * @param type StateDataType enum value describing the type of data being added
+ */
+void addStateData(GameState *state, void *data, StateDataType type);
+
+/**
+ * Clears all state data from a GameState
+ * @param state pointer to the GameState
+ */
+void clearStateData(GameState *state);
 
 /**
  * Pushes a new state onto the state manager's stack

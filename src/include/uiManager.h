@@ -95,7 +95,7 @@ typedef struct UIButton {
 } UIButton;
 
 /**
- * An option cycle is basically a list of options that can be cycled through, controlled by a button
+ * An option cycle is basically a list of options that can be cycled through, controlled by a button node
  * Both elements are contained in this struct, so it can be viewed as a special container
  */
 typedef struct UIOptionCycle {
