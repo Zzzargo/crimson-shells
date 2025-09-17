@@ -1,7 +1,7 @@
 #ifndef INPUT_MANAGER_H
 #define INPUT_MANAGER_H
 
-#include "global.h"
+#include "../global/global.h"
 
 // Available input actions enum
 typedef enum {

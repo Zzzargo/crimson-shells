@@ -1,4 +1,4 @@
-#include "include/uiManager.h"
+#include "uiManager.h"
 
 UIManager initUIManager() {
     UIManager uiManager = calloc(1, sizeof(struct UIManager));

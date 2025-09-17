@@ -1,4 +1,4 @@
-#include "include/vec2.h"
+#include "vec2.h"
 
 double_t vec2_len(Vec2 v) {
     return sqrt(v.x * v.x + v.y * v.y);

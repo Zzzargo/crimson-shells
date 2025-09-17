@@ -1,4 +1,4 @@
-#include "include/stateManager.h"
+#include "stateManager.h"
 
 void initStateManager(StateManager *stateMng) {
     *stateMng = calloc(1, sizeof(struct statemng));

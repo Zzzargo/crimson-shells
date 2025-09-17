@@ -1,8 +1,8 @@
 #ifndef STATE_MANAGER_H
 #define STATE_MANAGER_H
 
-#include "global.h"
-#include "engine.h"
+#include "../global/global.h"
+#include "../engine/engine.h"
 
 typedef enum {
     STATE_DATA_PLAIN  // Value or array of values, need one free
@@ -21,9 +21,10 @@ typedef struct state {
     void (*handleInput)(ZENg);  // handle continuous input like player movement
 
     /**
-     * Note: the state data is added by piece, while the deletion is done all at once at popping
+     * Optional data needed by the state
+     * Note: the state data is added by piece, while the deletion is done all at once at state exit
      */
-    StateData *stateDataArray;  // Optional data needed by the state
+    StateData *stateDataArray;
     size_t stateDataCount;  // number of elements in the stateDataArray
     size_t stateDataCapacity;  // capacity of the stateDataArray
 
@@ -78,76 +79,169 @@ Uint8 handleMainMenuEvents(SDL_Event *event, ZENg zEngine);
 void mMenuToPlay(ZENg zEngine, void *data);
 
 /**
- * Transition from main menu to options state
+ * Transition from main menu to garage state
  * @param zEngine pointer to the engine
  */
-void mMenuToOptions(ZENg zEngine, void *data);
-
-// ============================================= OPTIONS STATE =========================================================
+void mMenuToGarage(ZENg zEngine, void *data);
 
 /**
- * Loads the options menu UI components into the ECS
+ * Transition from main menu to settings state
  * @param zEngine pointer to the engine
  */
-void onEnterOptionsMenu(ZENg zEngine);
+void mMenuToSettings(ZENg zEngine, void *data);
+
+// ============================================= GARAGE STATE ===================================================
 
 /**
- * Clears the options menu UI components from the ECS
+ * Loads the garage UI and entities
  * @param zEngine pointer to the engine
  */
-void onExitOptionsMenu(ZENg zEngine);
+void onEnterGarage(ZENg zEngine);
 
 /**
- * Takes care of the events in the options menu
+ * Unloads the garage UI and entities
+ * @param zEngine pointer to the engine
+ */
+void onExitGarage(ZENg zEngine);
+
+/**
+ * Handles the events in the garage state
  * @param event pointer to the SDL_Event
  * @param zEngine pointer to the engine
  * @return 0 if the event is trying to exit the game, 1 otherwise
  */
-Uint8 handleOptionsMenuEvents(SDL_Event *event, ZENg zEngine);
+Uint8 handleGarageEvents(SDL_Event *event, ZENg zEngine);
 
 /**
- * Transition from options menu to game options
+ * Transition from garage to the main menu
  * @param zEngine pointer to the engine
+ * @param data unused
  */
-void optionsToGameOpt(ZENg zEngine, void *data);
+void garageToMMenu(ZENg zEngine, void *data);
+
+// ============================================= SETTINGS STATE ========================================================
 
 /**
- * Transition from options menu to audio options
+ * Loads the settings menu UI
  * @param zEngine pointer to the engine
  */
-void optionsToAudioOpt(ZENg zEngine, void *data);
+void onEnterSettingsMenu(ZENg zEngine);
 
 /**
- * Transition from options menu to video options
+ * Clears the settings menu UI components from the ECS
  * @param zEngine pointer to the engine
  */
-void optionsToVideoOpt(ZENg zEngine, void *data);
+void onExitSettingsMenu(ZENg zEngine);
 
 /**
- * Transition from options menu to controls options
+ * Takes care of the events in the Settings menu
+ * @param event pointer to the SDL_Event
  * @param zEngine pointer to the engine
+ * @return 0 if the event is trying to exit the game, 1 otherwise
  */
-void optionsToControlsOpt(ZENg zEngine, void *data);
+Uint8 handleSettingsMenuEvents(SDL_Event *event, ZENg zEngine);
 
 /**
- * Transition from options menu to main menu
+ * Transition from settings menu to game Settings
  * @param zEngine pointer to the engine
  */
-void optionsToMMenu(ZENg zEngine, void *data);
-
-// ============================================= VIDEO OPTIONS STATE ===================================================
+void settingsToGameSettings(ZENg zEngine, void *data);
 
 /**
- * Loads the video options UI components into the ECS
+ * Transition from settings menu to audio settings
  * @param zEngine pointer to the engine
  */
-void onEnterVideoOptions(ZENg zEngine);
+void settingsToAudioSettings(ZENg zEngine, void *data);
 
 /**
- * Deletes the video options UI components from the ECS
+ * Transition from settings menu to video Settings
  * @param zEngine pointer to the engine
  */
-void onExitVideoOptions(ZENg zEngine);
+void settingsToVideoSettings(ZENg zEngine, void *data);
+
+/**
+ * Transition from settings menu to controls settings
+ * @param zEngine pointer to the engine
+ */
+void settingsToControlsSettings(ZENg zEngine, void *data);
+
+/**
+ * Transition from settings menu to main menu
+ * @param zEngine pointer to the engine
+ */
+void settingsToMMenu(ZENg zEngine, void *data);
+
+// ============================================= GAME SETTINGS STATE ===================================================
+
+/**
+ * Loads the game Settings UI
+ * @param zEngine pointer to the engine
+ */
+void onEnterGameSettings(ZENg zEngine);
+
+/**
+ * Unloads the game Settings UI
+ * @param zEngine pointer to the engine
+ */
+void onExitGameSettings(ZENg zEngine);
+
+/**
+ * Handles the events in the game Settings menu
+ * @param event pointer to the SDL_Event
+ * @param zEngine pointer to the engine
+ * @return 0 if the event is trying to exit the game, 1 otherwise
+ */
+Uint8 handleGameSettingsEvents(SDL_Event *event, ZENg zEngine);
+
+/**
+ * Transition from game Settings to Settings menu
+ * @param zEngine pointer to the engine
+ * @param data unused
+ */
+void gameSettingsToSettings(ZENg zEngine, void *data);
+
+// ============================================= AUDIO SETTINGS STATE ==================================================
+
+/**
+ * Loads the audio Settings UI
+ * @param zEngine pointer to the engine
+ */
+void onEnterAudioSettings(ZENg zEngine);
+
+/**
+ * Unloads the audio Settings UI
+ * @param zEngine pointer to the engine
+ */
+void onExitAudioSettings(ZENg zEngine);
+
+/**
+ * Handles the events in the audio Settings menu
+ * @param event pointer to the SDL_Event
+ * @param zEngine pointer to the engine
+ * @return 0 if the event is trying to exit the audio, 1 otherwise
+ */
+Uint8 handleAudioSettingsEvents(SDL_Event *event, ZENg zEngine);
+
+/**
+ * Transition from audio Settings to Settings menu
+ * @param zEngine pointer to the engine
+ * @param data unused
+ */
+void audioSettingsToSettings(ZENg zEngine, void *data);
+
+// ============================================= VIDEO SETTINGS STATE ==================================================
+
+/**
+ * Loads the video Settings UI
+ * @param zEngine pointer to the engine
+ */
+void onEnterVideoSettings(ZENg zEngine);
+
+/**
+ * Deletes the video Settings UI components from the ECS
+ * @param zEngine pointer to the engine
+ */
+void onExitVideoSettings(ZENg zEngine);
 
 /**
  * Button action to toggle fullscreen/windowed mode
@@ -164,19 +258,48 @@ void changeWindowMode(ZENg zEngine, void *data);
 void changeRes(ZENg zEngine, void *data);
 
 /**
- * Handles the events in the video options menu
+ * Handles the events in the video Settings menu
  * @param event pointer to the SDL_Event
  * @param zEngine pointer to the engine
  * @return 0 if the event is trying to exit the game, 1 otherwise
  */
-Uint8 handleVideoOptionsEvents(SDL_Event *event, ZENg zEngine);
+Uint8 handleVideoSettingsEvents(SDL_Event *event, ZENg zEngine);
 
 /**
- * Transition from video options to options menu
+ * Transition from video Settings to Settings menu
  * @param zEngine pointer to the engine
  * @param data unused
  */
-void videoOptToOpt(ZENg zEngine, void *data);
+void videoSettingsToSettings(ZENg zEngine, void *data);
+
+// ============================================= CONTROLS SETTINGS STATE ===============================================
+
+/**
+ * Loads the controls Settings UI
+ * @param zEngine pointer to the engine
+ */
+void onEnterControlsSettings(ZENg zEngine);
+
+/**
+ * Unloads the controls Settings UI
+ * @param zEngine pointer to the engine
+ */
+void onExitControlsSettings(ZENg zEngine);
+
+/**
+ * Handles the events in the controls Settings menu
+ * @param event pointer to the SDL_Event
+ * @param zEngine pointer to the engine
+ * @return 0 if the event is trying to exit the controls, 1 otherwise
+ */
+Uint8 handleControlsSettingsEvents(SDL_Event *event, ZENg zEngine);
+
+/**
+ * Transition from controls Settings to Settings menu
+ * @param zEngine pointer to the engine
+ * @param data unused
+ */
+void controlsSettingsToSettings(ZENg zEngine, void *data);
 
 // ================================================ PLAY STATE =========================================================
 
@@ -191,14 +314,6 @@ void onEnterPlayState(ZENg zEngine);
  * @param zEngine pointer to the engine
  */
 void onExitPlayState(ZENg zEngine);
-
-// /**
-//  * Spawns a tank entity and sets it up with components
-//  * 
-//  */
-// void spawnTank(
-//     ZENg zEngine, Uint32 tileIdx, Int32 maxHealth,
-// );
 
 /**
  * Instantiates a weapon from a prefab
@@ -253,7 +368,7 @@ void handlePlayStateInput(ZENg zEngine);
 // ================================================ PAUSE STATE ========================================================
 
 /**
- * Loads the pause menu UI components into the ECS
+ * Loads the pause menu UI
  * @param zEngine pointer to the engine
  */
 void onEnterPauseState(ZENg zEngine);

@@ -1,7 +1,7 @@
 #ifndef UI_MANAGER_H
 #define UI_MANAGER_H
 
-#include "global.h"
+#include "../global/global.h"
 
 // Here begins my journey into hell
 

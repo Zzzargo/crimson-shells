@@ -1,4 +1,4 @@
-#include "include/stateManager.h"
+#include "stateManager.h"
 
 void onEnterMainMenu(ZENg zEngine) {
     // How much each of the height containers take
@@ -40,10 +40,10 @@ void onEnterMainMenu(ZENg zEngine) {
     UIinsertNode(zEngine->uiManager, zEngine->uiManager->root, listDiv);
 
     char* buttonLabels[] = {
-        "Play", "Options", "Exit"
+        "Play", "Garage", "Settings", "Exit"
     };
     void (*buttonActions[])(ZENg, void *) = {
-        &mMenuToPlay, &mMenuToOptions, &prepareExit
+        &mMenuToPlay, &mMenuToGarage, &mMenuToSettings, &prepareExit
     };
     size_t buttonCount = sizeof(buttonLabels) / sizeof(buttonLabels[0]);
 
@@ -79,7 +79,7 @@ void onEnterMainMenu(ZENg zEngine) {
 
     UINode *footerLabel = UIcreateLabel(
         zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf#28"),
-        strdup("2024 © Zargo Games"), COLOR_WITH_ALPHA(COLOR_WHITE, OPACITY_MEDIUM)
+        strdup("I am hiring!!!"), COLOR_WITH_ALPHA(COLOR_WHITE, OPACITY_MEDIUM)
     );
     UIinsertNode(zEngine->uiManager, footerDiv, footerLabel);
 
@@ -131,7 +131,9 @@ Uint8 handleMenuNavigation(SDL_Event *event, ZENg zEngine) {
                             return 1;
                         }
                     }
-                    printf("ANOMALY. Not found a previous focusable sibling for current focused node\n");
+                    #ifdef DEBUG
+                        printf("Not found a previous focusable sibling for current focused node\n");
+                    #endif
                 }
                 return 1;
             }
@@ -149,7 +151,9 @@ Uint8 handleMenuNavigation(SDL_Event *event, ZENg zEngine) {
                             return 1;
                         }
                     }
-                    printf("ANOMALY. Not found a next focusable sibling for current focused node\n");
+                    #ifdef DEBUG
+                        printf("Not found a next focusable sibling for current focused node\n");
+                    #endif
                 }
                 return 1;
             }
@@ -251,20 +255,37 @@ void mMenuToPlay(ZENg zEngine, void *data) {
  * =====================================================================================================================
  */
 
-void mMenuToOptions(ZENg zEngine, void *data) {
-    // push the options state to the gamestate stack
-    GameState *optionsState = calloc(1, sizeof(GameState));
-    if (!optionsState) {
-        printf("Failed to allocate memory for options state\n");
+void mMenuToSettings(ZENg zEngine, void *data) {
+    // push the settings state to the gamestate stack
+    GameState *settingsState = calloc(1, sizeof(GameState));
+    if (!settingsState) {
+        printf("Failed to allocate memory for settings state\n");
         exit(EXIT_FAILURE);
     }
-    optionsState->type = STATE_OPTIONS;
-    optionsState->isOverlay = 0;  // this state doesn't use much resources
-    optionsState->onEnter = &onEnterOptionsMenu;
-    optionsState->onExit = &onExitOptionsMenu;
-    optionsState->handleEvents = &handleOptionsMenuEvents;
-    optionsState->handleInput = NULL;  // no continuous input
-    pushState(zEngine, optionsState);
+    settingsState->type = STATE_SETTINGS;
+    settingsState->isOverlay = 0;  // this state doesn't use much resources
+    settingsState->onEnter = &onEnterSettingsMenu;
+    settingsState->onExit = &onExitSettingsMenu;
+    settingsState->handleEvents = &handleSettingsMenuEvents;
+    settingsState->handleInput = NULL;  // no continuous input
+    pushState(zEngine, settingsState);
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+void mMenuToGarage(ZENg zEngine, void *data) {
+    GameState *garageState = calloc(1, sizeof(GameState));
+    if (!garageState) {
+        printf("Failed to allocate memory for garage state\n");
+        exit(EXIT_FAILURE);
+    }
+    garageState->type = STATE_GARAGE;
+    garageState->onEnter = &onEnterGarage;
+    garageState->onExit = &onExitGarage;
+    garageState->handleEvents = &handleGarageEvents;
+    pushState(zEngine, garageState);
 }
 
 /**

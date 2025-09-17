@@ -1,6 +1,6 @@
-#include "include/stateManager.h"
+#include "stateManager.h"
 
-void onEnterOptionsMenu(ZENg zEngine) {
+void onEnterAudioSettings(ZENg zEngine) {
     // How much each of the height containers take
     float titleSize = 0.3;
     
@@ -19,7 +19,7 @@ void onEnterOptionsMenu(ZENg zEngine) {
 
     UINode *titleLabel = UIcreateLabel(
         zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf#48"),
-        strdup("Options"), COLOR_CRIMSON
+        strdup("Audio Settings"), COLOR_CRIMSON
     );
     UIinsertNode(zEngine->uiManager, titleDiv, titleLabel);
 
@@ -39,10 +39,10 @@ void onEnterOptionsMenu(ZENg zEngine) {
     UIinsertNode(zEngine->uiManager, zEngine->uiManager->root, listDiv);
 
     char* buttonLabels[] = {
-        "Game", "Audio", "Display", "Controls", "Back"
+        "Back"
     };
     void (*buttonActions[])(ZENg, void *) = {
-        &optionsToGameOpt, &optionsToAudioOpt, &optionsToVideoOpt, &optionsToControlsOpt, &optionsToMMenu
+        &audioSettingsToSettings
     };
     size_t buttonCount = sizeof(buttonLabels) / sizeof(buttonLabels[0]);
 
@@ -68,7 +68,7 @@ void onEnterOptionsMenu(ZENg zEngine) {
  * =====================================================================================================================
  */
 
-void onExitOptionsMenu(ZENg zEngine) {
+void onExitAudioSettings(ZENg zEngine) {
     UIclear(zEngine->uiManager);
 }
 
@@ -76,7 +76,7 @@ void onExitOptionsMenu(ZENg zEngine) {
  * =====================================================================================================================
  */
 
-Uint8 handleOptionsMenuEvents(SDL_Event *event, ZENg zEngine) {
+Uint8 handleAudioSettingsEvents(SDL_Event *event, ZENg zEngine) {
     return handleMenuNavigation(event, zEngine);
 }
 
@@ -84,48 +84,6 @@ Uint8 handleOptionsMenuEvents(SDL_Event *event, ZENg zEngine) {
  * =====================================================================================================================
  */
 
- void optionsToGameOpt(ZENg zEngine, void *data) {
-
- }
-
- /**
- * =====================================================================================================================
- */
-
-void optionsToAudioOpt(ZENg zEngin, void *data) {
-
-}
-
-/**
- * =====================================================================================================================
- */
-
-void optionsToVideoOpt(ZENg zEngine, void *data) {
-    GameState *videoOpt = calloc(1, sizeof(GameState));
-    if (!videoOpt) {
-        printf("Failed to allocate memory for the video options state");
-        exit(EXIT_FAILURE);
-    }
-    videoOpt->type = STATE_OPTIONS_VIDEO;
-    videoOpt->onEnter = &onEnterVideoOptions;
-    videoOpt->onExit = &onExitVideoOptions;
-    videoOpt->handleEvents = &handleVideoOptionsEvents;
-
-    pushState(zEngine, videoOpt);
-}
-
-/**
- * =====================================================================================================================
- */
-
-void optionsToControlsOpt(ZENg zEngine, void *data) {
-
-}
-
-/**
- * =====================================================================================================================
- */
-
-void optionsToMMenu(ZENg zEngine, void *data) {
-    popState(zEngine);  // -> Main menu
+void audioSettingsToSettings(ZENg zEngine, void *data) {
+    popState(zEngine);
 }

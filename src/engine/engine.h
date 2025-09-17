@@ -4,7 +4,6 @@
 #include "ecs.h"
 #include "inputManager.h"
 #include "resourceManager.h"
-#include "builder.h"
 #include "displayManager.h"
 #include "arena.h"
 #include "uiManager.h"
@@ -24,7 +23,7 @@ typedef struct engine {
     Arena map;  // Pointer to the arena structure
 } *ZENg;
 
-#include "stateManager.h"  // stateManager needs the engine definition
+#include "../states/stateManager.h"  // stateManager needs the engine definition
 
 /**
  * Loads the settings from a file

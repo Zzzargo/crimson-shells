@@ -8,8 +8,13 @@ set(CMAKE_C_STANDARD 99)
 set(CMAKE_BUILD_TYPE Debug)
 
 # Source and include directories
-file(GLOB SOURCES "src/*.c")
-include_directories("./src/include")
+file(GLOB_RECURSE SOURCES "src/*.c")
+include_directories(
+    ./src
+    ./src/engine
+    ./src/global
+    ./src/states
+)
 
 # Add SDL2
 find_package(SDL2 REQUIRED)

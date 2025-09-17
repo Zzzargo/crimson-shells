@@ -1,4 +1,4 @@
-#include "include/displayManager.h"
+#include "displayManager.h"
 
 void setDefaultDisplaySettings(DisplayManager display) {
     if (!display) {

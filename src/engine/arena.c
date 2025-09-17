@@ -1,4 +1,4 @@
-#include "include/arena.h"
+#include "arena.h"
 
 Uint32 TILE_SIZE = 0;
 

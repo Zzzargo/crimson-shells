@@ -53,6 +53,7 @@ typedef int64_t Int64;
 #define COLOR_CYAN (SDL_Color){0, 255, 255, 255}
 #define COLOR_MAGENTA (SDL_Color){255, 0, 255, 255}
 #define COLOR_CRIMSON (SDL_Color){220, 20, 60, 255}
+#define COLOR_PURPLE (SDL_Color){128, 0, 128, 255}
 
 // Coordinate system axis
 typedef enum {

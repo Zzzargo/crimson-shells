@@ -1,4 +1,4 @@
-#include "include/resourceManager.h"
+#include "resourceManager.h"
 
 void initResourceManager(ResourceManager *resMng) {
     // allocate memory for the ResourceManager

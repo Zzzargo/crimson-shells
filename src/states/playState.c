@@ -1,4 +1,4 @@
-#include "include/stateManager.h"
+#include "stateManager.h"
 
 void onEnterPlayState(ZENg zEngine) {
     initLevel(zEngine, "arenatest");

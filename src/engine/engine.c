@@ -1,4 +1,4 @@
-#include "include/engine.h"
+#include "engine.h"
 
 void loadSettings(ZENg zEngine, const char *filePath) {
     // look for the file
@@ -669,18 +669,20 @@ void handleEntitiesCollision(ZENg zEngine, CollisionComponent *AColComp, Collisi
         return;
     }
 
+    Uint64 APage = AOwner / PAGE_SIZE;
+    Uint64 AIndex = AOwner % PAGE_SIZE;
+
+    Uint64 BPage = BOwner / PAGE_SIZE;
+    Uint64 BIndex = BOwner % PAGE_SIZE;
+
     if (AColComp->role == COL_ACTOR && BColComp->role == COL_ACTOR) {
-        printf("QUIT THE SMOOCHING!1!\n");
+        Uint64 AVelDenseIdx = zEngine->ecs->components[VELOCITY_COMPONENT].sparse[APage][AIndex];
         return;
     }
 
-    Uint64 APage = AOwner / PAGE_SIZE;
-    Uint64 AIndex = AOwner % PAGE_SIZE;
     Uint64 ADenseIndex = zEngine->ecs->components[PROJECTILE_COMPONENT].sparse[APage][AIndex];
     ProjectileComponent *AProjComp = (ProjectileComponent *)(zEngine->ecs->components[PROJECTILE_COMPONENT].dense[ADenseIndex]);
-    
-    Uint64 BPage = BOwner / PAGE_SIZE;
-    Uint64 BIndex = BOwner % PAGE_SIZE;
+
     Uint64 BDenseIndex = zEngine->ecs->components[PROJECTILE_COMPONENT].sparse[BPage][BIndex];
     ProjectileComponent *BProjComp = (ProjectileComponent *)(zEngine->ecs->components[PROJECTILE_COMPONENT].dense[BDenseIndex]);
 

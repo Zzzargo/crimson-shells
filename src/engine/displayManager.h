@@ -1,7 +1,7 @@
 #ifndef DISPLAY_MANAGER_H
 #define DISPLAY_MANAGER_H
 
-#include <global.h>
+#include "../global/global.h"
 
 typedef struct displaymng {
     SDL_Window *window;  // pointer to the game's window

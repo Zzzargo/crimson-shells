@@ -1,4 +1,4 @@
-#include "include/inputManager.h"
+#include "inputManager.h"
 
 void saveKeyBindings(InputManager inputMng, const char *filePath) {
     FILE *fout = fopen(filePath, "w");

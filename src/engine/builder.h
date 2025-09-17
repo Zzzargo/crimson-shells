@@ -1,7 +1,7 @@
 #ifndef BUILDER_H
 #define BUILDER_H
 
-#include "global.h"
+#include "../global/global.h"
 
 typedef enum {
     BUILDER_TANKS,

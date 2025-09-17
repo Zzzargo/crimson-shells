@@ -1,6 +1,6 @@
-#include "include/stateManager.h"
+#include "stateManager.h"
 
-void onEnterVideoOptions(ZENg zEngine) {
+void onEnterVideoSettings(ZENg zEngine) {
     double titleHeight = 0.3;  // 30% of the screen height
     
     double listHeight = 0.7;  // 70% of the screen height
@@ -28,7 +28,7 @@ void onEnterVideoOptions(ZENg zEngine) {
 
     UINode *titleLabel = UIcreateLabel(
         zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf#48"),
-        strdup("Display Options"), COLOR_CRIMSON
+        strdup("Display Settings"), COLOR_CRIMSON
     );
     UIinsertNode(zEngine->uiManager, titleDiv, titleLabel);
 
@@ -67,8 +67,8 @@ void onEnterVideoOptions(ZENg zEngine) {
         }, optionCyclesActions[0], NULL  // Data is fetched from the current option in navigation
     );
 
-    // Populate the options list
-    CDLLNode *windowModesOptions = NULL;
+    // Populate the settings list
+    CDLLNode *windowModesSetions = NULL;
     for (Uint8 i = 0; i < windowModesCount; i++) {
         Uint8 *modeData = calloc(1, sizeof(Uint8));
         if (!modeData) {
@@ -85,9 +85,9 @@ void onEnterVideoOptions(ZENg zEngine) {
             }, NULL, (void *)modeData
         );
         if (i == 0) {
-            windowModesOptions = initList((void *)button);
+            windowModesSetions = initList((void *)button);
         } else {
-            CDLLInsertLast(windowModesOptions, (void *)button);
+            CDLLInsertLast(windowModesSetions, (void *)button);
         }
     }
     UINode *windowModeCycle = UIcreateOptionCycle(
@@ -96,11 +96,11 @@ void onEnterVideoOptions(ZENg zEngine) {
             UI_LAYOUT_HORIZONTAL, (UIPadding){
                 .bottom = 0.0, .top = 0.0, .left = windowModesPaddingH, .right = windowModesPaddingH
                 }, (UIAlignment){.h = UI_ALIGNMENT_CENTER, .v = UI_ALIGNMENT_CENTER}, windowModesSpacing
-        ), windowModeButton, windowModesOptions
+        ), windowModeButton, windowModesSetions
     );
     // Add those as children to apply layout
     UIinsertNode(zEngine->uiManager, windowModeCycle, windowModeButton);
-    UIinsertNode(zEngine->uiManager, windowModeCycle, (UINode *)windowModesOptions->data);
+    UIinsertNode(zEngine->uiManager, windowModeCycle, (UINode *)windowModesSetions->data);
 
     UIinsertNode(zEngine->uiManager, listDiv, windowModeCycle);
     zEngine->uiManager->focusedNode = windowModeCycle;  // Initial focus on the first option cycle
@@ -135,7 +135,7 @@ void onEnterVideoOptions(ZENg zEngine) {
     );
 
     // Populate the resolutions list
-    CDLLNode *resOptions = NULL;
+    CDLLNode *resSetions = NULL;
     for (Uint8 i = 0; i < resCount; i++) {
         UINode *button = UIcreateButton(
             zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf#28"),
@@ -144,9 +144,9 @@ void onEnterVideoOptions(ZENg zEngine) {
             }, NULL, (void *)(&modes[i])
         );
         if (i == 0) {
-            resOptions = initList((void *)button);
+            resSetions = initList((void *)button);
         } else {
-            CDLLInsertLast(resOptions, (void *)button);
+            CDLLInsertLast(resSetions, (void *)button);
         }
     }
     UINode *resCycle = UIcreateOptionCycle(
@@ -155,20 +155,36 @@ void onEnterVideoOptions(ZENg zEngine) {
             UI_LAYOUT_HORIZONTAL, (UIPadding){
                 .bottom = 0.0, .top = 0.0, .left = resolutionsPaddingH, .right = resolutionsPaddingH
                 }, (UIAlignment){.h = UI_ALIGNMENT_CENTER, .v = UI_ALIGNMENT_CENTER}, resolutionsSpacing
-        ), resButton, resOptions
+        ), resButton, resSetions
     );
     // Add those as children to apply layout
     UIinsertNode(zEngine->uiManager, resCycle, resButton);
-    UIinsertNode(zEngine->uiManager, resCycle, (UINode *)resOptions->data);
+    UIinsertNode(zEngine->uiManager, resCycle, (UINode *)resSetions->data);
 
     UIinsertNode(zEngine->uiManager, listDiv, resCycle);
+
+    UINode *backButton = UIcreateButton(
+        zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf#28"),
+        strdup("Back"), UI_STATE_NORMAL, (SDL_Color[]) {
+            COLOR_WHITE, COLOR_YELLOW, COLOR_WITH_ALPHA(COLOR_WHITE, OPACITY_MEDIUM)
+        }, &videoSettingsToSettings, NULL
+    );
+    UIinsertNode(zEngine->uiManager, listDiv, backButton);
 
     UIapplyLayout(zEngine->uiManager->root);
 }
 
-void onExitVideoOptions(ZENg zEngine) {
+/**
+ * =====================================================================================================================
+ */
+
+void onExitVideoSettings(ZENg zEngine) {
     UIclear(zEngine->uiManager);
 }
+
+/**
+ * =====================================================================================================================
+ */
 
 void changeRes(ZENg zEngine, void *data) {
     if (!data) {
@@ -178,6 +194,10 @@ void changeRes(ZENg zEngine, void *data) {
     SDL_DisplayMode *mode = (SDL_DisplayMode *)data;
     setDisplayMode(zEngine->display, mode);
 }
+
+/**
+ * =====================================================================================================================
+ */
 
 void changeWindowMode(ZENg zEngine, void *data) {
     if (!data) {
@@ -191,10 +211,18 @@ void changeWindowMode(ZENg zEngine, void *data) {
     }
 }
 
-Uint8 handleVideoOptionsEvents(SDL_Event *event, ZENg zEngine) {
+/**
+ * =====================================================================================================================
+ */
+
+Uint8 handleVideoSettingsEvents(SDL_Event *event, ZENg zEngine) {
     return handleMenuNavigation(event, zEngine);
 }
 
-void videoOptToOpt(ZENg zEngine, void *data) {
-    popState(zEngine);  // -> Options menu
+/**
+ * =====================================================================================================================
+ */
+
+void videoSettingsToSettings(ZENg zEngine, void *data) {
+    popState(zEngine);  // -> Settings menu
 }

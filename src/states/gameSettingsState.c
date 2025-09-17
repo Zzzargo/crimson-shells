@@ -1,6 +1,6 @@
-#include "include/stateManager.h"
+#include "stateManager.h"
 
-void onEnterPauseState(ZENg zEngine) {
+void onEnterGameSettings(ZENg zEngine) {
     // How much each of the height containers take
     float titleSize = 0.3;
     
@@ -19,13 +19,13 @@ void onEnterPauseState(ZENg zEngine) {
 
     UINode *titleLabel = UIcreateLabel(
         zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf#48"),
-        strdup("PAUSED"), COLOR_CRIMSON
+        strdup("Game Settings"), COLOR_CRIMSON
     );
     UIinsertNode(zEngine->uiManager, titleDiv, titleLabel);
 
 
     UINode *listDiv = UIcreateContainer(
-        (SDL_Rect){
+        (SDL_Rect) {
             .x = 0,
             .y = (int)(LOGICAL_HEIGHT * titleSize),
             .w = LOGICAL_WIDTH,
@@ -39,10 +39,10 @@ void onEnterPauseState(ZENg zEngine) {
     UIinsertNode(zEngine->uiManager, zEngine->uiManager->root, listDiv);
 
     char* buttonLabels[] = {
-        "Resume", "Main menu"
+        "Back"
     };
     void (*buttonActions[])(ZENg, void *) = {
-        &pauseToPlay, &pauseToMMenu
+        &gameSettingsToSettings
     };
     size_t buttonCount = sizeof(buttonLabels) / sizeof(buttonLabels[0]);
 
@@ -62,62 +62,28 @@ void onEnterPauseState(ZENg zEngine) {
     }
 
     UIapplyLayout(zEngine->uiManager->root);
-
-    SystemNode **systems = zEngine->ecs->depGraph->nodes;
-    systems[SYS_LIFETIME]->isActive = 0;
-    systems[SYS_WEAPONS]->isActive = 0;
-    systems[SYS_VELOCITY]->isActive = 0;
-    systems[SYS_WORLD_COLLISIONS]->isActive = 0;
-    systems[SYS_ENTITY_COLLISIONS]->isActive = 0;
-    systems[SYS_POSITION]->isActive = 0;
-    systems[SYS_HEALTH]->isActive = 0;
-    systems[SYS_TRANSFORM]->isActive = 0;
 }
 
 /**
  * =====================================================================================================================
  */
 
-void onExitPauseState(ZENg zEngine) {
-    // Delete pause state entities
-    sweepState(zEngine->ecs, STATE_PAUSED);
+void onExitGameSettings(ZENg zEngine) {
     UIclear(zEngine->uiManager);
-
-    SystemNode **systems = zEngine->ecs->depGraph->nodes;
-    // Enable the game's systems
-    systems[SYS_LIFETIME]->isActive = 1;
-    systems[SYS_WEAPONS]->isActive = 1;
-    systems[SYS_VELOCITY]->isActive = 1;
-    systems[SYS_WORLD_COLLISIONS]->isActive = 1;
-    systems[SYS_ENTITY_COLLISIONS]->isActive = 1;
-    systems[SYS_POSITION]->isActive = 1;
-    systems[SYS_HEALTH]->isActive = 1;
-    systems[SYS_TRANSFORM]->isActive = 1;
-    // Force a frame
-    systems[SYS_VELOCITY]->isDirty = 1;
 }
 
 /**
  * =====================================================================================================================
  */
 
-Uint8 handlePauseStateEvents(SDL_Event *e, ZENg zEngine) {
-    return handleMenuNavigation(e, zEngine);
+Uint8 handleGameSettingsEvents(SDL_Event *event, ZENg zEngine) {
+    return handleMenuNavigation(event, zEngine);
 }
 
 /**
  * =====================================================================================================================
  */
 
-void pauseToPlay(ZENg zEngine, void *data) {
+void gameSettingsToSettings(ZENg zEngine, void *data) {
     popState(zEngine);
-}
-
-/**
- * =====================================================================================================================
- */
-
-void pauseToMMenu(ZENg zEngine, void *data) {
-    popState(zEngine);  // -> play
-    popState(zEngine);  // -> Menu
 }

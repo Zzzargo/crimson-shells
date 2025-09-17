@@ -5,16 +5,18 @@
 // Little game - big ideas
 // Using sparse sets with pagination for efficiency
 
-#include "global.h"
+#include "../global/global.h"
 #include "builder.h"
 
 // Available game states enum - declared in advance for the StateTagComponent
 typedef enum {
     STATE_MAIN_MENU,
-    STATE_OPTIONS,
-    STATE_OPTIONS_AUDIO,
-    STATE_OPTIONS_VIDEO,
-    STATE_OPTIONS_CONTROLS,
+    STATE_GARAGE,
+    STATE_SETTINGS,
+    STATE_GAME_SETTINGS,
+    STATE_AUDIO_SETTINGS,
+    STATE_VIDEO_SETTINGS,
+    STATE_CONTROLS_SETTINGS,
     STATE_PLAYING,
     STATE_PAUSED,
     STATE_GAME_OVER,

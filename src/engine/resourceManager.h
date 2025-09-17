@@ -1,7 +1,7 @@
 #ifndef RESOURCE_MANAGER_H
 #define RESOURCE_MANAGER_H
 
-#include "global.h"
+#include "../global/global.h"
 
 typedef enum {
     RESOURCE_TEXTURE,
