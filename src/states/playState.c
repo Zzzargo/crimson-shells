@@ -1,7 +1,7 @@
 #include "stateManager.h"
 
 void onEnterPlayState(ZENg zEngine) {
-    initLevel(zEngine, "arenatest");
+    initLevel(zEngine, "data/arenatest");
 
     // Add some weapons to the player while testing the arena parser
     Entity mainGunID = createEntity(zEngine->ecs, STATE_PLAYING);

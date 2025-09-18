@@ -488,7 +488,7 @@ ZENg initGame() {
 
     // Initialize the prefabs manager
     initPrefabsManager(&zEngine->prefabs);
-    loadPrefabs(zEngine->prefabs, "data");
+    loadPrefabs(zEngine->prefabs, "data/prefabs");
 
     zEngine->uiManager = initUIManager();
 
@@ -1106,7 +1106,7 @@ void transformSystem(ZENg zEngine, double_t deltaTime) {
 
 #ifdef DEBUG
 void UIdebugRenderNode(SDL_Renderer *rdr, UIManager uiManager, UINode *node) {
-    if (!node || !node->isVisible) return;
+    if (!node || !node->isVisible || !node->rect) return;
 
     // Base debug color by type
     SDL_Color color;
@@ -1149,7 +1149,6 @@ void renderSystem(ZENg zEngine, double_t deltaTime) {
         #ifdef DEBUG
             printf("[RENDER SYSTEM] Render system is not dirty. Not good.\n");
         #endif
-        return;  // Rendering should always be done every frame
     }
 
     #ifdef DEBUG

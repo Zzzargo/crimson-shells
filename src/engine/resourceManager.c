@@ -20,7 +20,7 @@ static inline Uint32 hashFunc(const char *key) {
     while (c = *key++)
         hash = ((hash << 5) + hash) + (Uint32)c; // hash * 33 + c
 
-    return hash % HASHMAP_SIZE;
+    return hash % RES_HASHMAP_SIZE;
 }
 
 /**
@@ -258,6 +258,7 @@ void preloadResources(ResourceManager resMng, SDL_Renderer *renderer) {
     getOrLoadResource(resMng, renderer, "assets/sounds/coaxmg1.mp3", RESOURCE_SOUND);
     getOrLoadResource(resMng, renderer, "assets/sounds/coaxmg2.mp3", RESOURCE_SOUND);
     getOrLoadResource(resMng, renderer, "assets/sounds/coaxmg3.mp3", RESOURCE_SOUND);
+    getOrLoadResource(resMng, renderer, "assets/ui/arrow.png", RESOURCE_TEXTURE);
 }
 
 /**
@@ -267,7 +268,7 @@ void preloadResources(ResourceManager resMng, SDL_Renderer *renderer) {
 void freeResourceManager(ResourceManager *resMng) {
     if (!resMng || !*resMng) return;
 
-    for (int i = 0; i < HASHMAP_SIZE; i++) {
+    for (int i = 0; i < RES_HASHMAP_SIZE; i++) {
         ResourceEntry *entry = (*resMng)->hashmap[i];
         while (entry) {
             ResourceEntry *next = entry->next;

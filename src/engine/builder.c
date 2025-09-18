@@ -20,7 +20,7 @@ static inline Uint32 hashFunc(const char *key) {
     while (c = *key++)
         hash = ((hash << 5) + hash) + (Uint32)c; // hash * 33 + c
 
-    return hash % HASHMAP_SIZE;
+    return hash % PREFAB_HASHMAP_SIZE;
 }
 
 /**
@@ -232,7 +232,7 @@ void freePrefabsManager(PrefabsManager *prefabmng) {
         return;
     }
 
-    for (Uint32 i = 0; i < HASHMAP_SIZE; i++) {
+    for (Uint32 i = 0; i < PREFAB_HASHMAP_SIZE; i++) {
         BuilderEntry *entry = (*prefabmng)->hashmap[i];
         while (entry) {
             BuilderEntry *next = entry->next;

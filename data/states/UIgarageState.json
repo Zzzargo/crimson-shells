@@ -1,0 +1,196 @@
+{
+    "name": "GarageContainer",
+    "type": "container",
+    "rect": {
+        "x": 0,
+        "y": 0,
+        "w": 1280,
+        "h": 720
+    },
+    "layout": {
+        "type": "horizontal",
+        "padding": {
+            "top": 0.0,
+            "bottom": 0.0,
+            "left": 0.0,
+            "right": 0.0
+        },
+        "alignment": {
+            "h": "absolute",
+            "v": "absolute"
+        },
+        "spacing": 0.0
+    },
+    "children": [
+        {
+            "name": "LeftPanel",
+            "type": "container",
+            "rect": {
+                "x": 0,
+                "y": 0,
+                "w": 448,
+                "h": 720
+            },
+            "layout": {
+                "type": "vertical",
+                "padding": {
+                    "top": 0.1,
+                    "bottom": 0.1,
+                    "left": 0.1,
+                    "right": 0.1
+                },
+                "alignment": {
+                    "h": "center",
+                    "v": "center"
+                },
+                "spacing": 0.1
+            },
+            "children": [
+                {
+                    "type": "button",
+                    "text": "Main Gun",
+                    "font": "assets/fonts/ByteBounce.ttf#28",
+                    "color": {
+                        "normal": "crimson_170",
+                        "focused": "crimson",
+                        "selected": "yellow_150"
+                    },
+                    "onClick": "garageToMMenu",
+                    "focused": true
+                },
+                {
+                    "type": "button",
+                    "text": "Coaxial Gun 1",
+                    "font": "assets/fonts/ByteBounce.ttf#28",
+                    "color": {
+                        "normal": "crimson_170",
+                        "focused": "crimson",
+                        "selected": "yellow_150"
+                    },
+                    "onClick": "garageToMMenu"
+                },
+                {
+                    "type": "button",
+                    "text": "Coaxial Gun 2",
+                    "font": "assets/fonts/ByteBounce.ttf#28",
+                    "color": {
+                        "normal": "crimson_170",
+                        "focused": "crimson",
+                        "selected": "yellow_150"
+                    },
+                    "onClick": "garageToMMenu"
+                },
+                {
+                    "type": "button",
+                    "text": "Hull",
+                    "font": "assets/fonts/ByteBounce.ttf#28",
+                    "color": {
+                        "normal": "crimson_170",
+                        "focused": "crimson",
+                        "selected": "yellow_150"
+                    },
+                    "onClick": "garageToMMenu"
+                },
+                {
+                    "type": "button",
+                    "text": "Module",
+                    "font": "assets/fonts/ByteBounce.ttf#28",
+                    "color": {
+                        "normal": "crimson_170",
+                        "focused": "crimson",
+                        "selected": "yellow_150"
+                    },
+                    "onClick": "garageToMMenu"
+                },
+                {
+                    "type": "button",
+                    "text": "Back",
+                    "font": "assets/fonts/ByteBounce.ttf#28",
+                    "color": {
+                        "normal": "crimson_170",
+                        "focused": "crimson",
+                        "selected": "yellow_150"
+                    },
+                    "onClick": "garageToMMenu"
+                }
+            ]
+        },
+        {
+            "name": "CenterPanel",
+            "type": "container",
+            "rect": {
+                "x": 0,
+                "y": 0,
+                "w": 384,
+                "h": 720
+            },
+            "layout": {
+                "type": "vertical",
+                "padding": {
+                    "top": 0.15,
+                    "bottom": 0.15,
+                    "left": 0.15,
+                    "right": 0.15
+                },
+                "alignment": {
+                    "h": "center",
+                    "v": "start"
+                },
+                "spacing": 0.4
+            },
+            "children": [
+                {
+                    "type": "label",
+                    "text": "Garage",
+                    "font": "assets/fonts/ByteBounce.ttf#48",
+                    "color": "crimson"
+                },
+                {
+                    "type": "label",
+                    "text": "Here would be the tank",
+                    "font": "assets/fonts/ByteBounce.ttf#48",
+                    "color": "purple"
+                }
+            ]
+        },
+        {
+            "name": "RightPanel",
+            "type": "container",
+            "rect": {
+                "x": 0,
+                "y": 0,
+                "w": 448,
+                "h": 720
+            },
+            "layout": {
+                "type": "vertical",
+                "padding": {
+                    "top": 0.1,
+                    "bottom": 0.1,
+                    "left": 0.0,
+                    "right": 0.0
+                },
+                "alignment": {
+                    "h": "center",
+                    "v": "center"
+                },
+                "spacing": 0.15
+            },
+            "children": [
+                {
+                    "type": "label",
+                    "text": "Description",
+                    "font": "assets/fonts/ByteBounce.ttf#48",
+                    "color": "crimson"
+                },
+                {
+                    "type": "label",
+                    "text": "I have to make the text wrap",
+                    "font": "assets/fonts/ByteBounce.ttf#28",
+                    "color": "purple",
+                    "wrap": true
+                }
+            ]
+        }
+    ]
+}

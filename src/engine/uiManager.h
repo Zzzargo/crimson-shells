@@ -9,6 +9,7 @@ typedef enum {
     UI_CONTAINER,
     UI_LABEL,
     UI_BUTTON,
+    UI_IMAGE,
     UI_OPTION_CYCLE,
     UI_TYPE_COUNT  // Automatically counts
 } UIType;
@@ -94,6 +95,11 @@ typedef struct UIButton {
     SDL_Color currColor;  // Current color of the button
 } UIButton;
 
+typedef struct UIImage {
+    SDL_Texture *texture;
+    void *data;  // Pointer to any data the image might contain or need
+} UIImage;
+
 /**
  * An option cycle is basically a list of options that can be cycled through, controlled by a button node
  * Both elements are contained in this struct, so it can be viewed as a special container
@@ -101,6 +107,7 @@ typedef struct UIButton {
 typedef struct UIOptionCycle {
     UINode *selector;  // Button that shows the name of the option and applies it. Used the node for the rect
     CDLLNode *currOption;  // Circular doubly linked list of whatever option style you want. Data is UINode*
+    SDL_Texture *arrowTexture;  // Indicator arrows texture
 } UIOptionCycle;
 
 // The UIManager is the root of the UI tree
@@ -113,11 +120,30 @@ typedef struct UIManager {
     Uint64 dirtyCapacity;  // Capacity of the dirty nodes array
 } *UIManager;
 
+typedef struct parsermap *ParserMap;
+
 /**
  * Initialises the UI manager
  * @return UIManager = struct UIManager*
  */
 UIManager initUIManager();
+
+/**
+ * Parses an UI tree from a JSON file with cJson (thank you)
+ * @param zEngine pointer to the engine = struct engine*
+ * @param filePath path to the JSON file
+ * @note the screen dimensions in the JSON file must match the logical screen dimensions (1280x720)
+ */
+UINode* UIparseFromFile(ZENg zEngine, const char *filePath);
+
+/**
+ * Parses an UI node from a cJSON object
+ * @param zEngine pointer to the engine = struct engine*
+ * @param parserMap the Parser Map = struct parserMap*
+ * @param json the cJSON object
+ * @return UINode* = pointer to the created UI node
+ */
+UINode* UIparseNode(ZENg zEngine, ParserMap parserMap, cJSON *json);
 
 /**
  * Adds a new UI node to the UI tree
@@ -150,7 +176,7 @@ void UIremoveChild(UINode *parent, UINode *child);
 void UIdeleteNode(UIManager uiManager, UINode *node);
 
 /**
- * Clears the UI tree, leaving only the root container
+ * Clears the UI tree without freeing the UI manager itself
  * @param uiManager the UI manager = struct UIManager*
  */
 void UIclear(UIManager uiManager);
@@ -257,14 +283,130 @@ UINode* UIcreateButton(
 );
 
 /**
+ * Creates an image UI node
+ * @param rect the rectangle defining the image's position and size
+ * @param texture the texture to be used for the image
+ * @param data pointer to any data the image might need or contain
+ * @return UINode* = pointer to the created image node
+ * @note the returned image is created @ 0x0, so further positioning is needed
+ */
+UINode *UIcreateImage(SDL_Rect rect, SDL_Texture *texture, void *data);
+
+/**
  * Creates an option cycle UI node
  * @param rect the option cycle container's rectangle
  * @param layout the layout to be used for the option cycle container
  * @param selectorBtn button UI node that shows the name of the option and applies it
  * @param currOption circular doubly linked list of whatever option style you want
+ * @param arrowTexture texture for the option cycle arrows
  * @return UINode* = pointer to the created option cycle node
  * @note the returned option cycle is created @ 0x0, so further positioning is needed
  */
-UINode* UIcreateOptionCycle(SDL_Rect rect, UILayout *layout, UINode *selectorBtn, CDLLNode *currOption);
+UINode* UIcreateOptionCycle(
+    SDL_Rect rect, UILayout *layout, UINode *selectorBtn, CDLLNode *currOption, SDL_Texture *arrowTexture
+);
+
+// =====================================================================================================================
+
+// With JSON parsing I need a way to map(get it?) strings to functions and colors
+
+#ifndef PARSER_HASHMAP_SIZE
+    #define PARSER_HASHMAP_SIZE 256
+#endif
+
+typedef enum {
+    MAP_ENTRY_FUNC,
+    MAP_ENTRY_COLOR
+} MapEntryType;
+
+typedef union {
+    void (*funcPtr)(ZENg, void *);  // Pointer to a function (for onClick mainly)
+    SDL_Color color;  // A color (for button colors mainly)
+} MapEntryVal;
+
+typedef struct MapEntry {
+    char *key;
+    MapEntryType type;
+    MapEntryVal value;
+    struct MapEntry *next;  // For collision handling in the hashmap
+} MapEntry;
+
+typedef struct parsermap {
+    MapEntry *entries[PARSER_HASHMAP_SIZE];
+} *ParserMap;
+
+/**
+ * Allocates memory for a new Parser Map
+ * @param parserMap pointer to the Parser Map = struct parserMap**
+ */
+void initParserMap(ParserMap *parserMap);
+
+/**
+ * Hashing function for this hashmap
+ * Uses djb2
+ * @param key the string to hash
+ * @return the index in the hashmap
+ */
+static inline Uint32 hashFunc(const char *key);
+
+/**
+ * Finds a parser entry in the hashmap
+ * @param parserMap the Parser Map = struct parserMap*
+ * @param key the entry's key
+ * @return the MapEntry if found, NULL otherwise
+ */
+MapEntry* getParserEntry(ParserMap parserMap, const char *key);
+
+/**
+ * Gets a function pointer from the Parser Map
+ * @param parserMap the Parser Map = struct parserMap*
+ * @param key the entry's key
+ * @return pointer to the function if found, NULL otherwise
+ */
+void* resolveAction(ParserMap parserMap, const char *key);
+
+/**
+ * Gets a color from the Parser Map
+ * @param parserMap the Parser Map = struct parserMap*
+ * @param key the entry's key
+ * @return the color if found, NULL otherwise
+ */
+SDL_Color resolveColor(ParserMap parserMap, const char *key);
+
+/**
+ * Applies alpha to a color if specified in the JSON
+ * @param parserMap the Parser Map = struct parserMap*
+ * @param colorJson the cJSON object containing the color string
+ * @return the color with applied alpha if specified, opaque otherwise
+ */
+SDL_Color applyColorAlpha(ParserMap parserMap, cJSON *colorJson);
+
+/**
+ * Adds a parser entry to the hashmap
+ * @param parserMap the Parser Map = struct parserMap*
+ * @param key the entry's key
+ * @param value the entry's value (function pointer or color)
+ * @param type the type of the entry (MapEntryType enum)
+ */
+void addParserEntry(ParserMap parserMap, const char *key, MapEntryVal value, MapEntryType type);
+
+/**
+ * Removes a parser entry from the hashmap
+ * @param parserMap the Parser Map = struct parserMap*
+ * @param key the entry's key
+ */
+void removeParserEntry(ParserMap parserMap, const char *key);
+
+/**
+ * Preloads the needed parser entries into the Parser Map
+ * @param parserMap the Parser Map = struct parserMap*
+ */
+void loadParserEntries(ParserMap parserMap);
+
+/**
+ * Frees all the memory used by the Parser Map
+ * @param parserMap pointer to the Parser Map = struct parserMap**
+ */
+void freeParserMap(ParserMap *parserMap);
 
 #endif  // UI_MANAGER_H

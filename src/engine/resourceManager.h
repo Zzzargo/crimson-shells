@@ -11,8 +11,8 @@ typedef enum {
     RESOURCE_COUNT  // automatically counts the number of resource types
 } ResourceType;
 
-#ifndef HASHMAP_SIZE
-#define HASHMAP_SIZE 256  // size of the resource hash map
+#ifndef RES_HASHMAP_SIZE
+#define RES_HASHMAP_SIZE 256  // size of the resource hash map
 #endif
 
 typedef struct resEntry {
@@ -23,7 +23,7 @@ typedef struct resEntry {
 } ResourceEntry;
 
 typedef struct resmng {
-    ResourceEntry *hashmap[HASHMAP_SIZE];  // resource hashmap
+    ResourceEntry *hashmap[RES_HASHMAP_SIZE];  // resource hashmap
 } *ResourceManager;
 
 // allocates memory for a new ResourceManager

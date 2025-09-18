@@ -48,9 +48,6 @@ add_custom_target(symlinks ALL
     ${CMAKE_SOURCE_DIR}/assets ${CMAKE_BINARY_DIR}/assets
 
     COMMAND ${CMAKE_COMMAND} -E create_symlink
-    ${CMAKE_SOURCE_DIR}/arenatest ${CMAKE_BINARY_DIR}/arenatest
-
-    COMMAND ${CMAKE_COMMAND} -E create_symlink
     ${CMAKE_SOURCE_DIR}/settings.ini ${CMAKE_BINARY_DIR}/settings.ini
 
     COMMAND ${CMAKE_COMMAND} -E create_symlink

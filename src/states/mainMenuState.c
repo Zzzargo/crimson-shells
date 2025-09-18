@@ -1,87 +1,7 @@
 #include "stateManager.h"
 
 void onEnterMainMenu(ZENg zEngine) {
-    // How much each of the height containers take
-    float titleSize = 0.3;
-    float footerSize = 0.2;
-    
-    float listSize = 0.5;
-    float listPaddingV = 0.1;  // 20% of the list height
-    float listSpacing = 0.1;  // 10% of the list height
-
-    UINode *titleDiv = UIcreateContainer(
-        (SDL_Rect){.x = 0, .y = 0, .w = LOGICAL_WIDTH, .h = (int)(LOGICAL_HEIGHT * titleSize)},
-        UIcreateLayout(
-            UI_LAYOUT_VERTICAL, (UIPadding){0.0, 0.0, 0.0, 0.0},
-            (UIAlignment){.h = UI_ALIGNMENT_CENTER, .v = UI_ALIGNMENT_END}, 0.0
-        )
-    );
-    UIinsertNode(zEngine->uiManager, zEngine->uiManager->root, titleDiv);
-
-    UINode *titleLabel = UIcreateLabel(
-        zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf#48"),
-        strdup("Crimson Shells"), COLOR_CRIMSON
-    );
-    UIinsertNode(zEngine->uiManager, titleDiv, titleLabel);
-
-
-    UINode *listDiv = UIcreateContainer(
-        (SDL_Rect){
-            .x = 0,
-            .y = (int)(LOGICAL_HEIGHT * titleSize),
-            .w = LOGICAL_WIDTH,
-            .h = (int)(LOGICAL_HEIGHT * listSize)
-        },
-        UIcreateLayout(
-            UI_LAYOUT_VERTICAL, (UIPadding){.top = listPaddingV, .bottom = listPaddingV, .left = 0.0, .right = 0.0},
-            (UIAlignment){.h = UI_ALIGNMENT_CENTER, .v = UI_ALIGNMENT_CENTER}, listSpacing
-        )
-    );
-    UIinsertNode(zEngine->uiManager, zEngine->uiManager->root, listDiv);
-
-    char* buttonLabels[] = {
-        "Play", "Garage", "Settings", "Exit"
-    };
-    void (*buttonActions[])(ZENg, void *) = {
-        &mMenuToPlay, &mMenuToGarage, &mMenuToSettings, &prepareExit
-    };
-    size_t buttonCount = sizeof(buttonLabels) / sizeof(buttonLabels[0]);
-
-    for (Uint8 i = 0; i < buttonCount; i++) {
-        UINode *button = UIcreateButton(
-            zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf#28"),
-            strdup(buttonLabels[i]), i == 0 ? UI_STATE_FOCUSED : UI_STATE_NORMAL,
-            (SDL_Color[]){ COLOR_WHITE, COLOR_YELLOW, COLOR_WITH_ALPHA(COLOR_WHITE, OPACITY_MEDIUM) },
-            buttonActions[i], NULL
-        );
-
-        if (i == 0) {
-            // First button gets the focus
-            zEngine->uiManager->focusedNode = button;
-        }
-        UIinsertNode(zEngine->uiManager, listDiv, button);
-    }
-
-
-    UINode *footerDiv = UIcreateContainer(
-        (SDL_Rect){
-            .x = 0,
-            .y = (int)(LOGICAL_HEIGHT * (titleSize + listSize)),
-            .w = LOGICAL_WIDTH,
-            .h = (int)(LOGICAL_HEIGHT * footerSize)
-        },
-        UIcreateLayout(
-            UI_LAYOUT_VERTICAL, (UIPadding){0.0, 0.0, 0.0, 0.0},
-            (UIAlignment){.h = UI_ALIGNMENT_CENTER, .v = UI_ALIGNMENT_START}, 0.0
-        )
-    );
-    UIinsertNode(zEngine->uiManager, zEngine->uiManager->root, footerDiv);
-
-    UINode *footerLabel = UIcreateLabel(
-        zEngine->display->renderer, getFont(zEngine->resources, "assets/fonts/ByteBounce.ttf#28"),
-        strdup("I am hiring!!!"), COLOR_WITH_ALPHA(COLOR_WHITE, OPACITY_MEDIUM)
-    );
-    UIinsertNode(zEngine->uiManager, footerDiv, footerLabel);
+    zEngine->uiManager->root = UIparseFromFile(zEngine, "data/states/UImainMenuState.json");
 
     UIapplyLayout(zEngine->uiManager->root);
 
@@ -210,11 +130,24 @@ Uint8 handleMenuNavigation(SDL_Event *event, ZENg zEngine) {
                     case UI_OPTION_CYCLE: {
                         UIOptionCycle *optCycle = (UIOptionCycle *)(focused->widget);
                         UIButton *btn = (UIButton *)(optCycle->selector->widget);
-                        // The cycle buttons contain the needed data
-                        UIButton *opt = (UIButton *)(((UINode *)(optCycle->currOption->data))->widget);
 
-                        if (btn && btn->onClick && opt->data) {
-                            btn->onClick(zEngine, opt->data);
+                        // The cycle buttons contain the needed data
+                        UINode *optNode = (UINode *)optCycle->currOption->data;
+                        switch (optNode->type) {
+                            case UI_BUTTON: {
+                                UIButton *opt = (UIButton *)optNode->widget;
+                                if (btn && btn->onClick && opt->data) {
+                                    btn->onClick(zEngine, opt->data);
+                                }
+                                break;
+                            }
+                            case UI_IMAGE: {
+                                UIImage *opt = (UIImage *)optNode->widget;
+                                if (btn && btn->onClick && opt->data) {
+                                    btn->onClick(zEngine, opt->data);
+                                }
+                                break;
+                            }
                         }
                         break;
                     }

@@ -47,8 +47,8 @@ typedef struct {
     char *texturePath;  // Path to the tank texture
 } TankPrefab;
 
-#ifndef HASHMAP_SIZE  // I have another hashmap somewhere here :))
-#define HASHMAP_SIZE 256
+#ifndef PREFAB_HASHMAP_SIZE
+#define PREFAB_HASHMAP_SIZE 256
 #endif
 
 typedef struct buildEntry {
@@ -60,7 +60,7 @@ typedef struct buildEntry {
 
 // Prefabs hashmap
 typedef struct prefabsmng {
-    BuilderEntry *hashmap[HASHMAP_SIZE];
+    BuilderEntry *hashmap[PREFAB_HASHMAP_SIZE];
 } *PrefabsManager;
 
 /**

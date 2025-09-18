@@ -1,0 +1,147 @@
+{
+    "name": "MainMenuContainer",
+    "type": "container",
+    "rect": {
+        "x": 0,
+        "y": 0,
+        "w": 1280,
+        "h": 720
+    },
+    "layout": {
+        "type": "vertical",
+        "padding": {
+            "top": 0.0,
+            "bottom": 0.0,
+            "left": 0.0,
+            "right": 0.0
+        },
+        "alignment": {
+            "h": "center",
+            "v": "start"
+        },
+        "spacing": 0.0
+    },
+    "children": [
+        {
+            "name": "TitleDiv",
+            "type": "container",
+            "rect": {
+                "x": 0,
+                "y": 0,
+                "w": 1280,
+                "h": 216
+            },
+            "layout": {
+                "type": "vertical",
+                "alignment": {
+                    "h": "center",
+                    "v": "end"
+                }
+            },
+            "children": [
+                {
+                    "type": "label",
+                    "text": "Crimson Shells",
+                    "font": "assets/fonts/ByteBounce.ttf#48",
+                    "color": "crimson"
+                }
+            ]
+        },
+        {
+            "name": "ListDiv",
+            "type": "container",
+            "rect": {
+                "x": 0,
+                "y": 0,
+                "w": 1280,
+                "h": 360
+            },
+            "layout": {
+                "type": "vertical",
+                "padding": {
+                    "top": 0.1,
+                    "bottom": 0.1,
+                    "left": 0.0,
+                    "right": 0.0
+                },
+                "alignment": {
+                    "h": "center",
+                    "v": "center"
+                },
+                "spacing": 0.1
+            },
+            "children": [
+                {
+                    "type": "button",
+                    "text": "Play",
+                    "font": "assets/fonts/ByteBounce.ttf#28",
+                    "color": {
+                        "normal": "crimson_170",
+                        "focused": "crimson",
+                        "selected": "yellow_150"
+                    },
+                    "onClick": "mMenuToPlay",
+                    "focused": true
+                },
+                {
+                    "type": "button",
+                    "text": "Garage",
+                    "font": "assets/fonts/ByteBounce.ttf#28",
+                    "color": {
+                        "normal": "crimson_170",
+                        "focused": "crimson",
+                        "selected": "yellow_150"
+                    },
+                    "onClick": "mMenuToGarage"
+                },
+                {
+                    "type": "button",
+                    "text": "Settings",
+                    "font": "assets/fonts/ByteBounce.ttf#28",
+                    "color": {
+                        "normal": "crimson_170",
+                        "focused": "crimson",
+                        "selected": "yellow_150"
+                    },
+                    "onClick": "mMenuToSettings"
+                },
+                {
+                    "type": "button",
+                    "text": "Exit",
+                    "font": "assets/fonts/ByteBounce.ttf#28",
+                    "color": {
+                        "normal": "crimson_170",
+                        "focused": "crimson",
+                        "selected": "yellow_150"
+                    },
+                    "onClick": "prepareExit"
+                }
+            ]
+        },
+        {
+            "name": "FooterDiv",
+            "type": "container",
+            "rect": {
+                "x": 0,
+                "y": 0,
+                "w": 1280,
+                "h": 144
+            },
+            "layout": {
+                "type": "vertical",
+                "alignment": {
+                    "h": "center",
+                    "v": "start"
+                }
+            },
+            "children": [
+                {
+                    "type": "label",
+                    "text": "Designer needed!",
+                    "font": "assets/fonts/ByteBounce.ttf#28",
+                    "color": "purple"
+                }
+            ]
+        }
+    ]
+}

@@ -1,4 +1,5 @@
 #include "uiManager.h"
+#include "../states/stateManager.h"
 
 UIManager initUIManager() {
     UIManager uiManager = calloc(1, sizeof(struct UIManager));
@@ -6,16 +7,246 @@ UIManager initUIManager() {
         printf("Failed to allocate memory for the UI Manager\n");
         exit(EXIT_FAILURE);
     }
-
-    // Add the root container node
-    SDL_Rect root = {0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT};
-    UILayout *rootLayout = UIcreateLayout(
-        UI_LAYOUT_VERTICAL, (UIPadding){.bottom = 0.0, .left = 0.0, .right = 0.0, .top = 0.0},
-        (UIAlignment){.h = UI_ALIGNMENT_ABSOLUTE, .v = UI_ALIGNMENT_ABSOLUTE}, 0.0
-    );  // Defaults
-    UINode *rootContainer = UIcreateContainer(root, rootLayout);
-    UIinsertNode(uiManager, NULL, rootContainer);
     return uiManager;
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+UINode* UIparseFromFile(ZENg zEngine, const char *filename) {
+    FILE *f = fopen(filename, "rb");
+    if (!f) {
+        printf("Failed to open UI file: %s\n", filename);
+        return NULL;
+    }
+
+    // Magic commences
+    fseek(f, 0, SEEK_END);
+    long size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    char *data = malloc(size + 1);
+    fread(data, 1, size, f);
+    data[size] = '\0';
+    fclose(f);
+
+    cJSON *root = cJSON_Parse(data);
+    free(data);
+
+    if (!root) return NULL;
+
+    // Prepare the hashmap
+    ParserMap parserMap;
+    initParserMap(&parserMap);
+    loadParserEntries(parserMap);
+
+    // Parse recursively from the root
+    UINode *uiRoot = UIparseNode(zEngine, parserMap, root);
+    cJSON_Delete(root);
+    freeParserMap(&parserMap);
+
+    return uiRoot;
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+UINode* UIparseNode(ZENg zEngine, ParserMap parserMap, cJSON *json) {
+    const char *type = cJSON_GetObjectItemCaseSensitive(json, "type")->valuestring;
+    UINode *node = NULL;
+
+    // Rectangle
+    SDL_Rect rect = {0};
+    cJSON *rectJson = cJSON_GetObjectItemCaseSensitive(json, "rect");
+    if (rectJson) {
+        rect.x = cJSON_GetObjectItem(rectJson, "x")->valueint;
+        rect.y = cJSON_GetObjectItem(rectJson, "y")->valueint;
+        rect.w = cJSON_GetObjectItem(rectJson, "w")->valueint;
+        rect.h = cJSON_GetObjectItem(rectJson, "h")->valueint;
+    }
+
+    if (strcmp(type, "container") == 0) {
+        // Layout
+        cJSON *layoutJson = cJSON_GetObjectItem(json, "layout");
+        UILayout *layout = NULL;
+        if (layoutJson) {
+            // defaults
+            UIPadding pad = {0,0,0,0};
+            UIAlignment align = { UI_ALIGNMENT_ABSOLUTE, UI_ALIGNMENT_ABSOLUTE };
+            float spacing = 0.0;
+
+            cJSON *padJson = cJSON_GetObjectItem(layoutJson, "padding");
+            if (padJson) {
+                pad.top = cJSON_GetObjectItem(padJson, "top")->valuedouble;
+                pad.bottom = cJSON_GetObjectItem(padJson, "bottom")->valuedouble;
+                pad.left = cJSON_GetObjectItem(padJson, "left")->valuedouble;
+                pad.right = cJSON_GetObjectItem(padJson, "right")->valuedouble;
+            }
+            cJSON *alignJson = cJSON_GetObjectItem(layoutJson, "alignment");
+            if (alignJson) {
+                const char *h = cJSON_GetObjectItem(alignJson, "h")->valuestring;
+                const char *v = cJSON_GetObjectItem(alignJson, "v")->valuestring;
+                align.h = strcmp(h,"center") == 0 ? UI_ALIGNMENT_CENTER : strcmp(h,"end") == 0 ? UI_ALIGNMENT_END
+                : UI_ALIGNMENT_START;
+                align.v = strcmp(v,"center") == 0 ? UI_ALIGNMENT_CENTER : strcmp(v,"end") == 0 ? UI_ALIGNMENT_END
+                : UI_ALIGNMENT_START;
+            }
+            cJSON *spacingJson = cJSON_GetObjectItem(layoutJson, "spacing");
+            if (spacingJson) spacing = (float)spacingJson->valuedouble;
+
+            const char *layoutType = cJSON_GetObjectItem(layoutJson, "type")->valuestring;
+            int layoutTypeVal = strcmp(layoutType, "vertical") == 0 ? UI_LAYOUT_VERTICAL : UI_LAYOUT_HORIZONTAL;
+
+            layout = UIcreateLayout(layoutTypeVal, pad, align, spacing);
+        }
+        node = UIcreateContainer(rect, layout);
+
+        // Children
+        cJSON *children = cJSON_GetObjectItemCaseSensitive(json, "children");
+        cJSON *child;
+        cJSON_ArrayForEach(child, children) {
+            UINode *cNode = UIparseNode(zEngine, parserMap, child);
+            if (cNode) UIinsertNode(zEngine->uiManager, node, cNode);
+        }
+    }
+    else if (strcmp(type, "label") == 0) {
+        const char *text = cJSON_GetObjectItem(json, "text")->valuestring;
+        const char *font = cJSON_GetObjectItem(json, "font")->valuestring;
+        const char *colorName = cJSON_GetObjectItem(json, "color")->valuestring;
+
+        SDL_Color color = applyColorAlpha(parserMap, cJSON_GetObjectItem(json, "color"));
+
+        node = UIcreateLabel(
+            zEngine->display->renderer,
+            getFont(zEngine->resources, font),
+            strdup(text),
+            color
+        );
+    }
+    else if (strcmp(type, "button") == 0) {
+        cJSON *textJson = cJSON_GetObjectItem(json, "text");
+        const char *text = textJson ? textJson->valuestring : NULL;
+        const char *font = cJSON_GetObjectItem(json, "font")->valuestring;
+        cJSON *onClickJSON = cJSON_GetObjectItem(json, "onClick");
+        const char *actionStr = NULL;
+        if (onClickJSON && cJSON_IsString(onClickJSON)) {
+            actionStr = onClickJSON->valuestring;
+        }
+
+        cJSON *colorJson = cJSON_GetObjectItem(json, "color");
+        SDL_Color colors[UI_STATE_COUNT] = {0};
+        if (colorJson) {
+            for (Uint8 i = 0; i < UI_STATE_COUNT; i++) {
+                const char *state = i == UI_STATE_NORMAL ? "normal" : i == UI_STATE_FOCUSED ? "focused" : "selected";
+
+                cJSON *stateColorJson = cJSON_GetObjectItem(colorJson, state);
+                colors[i] = applyColorAlpha(parserMap, stateColorJson);
+            }
+        }
+
+        void (*action)(ZENg, void*);
+        if (actionStr) action = resolveAction(parserMap, actionStr);
+
+        node = UIcreateButton(
+            zEngine->display->renderer,
+            getFont(zEngine->resources, font),
+            strdup(text),
+            UI_STATE_NORMAL,
+            colors,
+            action,
+            NULL
+        );
+    } else if (strcmp(type, "optionCycle") == 0) {
+        // Layout
+        cJSON *layoutJson = cJSON_GetObjectItem(json, "layout");
+        UILayout *layout = NULL;
+        // defaults
+        UIPadding pad = {0,0,0,0};
+        UIAlignment align = { UI_ALIGNMENT_ABSOLUTE, UI_ALIGNMENT_ABSOLUTE };
+        float spacing = 0.0;
+
+        cJSON *padJson = cJSON_GetObjectItem(layoutJson, "padding");
+        if (padJson) {
+            pad.top = cJSON_GetObjectItem(padJson, "top")->valuedouble;
+            pad.bottom = cJSON_GetObjectItem(padJson, "bottom")->valuedouble;
+            pad.left = cJSON_GetObjectItem(padJson, "left")->valuedouble;
+            pad.right = cJSON_GetObjectItem(padJson, "right")->valuedouble;
+        }
+        cJSON *alignJson = cJSON_GetObjectItem(layoutJson, "alignment");
+        if (alignJson) {
+            const char *h = cJSON_GetObjectItem(alignJson, "h")->valuestring;
+            const char *v = cJSON_GetObjectItem(alignJson, "v")->valuestring;
+            align.h = strcmp(h,"center") == 0 ? UI_ALIGNMENT_CENTER : strcmp(h,"end") == 0 ? UI_ALIGNMENT_END
+            : UI_ALIGNMENT_START;
+            align.v = strcmp(v,"center") == 0 ? UI_ALIGNMENT_CENTER : strcmp(v,"end") == 0 ? UI_ALIGNMENT_END
+            : UI_ALIGNMENT_START;
+        }
+        cJSON *spacingJson = cJSON_GetObjectItem(layoutJson, "spacing");
+        if (spacingJson) spacing = (float)spacingJson->valuedouble;
+
+        cJSON *layoutTypeJson = cJSON_GetObjectItem(layoutJson, "type");
+        const char *layoutType = layoutTypeJson ? layoutTypeJson->valuestring : NULL;
+        int layoutTypeVal = strcmp(layoutType, "vertical") == 0 ? UI_LAYOUT_VERTICAL : UI_LAYOUT_HORIZONTAL;
+
+        layout = UIcreateLayout(layoutTypeVal, pad, align, spacing);
+
+
+        // Selector
+        cJSON *selectorJson = cJSON_GetObjectItem(json, "selector");
+        UINode *selector = NULL;
+        if (!selectorJson) {
+            printf("Option cycle node missing selector definition\n");
+            return NULL;
+        }
+        selector = UIparseNode(zEngine, parserMap, selectorJson);
+        if (!selector) {
+            printf("Failed to parse option cycle selector node\n");
+            return NULL;
+        }
+
+        // Option list
+        CDLLNode *options = NULL;
+        cJSON *optionsJson = cJSON_GetObjectItem(json, "options");
+        cJSON *option;
+        cJSON_ArrayForEach(option, optionsJson) {
+            UINode *optNode = UIparseNode(zEngine, parserMap, option);
+            if (optNode) {
+                if (!options) {
+                    options = initList((void *)optNode);
+                } else {
+                    CDLLInsertLast(options, (void *)optNode);
+                }
+            }
+        }
+
+        // Nav arrows
+        cJSON *navArrowsJson = cJSON_GetObjectItem(json, "Arrows");
+        if (!navArrowsJson) {
+            printf("Option cycle node missing arrows definition\n");
+            return NULL;
+        }
+        char *arrowPath = navArrowsJson->valuestring;
+
+        node = UIcreateOptionCycle(rect, layout, selector, options, getTexture(zEngine->resources, arrowPath));
+
+        // Add those as children to apply layout
+        UIinsertNode(zEngine->uiManager, node, selector);
+        UIinsertNode(zEngine->uiManager, node, (UINode *)options->data);
+    }
+
+    if (node) {
+        // Focused flag
+        cJSON *focusedFlag = cJSON_GetObjectItem(json, "focused");
+        if (cJSON_IsTrue(focusedFlag)) {
+            zEngine->uiManager->focusedNode = node;
+            node->state = UI_STATE_FOCUSED;
+            UIrefocus(zEngine->uiManager, node);
+        }
+    }
+
+    return node;
 }
 
 /**
@@ -107,7 +338,7 @@ void UIdeleteNode(UIManager uiManager, UINode *node) {
         return;
     }
 
-        if (node->children) {
+    if (node->children) {
         // Recursively delete all children
         for (size_t i = node->childrenCount; i > 0; i--) {
             UIdeleteNode(uiManager, node->children[i - 1]);
@@ -165,8 +396,8 @@ void UIdeleteNode(UIManager uiManager, UINode *node) {
         }
     }
     if (node->layout) free(node->layout);
-    free(node->rect);
-    free(node->widget);
+    if (node->rect) free(node->rect);
+    if (node->widget) free(node->widget);
     free(node);
 }
 
@@ -180,15 +411,10 @@ void UIclear(UIManager uiManager) {
         return;
     }
 
-    // Recursively delete all nodes except the root
+    // Recursively delete all nodes
     if (uiManager->root) {
-        for (size_t i = uiManager->root->childrenCount; i > 0; i--) {
-            UIdeleteNode(uiManager, uiManager->root->children[i - 1]);
-        }
-        free(uiManager->root->children);
-        uiManager->root->children = NULL;
-        uiManager->root->childrenCount = 0;
-        uiManager->root->childrenCapacity = 0;
+        UIdeleteNode(uiManager, uiManager->root);
+        uiManager->root = NULL;
     }
 
     uiManager->focusedNode = NULL;
@@ -369,8 +595,16 @@ void UIunmarkNodeDirty(UIManager uiManager) {
 void UIrenderNode(SDL_Renderer *rdr, UINode *node) {
     if (!node) return;
 
+    #ifdef DEBUG
+        // Guard against the empty UI tree
+        if (node->rect) printf(
+            "Rendering UI node of type %d (x=%d, y=%d, w=%d, h=%d)\n",
+            node->type, node->rect->x, node->rect->y, node->rect->w, node->rect->h
+        );
+    #endif
+
     // Render this node based on its type
-    if (node->isVisible == 0) return;
+    if (node->isVisible == 0 || (!node->rect)) return;
     switch(node->type) {
         case UI_CONTAINER: {
             break;
@@ -389,6 +623,13 @@ void UIrenderNode(SDL_Renderer *rdr, UINode *node) {
             }
             break;
         }
+        case UI_IMAGE: {
+            UIImage *image = (UIImage *)(node->widget);
+            if (image->texture) {
+                SDL_RenderCopy(rdr, image->texture, NULL, node->rect);
+            }
+            break;
+        }
         case UI_OPTION_CYCLE: {
             UIOptionCycle *optionCycle = (UIOptionCycle *)(node->widget);
             if (optionCycle->currOption && optionCycle->currOption->data && optionCycle->selector) {
@@ -399,18 +640,36 @@ void UIrenderNode(SDL_Renderer *rdr, UINode *node) {
                 UINode *currOptionNode = (UINode *)optionCycle->currOption->data;
                 UIButton *currOptionBtn = (UIButton *)(currOptionNode->widget);
                 if (currOptionBtn->texture) SDL_RenderCopy(rdr, currOptionBtn->texture, NULL, currOptionNode->rect);
+
+                if (optionCycle->arrowTexture) {
+                    // Render two arrows on the sides of the current option
+                    int arrowSize = (currOptionNode->rect->h);  // The arrows are squares
+                    SDL_Rect leftArrowRect = {
+                        .x = currOptionNode->rect->x - arrowSize - 5,  // 5px gap
+                        .y = currOptionNode->rect->y,
+                        .w = arrowSize,
+                        .h = arrowSize
+                    };
+                    SDL_Rect rightArrowRect = {
+                        .x = currOptionNode->rect->x + currOptionNode->rect->w + 5,  // 5px gap
+                        .y = currOptionNode->rect->y,
+                        .w = arrowSize,
+                        .h = arrowSize
+                    };
+                    SDL_RenderCopyEx(rdr, optionCycle->arrowTexture, NULL, &leftArrowRect, 0.0, NULL, SDL_FLIP_NONE);
+                    // The arrow textures are left-pointing, so flip the right one
+                    SDL_RenderCopyEx(
+                        rdr, optionCycle->arrowTexture, NULL, &rightArrowRect, 0.0, NULL, SDL_FLIP_HORIZONTAL
+                    );
+                }
             }
             break;
         }
     }
 
-    // Depth-first
-    UIrenderNode(rdr, node->children ? node->children[0] : NULL);
-    // Then breadth-wise
-    if (node->parent) {
-        for (size_t i = node->siblingIndex + 1; i < node->parent->childrenCount; i++) {
-            UIrenderNode(rdr, node->parent->children[i]);
-        }
+    // Render children recursively
+    for (size_t i = 0; i < node->childrenCount; i++) {
+        UIrenderNode(rdr, node->children[i]);
     }
 }
 
@@ -630,6 +889,9 @@ UINode* UIcreateButton(
     button->data = data;
     button->font = font;
     button->text = text;
+    if (!button->text) {
+        button->text = strdup("");  // Default to empty string if NULL
+    }
     for (UIState s = 0; s < UI_STATE_COUNT; s++) {
         button->colors[s] = colors[s];
     }
@@ -661,7 +923,43 @@ UINode* UIcreateButton(
  * =====================================================================================================================
  */
 
-UINode* UIcreateOptionCycle(SDL_Rect rect, UILayout *layout, UINode *selectorBtn, CDLLNode *currOption) {
+UINode *UIcreateImage(SDL_Rect rect, SDL_Texture *texture, void *data) {
+    UINode *node = calloc(1, sizeof(UINode));
+    if (!node) {
+        printf("Failed to allocate memory for image node\n");
+        exit(EXIT_FAILURE);
+    }
+    node->isDirty = 1;  // Dirty by default
+    node->type = UI_IMAGE;
+    node->isVisible = 1;
+    SDL_Rect *nodeRect = calloc(1, sizeof(SDL_Rect));
+    if (!nodeRect) {
+        printf("Failed to allocate memory for image rectangle\n");
+        exit(EXIT_FAILURE);
+    }
+    *nodeRect = rect;
+    node->rect = nodeRect;
+
+    UIImage *image = calloc(1, sizeof(UIImage));
+    if (!image) {
+        printf("Failed to allocate memory for image UI element\n");
+        exit(EXIT_FAILURE);
+    }
+
+    image->texture = texture;
+    image->data = data;
+
+    node->widget = (void *)image;
+    return node;
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+UINode* UIcreateOptionCycle(
+    SDL_Rect rect, UILayout *layout, UINode *selectorBtn, CDLLNode *currOption, SDL_Texture *arrowTexture
+) {
     UINode *node = calloc(1, sizeof(UINode));
     if (!node) {
         printf("Failed to allocate memory for option cycle node\n");
@@ -686,8 +984,234 @@ UINode* UIcreateOptionCycle(SDL_Rect rect, UILayout *layout, UINode *selectorBtn
 
     optionCycle->selector = selectorBtn;
     optionCycle->currOption = currOption;
+    optionCycle->arrowTexture = arrowTexture;
 
     node->widget = (void *)optionCycle;
     node->layout = layout;
     return node;
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+void initParserMap(ParserMap *parserMap) {
+    (*parserMap) = calloc(1, sizeof(struct parsermap));
+    if (!(*parserMap)) {
+        printf("Failed to allocate memory for parser map\n");
+        exit(EXIT_FAILURE);
+    }
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+static inline Uint32 hashFunc(const char *key) {
+    Uint32 hash = 5381;
+    int c;
+    while ((c = *key++)) {
+        hash = ((hash << 5) + hash) + c; // hash * 33 + c
+    }
+    return hash % PARSER_HASHMAP_SIZE;
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+MapEntry* getParserEntry(ParserMap parserMap, const char *key) {
+    Uint32 index = hashFunc(key);
+    MapEntry *entry = parserMap->entries[index];
+    while (entry) {
+        if (strcmp(entry->key, key) == 0) {
+            return entry;
+        }
+        entry = entry->next;
+    }
+    return NULL;
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+void* resolveAction(ParserMap parserMap, const char *key) {
+    MapEntry *entry = getParserEntry(parserMap, key);
+    if (entry) {
+        return entry->value.funcPtr;
+    }
+    return NULL;
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+SDL_Color resolveColor(ParserMap parserMap, const char *key) {
+    MapEntry *entry = getParserEntry(parserMap, key);
+    if (entry) {
+        return entry->value.color;
+    }
+    return COLOR_WHITE; // Default color
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+SDL_Color applyColorAlpha(ParserMap parserMap, cJSON *colorJson) {
+    if (colorJson) {
+        // Colors with transparency are of the form: <color>_<alpha(see global.h)>
+        char colorCopy[strlen(colorJson->valuestring) + 1];
+        strncpy(colorCopy, colorJson->valuestring, sizeof(colorCopy));
+
+        char *colorBase = strtok(colorCopy, "_");
+        SDL_Color clr = resolveColor(parserMap, colorBase);
+
+        char *alphaStr = strtok(NULL, "_");
+        if (alphaStr) {
+            int alpha = atoi(alphaStr);
+            clr = COLOR_WITH_ALPHA(clr, alpha);
+        }
+        return clr;
+    }
+    return COLOR_GRAY; // Default color
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+void addParserEntry(ParserMap parserMap, const char *key, MapEntryVal value, MapEntryType type) {
+    Uint32 index = hashFunc(key);
+    MapEntry *newEntry = calloc(1, sizeof(MapEntry));
+    if (!newEntry) {
+        printf("Failed to allocate memory for parser map entry\n");
+        exit(EXIT_FAILURE);
+    }
+    newEntry->key = strdup(key);
+    if (!newEntry->key) {
+        printf("Failed to allocate memory for parser map entry key\n");
+        free(newEntry);
+        exit(EXIT_FAILURE);
+    }
+    if (type == MAP_ENTRY_FUNC) {
+        newEntry->value.funcPtr = value.funcPtr;
+    } else if (type == MAP_ENTRY_COLOR) {
+        newEntry->value.color = value.color;
+    }
+    newEntry->type = type;
+    newEntry->next = parserMap->entries[index];
+    parserMap->entries[index] = newEntry;
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+void removeParserEntry(ParserMap parserMap, const char *key) {
+    Uint32 index = hashFunc(key);
+    MapEntry *entry = parserMap->entries[index];
+    MapEntry *prev = NULL;
+    while (entry) {
+        if (strcmp(entry->key, key) == 0) {
+            if (prev) {
+                prev->next = entry->next;
+            } else {
+                parserMap->entries[index] = entry->next;
+            }
+            free(entry->key);
+            free(entry);
+            return;
+        }
+        prev = entry;
+        entry = entry->next;
+    }
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+void loadParserEntries(ParserMap parserMap) {
+    addParserEntry(parserMap, "white", (MapEntryVal){.color = COLOR_WHITE}, MAP_ENTRY_COLOR);
+    addParserEntry(parserMap, "black", (MapEntryVal){.color = COLOR_BLACK}, MAP_ENTRY_COLOR);
+    addParserEntry(parserMap, "gray", (MapEntryVal){.color = COLOR_GRAY}, MAP_ENTRY_COLOR);
+    addParserEntry(parserMap, "red", (MapEntryVal){.color = COLOR_RED}, MAP_ENTRY_COLOR);
+    addParserEntry(parserMap, "green", (MapEntryVal){.color = COLOR_GREEN}, MAP_ENTRY_COLOR);
+    addParserEntry(parserMap, "blue", (MapEntryVal){.color = COLOR_BLUE}, MAP_ENTRY_COLOR);
+    addParserEntry(parserMap, "yellow", (MapEntryVal){.color = COLOR_YELLOW}, MAP_ENTRY_COLOR);
+    addParserEntry(parserMap, "cyan", (MapEntryVal){.color = COLOR_CYAN}, MAP_ENTRY_COLOR);
+    addParserEntry(parserMap, "magenta", (MapEntryVal){.color = COLOR_MAGENTA}, MAP_ENTRY_COLOR);
+    addParserEntry(parserMap, "crimson", (MapEntryVal){.color = COLOR_CRIMSON}, MAP_ENTRY_COLOR);
+    addParserEntry(parserMap, "purple", (MapEntryVal){.color = COLOR_PURPLE}, MAP_ENTRY_COLOR);
+
+    addParserEntry(parserMap, "prepareExit", (MapEntryVal){.funcPtr = &prepareExit}, MAP_ENTRY_FUNC);
+    addParserEntry(parserMap, "mMenuToPlay", (MapEntryVal){.funcPtr = &mMenuToPlay}, MAP_ENTRY_FUNC);
+    addParserEntry(parserMap, "mMenuToGarage", (MapEntryVal){.funcPtr = &mMenuToGarage}, MAP_ENTRY_FUNC);
+    addParserEntry(parserMap, "mMenuToSettings", (MapEntryVal){.funcPtr = &mMenuToSettings}, MAP_ENTRY_FUNC);
+
+    addParserEntry(parserMap, "pauseToMMenu", (MapEntryVal){.funcPtr = &pauseToMMenu}, MAP_ENTRY_FUNC);
+    addParserEntry(parserMap, "pauseToPlay", (MapEntryVal){.funcPtr = &pauseToPlay}, MAP_ENTRY_FUNC);
+
+    addParserEntry(parserMap, "garageToMMenu", (MapEntryVal){.funcPtr = &garageToMMenu}, MAP_ENTRY_FUNC);
+
+    addParserEntry(
+        parserMap, "settingsToGameSettings", (MapEntryVal){.funcPtr = &settingsToGameSettings}, MAP_ENTRY_FUNC
+    );
+    addParserEntry(
+        parserMap, "settingsToAudioSettings", (MapEntryVal){.funcPtr = &settingsToAudioSettings}, MAP_ENTRY_FUNC
+    );
+    addParserEntry(
+        parserMap, "settingsToVideoSettings", (MapEntryVal){.funcPtr = &settingsToVideoSettings}, MAP_ENTRY_FUNC
+    );
+    addParserEntry(
+        parserMap, "settingsToControlsSettings", (MapEntryVal){.funcPtr = &settingsToControlsSettings}, MAP_ENTRY_FUNC
+    );
+    addParserEntry(
+        parserMap, "settingsToMMenu", (MapEntryVal){.funcPtr = &settingsToMMenu}, MAP_ENTRY_FUNC
+    );
+
+    addParserEntry(
+        parserMap, "gameSettingsToSettings", (MapEntryVal){.funcPtr = &gameSettingsToSettings}, MAP_ENTRY_FUNC
+    );
+
+    addParserEntry(
+        parserMap, "audioSettingsToSettings", (MapEntryVal){.funcPtr = &audioSettingsToSettings}, MAP_ENTRY_FUNC
+    );
+
+    addParserEntry(
+        parserMap, "changeWindowMode", (MapEntryVal){.funcPtr = &changeWindowMode}, MAP_ENTRY_FUNC
+    );
+    addParserEntry(
+        parserMap, "changeRes", (MapEntryVal){.funcPtr = &changeRes}, MAP_ENTRY_FUNC
+    );
+    addParserEntry(
+        parserMap, "videoSettingsToSettings", (MapEntryVal){.funcPtr = &videoSettingsToSettings}, MAP_ENTRY_FUNC
+    );
+
+    addParserEntry(
+        parserMap, "controlsSettingsToSettings", (MapEntryVal){.funcPtr = &controlsSettingsToSettings}, MAP_ENTRY_FUNC
+    );
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+void freeParserMap(ParserMap *parserMap) {
+    if (!parserMap || !(*parserMap)) return;
+
+    for (size_t i = 0; i < PARSER_HASHMAP_SIZE; i++) {
+        MapEntry *entry = (*parserMap)->entries[i];
+        while (entry) {
+            MapEntry *next = entry->next;
+            free(entry->key);
+            free(entry);
+            entry = next;
+        }
+    }
+    free(*parserMap);
+    *parserMap = NULL;
 }

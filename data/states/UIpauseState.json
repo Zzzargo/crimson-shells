@@ -1,0 +1,55 @@
+{
+	"name": "PauseMenuContainer",
+	"type": "container",
+	"rect": {
+		"x": 0,
+		"y": 0,
+		"w": 1280,
+		"h": 720
+	},
+	"layout": {
+		"type": "vertical",
+		"padding": {
+			"top": 0.0,
+			"bottom": 0.0,
+			"left": 0.0,
+			"right": 0.0
+		},
+		"alignment": {
+			"h": "center",
+			"v": "center"
+		},
+		"spacing": 0.05
+	},
+	"children": [
+		{
+			"type": "label",
+			"text": "PAUSED",
+			"font": "assets/fonts/ByteBounce.ttf#48",
+			"color": "crimson"
+		},
+		{
+			"type": "button",
+			"text": "Resume",
+			"font": "assets/fonts/ByteBounce.ttf#28",
+			"color": {
+				"normal": "crimson_170",
+				"focused": "crimson",
+				"selected": "yellow_150"
+			},
+			"onClick": "pauseToPlay",
+			"focused": true
+		},
+		{
+			"type": "button",
+			"text": "Exit to main menu",
+			"font": "assets/fonts/ByteBounce.ttf#28",
+			"color": {
+				"normal": "crimson_170",
+				"focused": "crimson",
+				"selected": "yellow_150"
+			},
+			"onClick": "pauseToMMenu"
+		}
+	]
+}
