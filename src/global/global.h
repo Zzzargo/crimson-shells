@@ -20,13 +20,13 @@ typedef struct engine *ZENg;  // Forward declaration of the engine struct
 typedef int32_t Int32;
 typedef int64_t Int64;
 
-#define LOGICAL_WIDTH 1280
-#define LOGICAL_HEIGHT 720
+#define LOGICAL_WIDTH 1920
+#define LOGICAL_HEIGHT 1080
 
 /**
- * 1280x720 => tilesize = 1280 / (16 * k) = 80 / k
+ * 1920x1080 => tilesize = 1920 / (16 * k) = 120 / k
  * An integer k makes the tiles square and integer sized
- * I chose k = 4 => TILE_SIZE = 20
+ * I chose k = 4 => TILE_SIZE = 30
  * So the arena will be 64x36 tiles
  * Keep in mind that the level files are going to be written for this arena size only
  */
