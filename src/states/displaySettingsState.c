@@ -14,6 +14,39 @@ void onEnterVideoSettings(ZENg zEngine) {
 
 void onExitVideoSettings(ZENg zEngine) {
     UIclear(zEngine->uiManager);
+    clearStateData(getCurrState(zEngine->stateMng));
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+void getResolutions(ZENg zEngine, ParserMap map) {
+    if (!zEngine) {
+        fprintf(stderr, "Cannot get resolutions from a NULL ZENg\n");
+        return;
+    }
+
+    int count = 0;
+    Uint8 *insertCount = calloc(1, sizeof(Uint8));
+    SDL_DisplayMode *modes = getAvailableDisplayModes(zEngine->display, &count);
+    if (count < 256) {
+        *insertCount = (Uint8)count;
+    }
+
+    for (int i = 0; i < count; i++) {
+        char key[32];
+        snprintf(key, sizeof(key), "resolutions[%d]", i);
+        addParserEntry(map, key, (MapEntryVal){ .displayMode = &modes[i] }, MAP_ENTRY_DISPLAYMODE);
+    }
+    addParserEntry(map, "resolutionsCount", (MapEntryVal){ .boolean = insertCount }, MAP_ENTRY_BOOL);
+
+    addStateData(getCurrState(zEngine->stateMng), (void *)modes, STATE_DATA_PLAIN);
+    addStateData(getCurrState(zEngine->stateMng), (void *)insertCount, STATE_DATA_PLAIN);
+
+    #ifdef DEBUG
+        printf("Added %d resolutions to parser map\n", *insertCount);
+    #endif
 }
 
 /**
@@ -33,6 +66,52 @@ void changeRes(ZENg zEngine, void *data) {
  * =====================================================================================================================
  */
 
+void getWindowModes(ZENg zEngine, ParserMap map) {
+    if (!zEngine) {
+        fprintf(stderr, "Cannot get window modes from a NULL ZENg\n");
+        return;
+    }
+
+    Uint8 *windowModeWindowed = calloc(1, sizeof(Uint8));
+    if (!windowModeWindowed) {
+        fprintf(stderr, "Failed to allocate memory for the windowed mode\n");
+        return;
+    }
+    Uint8 *windowModeFullscreen = calloc(1, sizeof(Uint8));
+    if (!windowModeFullscreen) {
+        fprintf(stderr, "Failed to allocate memory for the fullscreen mode\n");
+        free(windowModeWindowed);
+        return;
+    }
+    *windowModeWindowed = 0;  // 0 = windowed
+    *windowModeFullscreen = 1;  // 1 = fullscreen
+
+    Uint8 *windowModeCount = calloc(1, sizeof(Uint8));
+    if (!windowModeCount) {
+        fprintf(stderr, "Failed to allocate memory for the window modes count\n");
+        free(windowModeWindowed);
+        free(windowModeFullscreen);
+        return;
+    }
+    *windowModeCount = 2;  // windowed and fullscreen
+    
+    addParserEntry(map, "windowModes[0]", (MapEntryVal){ .boolean = windowModeWindowed }, MAP_ENTRY_BOOL);
+    addParserEntry(map, "windowModes[1]", (MapEntryVal){ .boolean = windowModeFullscreen }, MAP_ENTRY_BOOL);
+    addParserEntry(map, "windowModesCount", (MapEntryVal){ .boolean = windowModeCount }, MAP_ENTRY_BOOL);
+
+    addStateData(getCurrState(zEngine->stateMng), (void *)windowModeWindowed, STATE_DATA_PLAIN);
+    addStateData(getCurrState(zEngine->stateMng), (void *)windowModeFullscreen, STATE_DATA_PLAIN);
+    addStateData(getCurrState(zEngine->stateMng), (void *)windowModeCount, STATE_DATA_PLAIN);
+
+    #ifdef DEBUG
+        printf("Added %d window modes to parser map\n", *windowModeCount);
+    #endif
+}
+
+/**
+ * =====================================================================================================================
+ */
+
 void changeWindowMode(ZENg zEngine, void *data) {
     if (!data) {
         printf("No window mode data provided to changeWindowMode\n");
@@ -40,6 +119,7 @@ void changeWindowMode(ZENg zEngine, void *data) {
     }
     Uint8 currMode = zEngine->display->fullscreen;
     Uint8 newMode = *((Uint8 *)data);
+    printf("Current window mode: %d, requested mode: %d\n", currMode, newMode);
     if (currMode != newMode) {
         toggleFullscreen(zEngine->display);
     }

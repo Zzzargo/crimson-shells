@@ -308,20 +308,26 @@ UINode* UIcreateOptionCycle(
 
 // =====================================================================================================================
 
-// With JSON parsing I need a way to map(get it?) strings to functions and colors
+// With JSON parsing I need a way to map(get it?) strings to various data in the JSON file
 
 #ifndef PARSER_HASHMAP_SIZE
     #define PARSER_HASHMAP_SIZE 256
 #endif
 
 typedef enum {
-    MAP_ENTRY_FUNC,
-    MAP_ENTRY_COLOR
+    MAP_ENTRY_BTNFUNC,
+    MAP_ENTRY_COLOR,
+    MAP_ENTRY_PROVIDERFUNC,
+    MAP_ENTRY_BOOL,
+    MAP_ENTRY_DISPLAYMODE
 } MapEntryType;
 
 typedef union {
-    void (*funcPtr)(ZENg, void *);  // Pointer to a function (for onClick mainly)
+    void (*btnFunc)(ZENg, void *);  // Pointer to a button onClick function
     SDL_Color color;  // A color (for button colors mainly)
+    void (*providerFunc)(ZENg, ParserMap);  // Pointer to a provider function
+    Uint8 *boolean;  // A boolean value (or a one byte number, you do you boo)
+    SDL_DisplayMode *displayMode;  // A display mode (for resolutions mainly)
 } MapEntryVal;
 
 typedef struct MapEntry {
@@ -364,6 +370,30 @@ MapEntry* getParserEntry(ParserMap parserMap, const char *key);
  * @return pointer to the function if found, NULL otherwise
  */
 void* resolveAction(ParserMap parserMap, const char *key);
+
+/**
+ * Gets a provider function from the Parser Map
+ * @param parserMap the Parser Map = struct parserMap*
+ * @param key the entry's key
+ * @return pointer to the provider function if found, NULL otherwise
+ */
+void* resolveProvider(ParserMap parserMap, const char *key);
+
+/**
+ * Gets a boolean from the Parser Map
+ * @param parserMap the Parser Map = struct parserMap*
+ * @param key the entry's key
+ * @return the boolean value if found, 0 otherwise
+ */
+Uint8* resolveBool(ParserMap parserMap, const char *key);
+
+/**
+ * Gets a display mode from the Parser Map
+ * @param parserMap the Parser Map = struct parserMap*
+ * @param key the entry's key
+ * @return pointer to the display mode if found, NULL otherwise
+ */
+SDL_DisplayMode* resolveDisplayMode(ParserMap parserMap, const char *key);
 
 /**
  * Gets a color from the Parser Map

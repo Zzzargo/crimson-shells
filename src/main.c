@@ -45,7 +45,7 @@ int main(int argc, char* argv[]) {
         if (!running) break;
         
         // Clear the screen
-        SDL_SetRenderDrawColor(zEngine->display->renderer, 0, 0, 0, 255);  // Pitch black
+        SDL_SetRenderDrawColor(zEngine->display->renderer, 15, 15, 20, 255);  // Near black
         SDL_RenderClear(zEngine->display->renderer);
         
         // currState can be NULL if the stack was popped, so check it

@@ -26,16 +26,16 @@
 			"type": "label",
 			"text": "PAUSED",
 			"font": "assets/fonts/ByteBounce.ttf#48",
-			"color": "crimson"
+			"color": "crimsondark"
 		},
 		{
 			"type": "button",
 			"text": "Resume",
-			"font": "assets/fonts/ByteBounce.ttf#28",
+			"font": "assets/fonts/ByteBounce.ttf#32",
 			"color": {
-				"normal": "crimson_170",
-				"focused": "crimson",
-				"selected": "yellow_150"
+				"normal": "crimson",
+				"focused": "gold",
+				"selected": "crimsondark"
 			},
 			"onClick": "pauseToPlay",
 			"focused": true
@@ -43,11 +43,11 @@
 		{
 			"type": "button",
 			"text": "Exit to main menu",
-			"font": "assets/fonts/ByteBounce.ttf#28",
+			"font": "assets/fonts/ByteBounce.ttf#32",
 			"color": {
-				"normal": "crimson_170",
-				"focused": "crimson",
-				"selected": "yellow_150"
+				"normal": "crimson",
+				"focused": "gold",
+				"selected": "crimsondark"
 			},
 			"onClick": "pauseToMMenu"
 		}

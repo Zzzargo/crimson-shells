@@ -34,6 +34,10 @@ void addStateData(GameState *state, void *data, StateDataType type) {
     state->stateDataCount++;
 }
 
+/**
+ * =====================================================================================================================
+ */
+
 void clearStateData(GameState *state) {
     if (!state || !state->stateDataArray) return;
 

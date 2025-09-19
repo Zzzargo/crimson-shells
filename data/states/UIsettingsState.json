@@ -50,7 +50,7 @@
                     "type": "label",
                     "text": "Settings",
                     "font": "assets/fonts/ByteBounce.ttf#48",
-                    "color": "crimson"
+                    "color": "crimsondark"
                 }
             ]
         },
@@ -81,11 +81,11 @@
                 {
                     "type": "button",
                     "text": "Game",
-                    "font": "assets/fonts/ByteBounce.ttf#28",
+                    "font": "assets/fonts/ByteBounce.ttf#32",
                     "color": {
-                        "normal": "crimson_170",
-                        "focused": "crimson",
-                        "selected": "yellow_150"
+                        "normal": "crimson",
+                        "focused": "gold",
+                        "selected": "crimsondark"
                     },
                     "onClick": "settingsToGameSettings",
                     "focused": true
@@ -93,44 +93,44 @@
                 {
                     "type": "button",
                     "text": "Audio",
-                    "font": "assets/fonts/ByteBounce.ttf#28",
+                    "font": "assets/fonts/ByteBounce.ttf#32",
                     "color": {
-                        "normal": "crimson_170",
-                        "focused": "crimson",
-                        "selected": "yellow_150"
+                        "normal": "crimson",
+                        "focused": "gold",
+                        "selected": "crimsondark"
                     },
                     "onClick": "settingsToAudioSettings"
                 },
                 {
                     "type": "button",
                     "text": "Display",
-                    "font": "assets/fonts/ByteBounce.ttf#28",
+                    "font": "assets/fonts/ByteBounce.ttf#32",
                     "color": {
-                        "normal": "crimson_170",
-                        "focused": "crimson",
-                        "selected": "yellow_150"
+                        "normal": "crimson",
+                        "focused": "gold",
+                        "selected": "crimsondark"
                     },
                     "onClick": "settingsToVideoSettings"
                 },
                 {
                     "type": "button",
                     "text": "Controls",
-                    "font": "assets/fonts/ByteBounce.ttf#28",
+                    "font": "assets/fonts/ByteBounce.ttf#32",
                     "color": {
-                        "normal": "crimson_170",
-                        "focused": "crimson",
-                        "selected": "yellow_150"
+                        "normal": "crimson",
+                        "focused": "gold",
+                        "selected": "crimsondark"
                     },
                     "onClick": "settingsToControlsSettings"
                 },
                 {
                     "type": "button",
                     "text": "Back",
-                    "font": "assets/fonts/ByteBounce.ttf#28",
+                    "font": "assets/fonts/ByteBounce.ttf#32",
                     "color": {
-                        "normal": "crimson_170",
-                        "focused": "crimson",
-                        "selected": "yellow_150"
+                        "normal": "crimson",
+                        "focused": "gold",
+                        "selected": "crimsondark"
                     },
                     "onClick": "settingsToMMenu"
                 }

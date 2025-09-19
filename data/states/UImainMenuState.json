@@ -43,7 +43,7 @@
                     "type": "label",
                     "text": "Crimson Shells",
                     "font": "assets/fonts/ByteBounce.ttf#48",
-                    "color": "crimson"
+                    "color": "crimsondark"
                 }
             ]
         },
@@ -74,11 +74,11 @@
                 {
                     "type": "button",
                     "text": "Play",
-                    "font": "assets/fonts/ByteBounce.ttf#28",
+                    "font": "assets/fonts/ByteBounce.ttf#32",
                     "color": {
-                        "normal": "crimson_170",
-                        "focused": "crimson",
-                        "selected": "yellow_150"
+                        "normal": "crimson",
+                        "focused": "gold",
+                        "selected": "crimsondark"
                     },
                     "onClick": "mMenuToPlay",
                     "focused": true
@@ -86,33 +86,33 @@
                 {
                     "type": "button",
                     "text": "Garage",
-                    "font": "assets/fonts/ByteBounce.ttf#28",
+                    "font": "assets/fonts/ByteBounce.ttf#32",
                     "color": {
-                        "normal": "crimson_170",
-                        "focused": "crimson",
-                        "selected": "yellow_150"
+                        "normal": "crimson",
+                        "focused": "gold",
+                        "selected": "crimsondark"
                     },
                     "onClick": "mMenuToGarage"
                 },
                 {
                     "type": "button",
                     "text": "Settings",
-                    "font": "assets/fonts/ByteBounce.ttf#28",
+                    "font": "assets/fonts/ByteBounce.ttf#32",
                     "color": {
-                        "normal": "crimson_170",
-                        "focused": "crimson",
-                        "selected": "yellow_150"
+                        "normal": "crimson",
+                        "focused": "gold",
+                        "selected": "crimsondark"
                     },
                     "onClick": "mMenuToSettings"
                 },
                 {
                     "type": "button",
                     "text": "Exit",
-                    "font": "assets/fonts/ByteBounce.ttf#28",
+                    "font": "assets/fonts/ByteBounce.ttf#32",
                     "color": {
-                        "normal": "crimson_170",
-                        "focused": "crimson",
-                        "selected": "yellow_150"
+                        "normal": "crimson",
+                        "focused": "gold",
+                        "selected": "crimsondark"
                     },
                     "onClick": "prepareExit"
                 }
@@ -138,7 +138,7 @@
                 {
                     "type": "label",
                     "text": "Designer needed!",
-                    "font": "assets/fonts/ByteBounce.ttf#28",
+                    "font": "assets/fonts/ByteBounce.ttf#32",
                     "color": "purple"
                 }
             ]

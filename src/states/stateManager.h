@@ -244,6 +244,14 @@ void onEnterVideoSettings(ZENg zEngine);
 void onExitVideoSettings(ZENg zEngine);
 
 /**
+ * Provider function to get the available display resolutions
+ * It adds them to the parser map and to the current state's data for later freeing
+ * @param zEngine pointer to the engine
+ * @param map pointer to the parser map where the resolutions will be stored
+ */
+void getResolutions(ZENg zEngine, ParserMap map);
+
+/**
  * Button action to toggle fullscreen/windowed mode
  * @param zEngine pointer to the engine
  * @param data pointer to an Uint8 representing the new window mode (0 = windowed, 1 = fullscreen)
@@ -256,6 +264,14 @@ void changeWindowMode(ZENg zEngine, void *data);
  * @param data pointer to an SDL_DisplayMode struct describing the new display mode
  */
 void changeRes(ZENg zEngine, void *data);
+
+/**
+ * Provider function to get the available window modes (windowed/fullscreen)
+ * It adds them to the parser map and to the current state's data for later freeing
+ * @param zEngine pointer to the engine
+ * @param map pointer to the parser map where the window modes will be stored
+ */
+void getWindowModes(ZENg zEngine, ParserMap map);
 
 /**
  * Handles the events in the video Settings menu

@@ -49,11 +49,11 @@
                 {
                     "type": "button",
                     "text": "Main Gun",
-                    "font": "assets/fonts/ByteBounce.ttf#28",
+                    "font": "assets/fonts/ByteBounce.ttf#32",
                     "color": {
-                        "normal": "crimson_170",
-                        "focused": "crimson",
-                        "selected": "yellow_150"
+                        "normal": "crimson",
+                        "focused": "gold",
+                        "selected": "crimsondark"
                     },
                     "onClick": "garageToMMenu",
                     "focused": true
@@ -61,55 +61,55 @@
                 {
                     "type": "button",
                     "text": "Coaxial Gun 1",
-                    "font": "assets/fonts/ByteBounce.ttf#28",
+                    "font": "assets/fonts/ByteBounce.ttf#32",
                     "color": {
-                        "normal": "crimson_170",
-                        "focused": "crimson",
-                        "selected": "yellow_150"
+                        "normal": "crimson",
+                        "focused": "gold",
+                        "selected": "crimsondark"
                     },
                     "onClick": "garageToMMenu"
                 },
                 {
                     "type": "button",
                     "text": "Coaxial Gun 2",
-                    "font": "assets/fonts/ByteBounce.ttf#28",
+                    "font": "assets/fonts/ByteBounce.ttf#32",
                     "color": {
-                        "normal": "crimson_170",
-                        "focused": "crimson",
-                        "selected": "yellow_150"
+                        "normal": "crimson",
+                        "focused": "gold",
+                        "selected": "crimsondark"
                     },
                     "onClick": "garageToMMenu"
                 },
                 {
                     "type": "button",
                     "text": "Hull",
-                    "font": "assets/fonts/ByteBounce.ttf#28",
+                    "font": "assets/fonts/ByteBounce.ttf#32",
                     "color": {
-                        "normal": "crimson_170",
-                        "focused": "crimson",
-                        "selected": "yellow_150"
+                        "normal": "crimson",
+                        "focused": "gold",
+                        "selected": "crimsondark"
                     },
                     "onClick": "garageToMMenu"
                 },
                 {
                     "type": "button",
                     "text": "Module",
-                    "font": "assets/fonts/ByteBounce.ttf#28",
+                    "font": "assets/fonts/ByteBounce.ttf#32",
                     "color": {
-                        "normal": "crimson_170",
-                        "focused": "crimson",
-                        "selected": "yellow_150"
+                        "normal": "crimson",
+                        "focused": "gold",
+                        "selected": "crimsondark"
                     },
                     "onClick": "garageToMMenu"
                 },
                 {
                     "type": "button",
                     "text": "Back",
-                    "font": "assets/fonts/ByteBounce.ttf#28",
+                    "font": "assets/fonts/ByteBounce.ttf#32",
                     "color": {
-                        "normal": "crimson_170",
-                        "focused": "crimson",
-                        "selected": "yellow_150"
+                        "normal": "crimson",
+                        "focused": "gold",
+                        "selected": "crimsondark"
                     },
                     "onClick": "garageToMMenu"
                 }
@@ -143,7 +143,7 @@
                     "type": "label",
                     "text": "Garage",
                     "font": "assets/fonts/ByteBounce.ttf#48",
-                    "color": "crimson"
+                    "color": "crimsondark"
                 },
                 {
                     "type": "label",
@@ -181,12 +181,12 @@
                     "type": "label",
                     "text": "Description",
                     "font": "assets/fonts/ByteBounce.ttf#48",
-                    "color": "crimson"
+                    "color": "crimsondark"
                 },
                 {
                     "type": "label",
                     "text": "I have to make the text wrap",
-                    "font": "assets/fonts/ByteBounce.ttf#28",
+                    "font": "assets/fonts/ByteBounce.ttf#32",
                     "color": "purple",
                     "wrap": true
                 }

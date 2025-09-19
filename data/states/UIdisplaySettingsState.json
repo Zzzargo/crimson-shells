@@ -50,7 +50,7 @@
                     "type": "label",
                     "text": "Display Settings",
                     "font": "assets/fonts/ByteBounce.ttf#48",
-                    "color": "crimson"
+                    "color": "crimsondark"
                 }
             ]
         },
@@ -103,36 +103,26 @@
                     "selector": {
                         "type": "button",
                         "text": "Display mode",
-                        "font": "assets/fonts/ByteBounce.ttf#28",
+                        "font": "assets/fonts/ByteBounce.ttf#32",
                         "color": {
-                            "normal": "crimson_170",
-                            "focused": "crimson",
-                            "selected": "yellow_150"
+                            "normal": "crimson",
+                            "focused": "gold",
+                            "selected": "crimsondark"
                         },
                         "onClick": "changeWindowMode"
                     },
-                    "options": [
-                        {
-                            "type": "button",
-                            "text": "DATA NEEDED",
-                            "font": "assets/fonts/ByteBounce.ttf#28",
-                            "color": {
-                                "normal": "crimson_170",
-                                "focused": "crimson",
-                                "selected": "yellow_150"
-                            }
+                    "options": {
+                        "type": "buttonList",
+                        "data": {
+                            "provider": "getWindowModes"
                         },
-                        {
-                            "type": "button",
-                            "text": "DATA NEEDED INDEED",
-                            "font": "assets/fonts/ByteBounce.ttf#28",
-                            "color": {
-                                "normal": "crimson_170",
-                                "focused": "crimson",
-                                "selected": "yellow_150"
-                            }
+                        "font": "assets/fonts/ByteBounce.ttf#32",
+                        "color": {
+                            "normal": "crimson",
+                            "focused": "gold",
+                            "selected": "crimsondark"
                         }
-                    ],
+                    },
                     "focused": true,
                     "arrows": "assets/ui/arrow.png"
                 },
@@ -161,48 +151,36 @@
                     "selector": {
                         "type": "button",
                         "text": "Resolution",
-                        "font": "assets/fonts/ByteBounce.ttf#28",
+                        "font": "assets/fonts/ByteBounce.ttf#32",
                         "color": {
-                            "normal": "crimson_170",
-                            "focused": "crimson",
-                            "selected": "yellow_150"
+                            "normal": "crimson",
+                            "focused": "gold",
+                            "selected": "crimsondark"
                         },
                         "onClick": "changeRes"
                     },
-                    "options": [
-                        {
-                            "type": "button",
-                            "text": "DATA NEEDED",
-                            "font": "assets/fonts/ByteBounce.ttf#28",
-                            "color": {
-                                "normal": "crimson_170",
-                                "focused": "crimson",
-                                "selected": "yellow_150"
-                            },
-                            "data": "DATA NEEDED"
+                    "options": {
+                        "type": "buttonList",
+                        "data": {
+                            "provider": "getResolutions"
                         },
-                        {
-                            "type": "button",
-                            "text": "DATA NEEDED INDEED",
-                            "font": "assets/fonts/ByteBounce.ttf#28",
-                            "color": {
-                                "normal": "crimson_170",
-                                "focused": "crimson",
-                                "selected": "yellow_150"
-                            },
-                            "data": "DATA NEEDED INDEED"
+                        "font": "assets/fonts/ByteBounce.ttf#32",
+                        "color": {
+                            "normal": "crimson",
+                            "focused": "gold",
+                            "selected": "crimsondark"
                         }
-                    ],
+                    },
                     "arrows": "assets/ui/arrow.png"
                 },
                 {
                     "type": "button",
                     "text": "Back",
-                    "font": "assets/fonts/ByteBounce.ttf#28",
+                    "font": "assets/fonts/ByteBounce.ttf#32",
                     "color": {
-                        "normal": "crimson_170",
-                        "focused": "crimson",
-                        "selected": "yellow_150"
+                        "normal": "crimson",
+                        "focused": "gold",
+                        "selected": "crimsondark"
                     },
                     "onClick": "videoSettingsToSettings"
                 }
