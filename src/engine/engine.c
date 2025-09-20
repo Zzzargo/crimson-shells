@@ -210,128 +210,134 @@ void initLevel(ZENg zEngine, const char *levelFilePath) {
         }
     }
 
-    // Initialize the tileDefs
-    Tile *defs = zEngine->map->tileDefs;
-    defs[TILE_EMPTY].isWalkable = 1;
-    defs[TILE_EMPTY].type = TILE_EMPTY;
-
-    defs[TILE_BRICKS].isSolid = 1;
-    defs[TILE_BRICKS].type = TILE_BRICKS;
-    defs[TILE_BRICKS].texture = getTexture(zEngine->resources, "assets/textures/brick.jpg");
-
-    defs[TILE_ROCK].isSolid = 1;
-    defs[TILE_ROCK].type = TILE_ROCK;
-    defs[TILE_ROCK].texture = getTexture(zEngine->resources, "assets/textures/rocks.jpg");
-
-
-    FILE *fin = fopen(levelFilePath, "r");
-    if (!fin) {
-        fprintf(stderr, "Failed to open level file: %s\n", levelFilePath);
-        exit(EXIT_FAILURE);
+    FILE *f = fopen(levelFilePath, "rb");
+    if (!f) {
+        printf("Failed to open level file: %s\n", levelFilePath);
+        return;
     }
 
-    enum {
-        NONE,
-        SECTION_TILES,
-        SECTION_ENTITIES
-    } currSect = NONE;
+    fseek(f, 0, SEEK_END);
+    long size = ftell(f);
+    fseek(f, 0, SEEK_SET);
 
-    char line[256];
-    Uint32 tileRow;
+    char *data = malloc(size + 1);
+    fread(data, 1, size, f);
+    data[size] = '\0';
+    fclose(f);
 
-    while (fgets(line, sizeof(line), fin)) {
-        line[strcspn(line, "\r\n")] = 0;  // Remove newline characters
+    cJSON *root = cJSON_Parse(data);
+    free(data);
 
-        // Skip empty lines
-        if (strlen(line) == 0) continue;
-        // Skip comments
-        if (line[0] == '#') continue;
+    if (!root) {
+        printf("Failed to parse prefabs JSON\n");
+        return;
+    }
 
-        // Section headers
-        if (strcmp(line, "[TILES]") == 0) {
-            currSect = SECTION_TILES;
-            tileRow = 0;  // Init the counter
-            continue;
-        } else if (strcmp(line, "[ENTITIES]") == 0) {
-            currSect = SECTION_ENTITIES;
+    // The arena files have an object with the arrays "tiles" and "entities"
+    cJSON *tilesArray = cJSON_GetObjectItem(root, "tiles");
+    if (!cJSON_IsArray(tilesArray)) {
+        fprintf(stderr, "Invalid or missing 'tiles' array in level file\n");
+        cJSON_Delete(root);
+        return;
+    }
+
+    char *tileTypeToStr[] = {
+        [TILE_EMPTY] = "TILE_EMPTY",
+        [TILE_GRASS] = "TILE_GRASS",
+        [TILE_WATER] = "TILE_WATER",
+        [TILE_ROCK] = "TILE_ROCK",
+        [TILE_BRICKS] = "TILE_BRICKS",
+        [TILE_WOOD] = "TILE_WOOD",
+        [TILE_SPAWN] = "TILE_SPAWN"
+    };
+
+    Uint32 row = 0;
+    cJSON *tileRow = NULL;
+
+    cJSON_ArrayForEach(tileRow, tilesArray) {
+        if (!cJSON_IsArray(tileRow)) {
+            fprintf(stderr, "Invalid row in 'tiles' array at index %d\n", row);
             continue;
         }
-
-        switch (currSect) {
-            case SECTION_TILES: {
-                // Skip comments
-                if (line[0] == '#') continue;
-
-                if (tileRow >= ARENA_HEIGHT) {
-                    fprintf(stderr, "Warning: More tile rows in level file than expected (%d). Ignoring extra rows.\n", ARENA_HEIGHT);
-                    continue;
-                }
-
-                // Parse the tiles row
-                Uint32 tileCol = 0;
-                char *token = strtok(line, " ");
-                while (token && tileCol < ARENA_WIDTH) {
-                    TileType currTileType = (TileType)atoi(token);
-                    if (currTileType < 0 || currTileType >= TILE_COUNT) {
-                        fprintf(stderr, "Invalid tile type %d at row %d, column %d. Defaulting to TILE_EMPTY.\n", currTileType, tileRow, tileCol);
-                        currTileType = TILE_EMPTY;
-                    }
-                    zEngine->map->tiles[tileRow][tileCol] = zEngine->map->tileDefs[currTileType];
-                    zEngine->map->tiles[tileRow][tileCol].idx = tileRow * ARENA_WIDTH + tileCol;
-                    token = strtok(NULL, " ");
-                    tileCol++;
-                }
-
-                tileRow++;
+        if (row >= ARENA_HEIGHT) {
+            fprintf(
+                stderr,
+                "Warning: More tile rows in level file than expected (%d). Ignoring extra rows.\n", ARENA_HEIGHT
+            );
+            break;
+        }
+        Uint32 col = 0;
+        cJSON *tile = NULL;
+        cJSON_ArrayForEach(tile, tileRow) {
+            if (!cJSON_IsNumber(tile)) {
+                fprintf(stderr, "Invalid tile value at row %d, column %d\n", row, col);
+                continue;
+            }
+            if (col >= ARENA_WIDTH) {
+                fprintf(
+                    stderr,
+                    "Warning: More tile columns in level file than expected (%d). Ignoring extra columns\n", ARENA_WIDTH
+                );
                 break;
             }
-            case SECTION_ENTITIES: {
-                // Skip comments
-                if (line[0] == '#') continue;
-
-                // Format: <X> <Y>=<ENTITY_TYPE>
-                char *token = strtok(line, " ");
-                if (!token) break;
-                int x = atoi(token);
-
-                token = strtok(NULL, "=");
-                if (!token) break;
-                int y = atoi(token);
-
-                token = strtok(NULL, "\n");
-                if (!token) break;
-                EntityType entityType = (EntityType)atoi(token);
-                #ifdef DEBUG
-                    printf("Spawning entity type %d @ (%d, %d)\n", entityType, x, y);
-                #endif
-
-                switch (entityType) {
-                    case ENTITY_PLAYER: {
-                        instantiateTank(
-                            zEngine, getTankPrefab(zEngine->prefabs, "player"),
-                            (Vec2){.x = x * TILE_SIZE, .y = y * TILE_SIZE}
-                        );
-                        break;
-                    }
-                    case ENTITY_TANK_BASIC: {
-                        instantiateTank(zEngine, getTankPrefab(zEngine->prefabs, "tankBasic"),
-                        (Vec2){.x = x * TILE_SIZE, .y = y * TILE_SIZE});
-                        break;
-                    }
-                }
-                break;
+            TileType currTileType = (TileType)tile->valueint;
+            if (currTileType < 0 || currTileType >= TILE_COUNT) {
+                fprintf(
+                    stderr,
+                    "Invalid tile type %d at row %d, column %d. Defaulting to TILE_EMPTY.\n", currTileType, row, col
+                );
+                currTileType = TILE_EMPTY;
             }
-            case NONE: {
-                break;
+            zEngine->map->tiles[row][col] = getTilePrefab(zEngine->prefabs, tileTypeToStr[currTileType]);
+            zEngine->map->tiles[row][col].idx = row * ARENA_WIDTH + col;
+            col++;
+        }
+        if (col < ARENA_WIDTH) {
+            fprintf(
+                stderr,
+                "Warning: Fewer tile columns (%d) in row %d than expected (%d). The rest are filled with TILE_EMPTY.\n",
+                col, row, ARENA_WIDTH
+            );
+        }
+        row++;
+    }
+    if (row < ARENA_HEIGHT) {
+        fprintf(
+            stderr,
+            "Warning: Fewer tile rows (%d) in level file than expected (%d). The rest are filled with TILE_EMPTY.\n",
+            row, ARENA_HEIGHT
+        );
+    }
+
+    cJSON *entitiesArray = cJSON_GetObjectItem(root, "entities");
+    if (cJSON_IsArray(entitiesArray)) {
+        cJSON *entityJson;
+        cJSON_ArrayForEach(entityJson, entitiesArray) {
+            cJSON *entityTypeJson = cJSON_GetObjectItem(entityJson, "entityType");
+            cJSON *xJson = cJSON_GetObjectItem(entityJson, "x");
+            cJSON *yJson = cJSON_GetObjectItem(entityJson, "y");
+
+            if (!cJSON_IsString(entityTypeJson) || !cJSON_IsNumber(xJson) || !cJSON_IsNumber(yJson)) {
+                fprintf(stderr, "Invalid entity definition in level file\n");
+                continue;
             }
-            default: {
-                // It shouldn't reach here
-                fprintf(stderr, "Unknown section in level file: %s\n", line);
-                break;
-            }
+            char entityTypeStr[64];
+            strncpy(entityTypeStr, entityTypeJson->valuestring, sizeof(entityTypeStr));
+            entityTypeStr[sizeof(entityTypeStr) - 1] = '\0';
+
+            int x = xJson->valueint;
+            int y = yJson->valueint;
+
+            Entity tank = instantiateTank(
+                zEngine, getTankPrefab(zEngine->prefabs, entityTypeStr), (Vec2){.x = x * TILE_SIZE, .y = y * TILE_SIZE}
+            );
+            #ifdef DEBUG
+                printf("Instantiated tank of type %s at (%d, %d)\n", entityTypeStr, x, y);
+            #endif
         }
     }
-    fclose(fin);
+
+    cJSON_Delete(root);
 }
 
 /**
@@ -488,7 +494,7 @@ ZENg initGame() {
 
     // Initialize the prefabs manager
     initPrefabsManager(&zEngine->prefabs);
-    loadPrefabs(zEngine->prefabs, "data/prefabs");
+    loadPrefabs(zEngine, "data/prefabs.json");
 
     zEngine->uiManager = initUIManager();
 
@@ -519,14 +525,14 @@ void velocitySystem(ZENg zEngine, double_t deltaTime) {
             // If there are projectiles, let them behave
             zEngine->ecs->depGraph->nodes[SYS_VELOCITY]->isDirty = 1;
         } else {
-            #ifdef DEBUG
+            #ifdef DEBUGSYSTEMS
                 printf("[VELOCITY SYSTEM] Velocity system is not dirty\n");
             #endif
             return;
         }
     }
     
-    #ifdef DEBUG
+    #ifdef DEBUGSYSTEMS
         printf("[VELOCITY SYSTEM] Running velocity system for %lu entities\n", zEngine->ecs->components[VELOCITY_COMPONENT].denseSize);
     #endif
 
@@ -577,12 +583,12 @@ void velocitySystem(ZENg zEngine, double_t deltaTime) {
 
 void positionSystem(ZENg zEngine, double_t deltaTime) {
     if (zEngine->ecs->depGraph->nodes[SYS_POSITION]->isDirty == 0) {
-        #ifdef DEBUG
+        #ifdef DEBUGSYSTEMS
             printf("[POSITION SYSTEM] Position system is not dirty\n");
         #endif
         return;
     }
-    #ifdef DEBUG
+    #ifdef DEBUGSYSTEMS
         printf("[POSITION SYSTEM] Running position system for %lu entities\n", zEngine->ecs->components[POSITION_COMPONENT].denseSize);
     #endif
 
@@ -637,13 +643,13 @@ void positionSystem(ZENg zEngine, double_t deltaTime) {
 
 void lifetimeSystem(ZENg zEngine, double_t deltaTime) {
     if (zEngine->ecs->depGraph->nodes[SYS_LIFETIME]->isDirty == 0) {
-        #ifdef DEBUG
+        #ifdef DEBUGSYSTEMS
             printf("[LIFETIME SYSTEM] Lifetime system is not dirty. Something wrong happened\n");
         #endif
         return;
     }
     
-    #ifdef DEBUG
+    #ifdef DEBUGSYSTEMS
         printf("[LIFETIME SYSTEM] Running lifetime system for %lu entities\n", zEngine->ecs->components[LIFETIME_COMPONENT].denseSize);
     #endif
 
@@ -762,13 +768,13 @@ Uint8 checkEntityCollision(ZENg zEngine, SDL_Rect *hitbox, SDL_Rect *result) {
 
 void entityCollisionSystem(ZENg zEngine, double_t deltaTime) {
     if (zEngine->ecs->depGraph->nodes[SYS_ENTITY_COLLISIONS]->isDirty == 0) {
-        #ifdef DEBUG
+        #ifdef DEBUGSYSTEMS
             printf("[ENTITY COLLISION SYSTEM] Entity collision system is not dirty\n");
         #endif
         return;
     }
 
-    #ifdef DEBUG
+    #ifdef DEBUGSYSTEMS
         printf(
             "[ENTITY COLLISION SYSTEM] Running entity collision system for %lu entities\n",
             zEngine->ecs->components[COLLISION_COMPONENT].denseSize
@@ -868,13 +874,13 @@ Uint8 checkWorldCollision(ZENg zEngine, SDL_Rect *hitbox, Tile *collidedTile) {
 
 void worldCollisionSystem(ZENg zEngine, double_t deltaTime) {
     if (zEngine->ecs->depGraph->nodes[SYS_WORLD_COLLISIONS]->isDirty == 0) {
-        #ifdef DEBUG
+        #ifdef DEBUGSYSTEMS
             printf("[WORLD COLLISION SYSTEM] World collision system is not dirty\n");
         #endif
         return;
     }
 
-    #ifdef DEBUG
+    #ifdef DEBUGSYSTEMS
         printf(
             "[WORLD COLLISION SYSTEM] Running world collision system for %lu entities\n",
             zEngine->ecs->components[COLLISION_COMPONENT].denseSize
@@ -928,9 +934,18 @@ void worldCollisionSystem(ZENg zEngine, double_t deltaTime) {
                     (collidedTile.type == TILE_BRICKS && projComp->dmg >= 15)
                     || (collidedTile.type == TILE_ROCK && projComp->dmg >= 30)
                 ) {
+                    char *tileTypeToStr[] = {
+                        [TILE_EMPTY] = "TILE_EMPTY",
+                        [TILE_GRASS] = "TILE_GRASS",
+                        [TILE_WATER] = "TILE_WATER",
+                        [TILE_ROCK] = "TILE_ROCK",
+                        [TILE_BRICKS] = "TILE_BRICKS",
+                        [TILE_WOOD] = "TILE_WOOD",
+                        [TILE_SPAWN] = "TILE_SPAWN"
+                    };
                     Uint32 tileY = collidedTile.idx / ARENA_WIDTH;
                     Uint32 tileX = collidedTile.idx % ARENA_WIDTH;
-                    zEngine->map->tiles[tileY][tileX] = zEngine->map->tileDefs[TILE_EMPTY];
+                    zEngine->map->tiles[tileY][tileX] = getTilePrefab(zEngine->prefabs, tileTypeToStr[TILE_EMPTY]);
                 }
                 deleteEntity(zEngine->ecs, e);
                 continue;
@@ -959,9 +974,18 @@ void worldCollisionSystem(ZENg zEngine, double_t deltaTime) {
                     (collidedTile.type == TILE_BRICKS && projComp->dmg >= 15)
                     || (collidedTile.type == TILE_ROCK && projComp->dmg >= 30)
                 ) {
+                    char *tileTypeToStr[] = {
+                        [TILE_EMPTY] = "TILE_EMPTY",
+                        [TILE_GRASS] = "TILE_GRASS",
+                        [TILE_WATER] = "TILE_WATER",
+                        [TILE_ROCK] = "TILE_ROCK",
+                        [TILE_BRICKS] = "TILE_BRICKS",
+                        [TILE_WOOD] = "TILE_WOOD",
+                        [TILE_SPAWN] = "TILE_SPAWN"
+                    };
                     Uint32 tileY = collidedTile.idx / ARENA_WIDTH;
                     Uint32 tileX = collidedTile.idx % ARENA_WIDTH;
-                    zEngine->map->tiles[tileY][tileX] = zEngine->map->tileDefs[TILE_EMPTY];
+                    zEngine->map->tiles[tileY][tileX] = getTilePrefab(zEngine->prefabs, tileTypeToStr[TILE_EMPTY]);
                 }
                 deleteEntity(zEngine->ecs, e);
                 continue;
@@ -988,7 +1012,7 @@ void worldCollisionSystem(ZENg zEngine, double_t deltaTime) {
  */
 
 void healthSystem(ZENg zEngine, double_t deltaTime) {
-    #ifdef DEBUG
+    #ifdef DEBUGSYSTEMS
         printf("[HEALTH SYSTEM] There are %lu dirty health components\n", zEngine->ecs->components[HEALTH_COMPONENT].dirtyCount);
     #endif
 
@@ -1017,13 +1041,13 @@ void healthSystem(ZENg zEngine, double_t deltaTime) {
 
 void weaponSystem(ZENg zEngine, double_t deltaTime) {
     if (zEngine->ecs->depGraph->nodes[SYS_WEAPONS]->isDirty == 0) {
-        #ifdef DEBUG
+        #ifdef DEBUGSYSTEMS
             printf("[WEAPON SYSTEM] Weapon system is not dirty\n");
         #endif
         return;
     }
 
-    #ifdef DEBUG
+    #ifdef DEBUGSYSTEMS
         printf(
             "[WEAPON SYSTEM] Running weapon system for %lu entities\n",
             zEngine->ecs->components[WEAPON_COMPONENT].denseSize
@@ -1037,12 +1061,12 @@ void weaponSystem(ZENg zEngine, double_t deltaTime) {
         if (currWeapon->timeSinceUse > (1 / currWeapon->fireRate + EPSILON)) {
             continue;
         }
-        #ifdef DEBUG
+        #ifdef DEBUGPP
             printf("Updating timeSinceUse... %.4f -> ", currWeapon->timeSinceUse);
         #endif
         currWeapon->timeSinceUse += deltaTime;
 
-        #ifdef DEBUG
+        #ifdef DEBUGPP
             printf("%.4f\n", currWeapon->timeSinceUse);
         #endif
     }
@@ -1056,13 +1080,13 @@ void weaponSystem(ZENg zEngine, double_t deltaTime) {
 
 void transformSystem(ZENg zEngine, double_t deltaTime) {
     if (zEngine->ecs->depGraph->nodes[SYS_TRANSFORM]->isDirty == 0) {
-        #ifdef DEBUG
+        #ifdef DEBUGSYSTEMS
             printf("[TRANSFORM SYSTEM] Transform system is not dirty\n");
         #endif
         return;
     }
 
-    #ifdef DEBUG
+    #ifdef DEBUGSYSTEMS
         printf(
             "[TRANSFORM SYSTEM] Running transform system for %lu entities\n",
             zEngine->ecs->components[POSITION_COMPONENT].denseSize
@@ -1146,12 +1170,12 @@ void UIdebugRenderNode(SDL_Renderer *rdr, UIManager uiManager, UINode *node) {
 
 void renderSystem(ZENg zEngine, double_t deltaTime) {
     if (zEngine->ecs->depGraph->nodes[SYS_RENDER]->isDirty == 0) {
-        #ifdef DEBUG
+        #ifdef DEBUGSYSTEMS
             printf("[RENDER SYSTEM] Render system is not dirty. Not good.\n");
         #endif
     }
 
-    #ifdef DEBUG
+    #ifdef DEBUGSYSTEMS
         Uint64 renderCount = zEngine->ecs->components[RENDER_COMPONENT].denseSize;
         printf("[RENDER SYSTEM] Running render system for %lu entities\n", renderCount);
     #endif
@@ -1228,7 +1252,7 @@ void renderSystem(ZENg zEngine, double_t deltaTime) {
  */
 
 void uiSystem(ZENg zEngine, double_t deltaTime) {
-    #ifdef DEBUG
+    #ifdef DEBUGSYSTEMS
         printf("[UI SYSTEM] There are %lu dirty UI components\n", zEngine->uiManager->dirtyCount);
     #endif
     

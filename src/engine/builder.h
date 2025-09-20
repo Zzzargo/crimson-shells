@@ -1,12 +1,12 @@
 #ifndef BUILDER_H
 #define BUILDER_H
 
-#include "../global/global.h"
+#include "../engine/arena.h"
 
 typedef enum {
     BUILDER_TANKS,
     BUILDER_WEAPONS,
-    BUILDER_PROJECTILES,
+    BUILDER_TILES,
     BUILDER_COUNT  // automatically counts
 } BuilderType;
 
@@ -38,7 +38,7 @@ typedef struct {
 
 typedef struct {
     char *name;
-    EntityType entityType;  // Get rid of this asap
+    EntityType entityType;
     Int32 maxHealth;
     double_t maxSpeed;
     int w;  // Width of the tank sprite (in tiles)
@@ -94,6 +94,14 @@ BuilderEntry* getPrefab(PrefabsManager prefabMng, const char *key);
 WeaponPrefab* getWeaponPrefab(PrefabsManager prefabMng, const char *key);
 
 /**
+ * Gets a tile prefab from the PrefabsManager
+ * @param prefabMng the PrefabsManager = struct prefabsmng*
+ * @param key the prefab's key
+ * @return a tile definition if found, NULL otherwise
+ */
+Tile getTilePrefab(PrefabsManager prefabMng, const char *key);
+
+/**
  * Gets a tank prefab from the PrefabsManager
  * @param prefabMng the PrefabsManager = struct prefabsmng*
  * @param key the prefab's key
@@ -119,11 +127,11 @@ void removePrefab(PrefabsManager prefabMng, const char *key);
 
 /**
  * Preloads prefabs from a file into the PrefabsManager
- * @param prefabMng the PrefabsManager = struct prefabsmng*
+ * @param zEngine pointer to the engine = struct engine*
  * @param filePath path to the prefab file
  * @note The prefab file should have lines in the format TYPE:KEY:DATA
  */
-void loadPrefabs(PrefabsManager prefabMng, const char *filePath);
+void loadPrefabs(ZENg zEngine, const char *filePath);
 
 /**
  * Frees all the memory used by the PrefabsManager

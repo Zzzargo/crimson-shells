@@ -23,7 +23,7 @@ int main(int argc, char* argv[]) {
         if (deltaTime > 0.1) deltaTime = 0.1;  // Min 10 FPS
 
         #ifdef DEBUG
-            printf("============================================\n");
+            printf("=======================FRAME START=====================\n");
         #endif
 
         GameState *currState = getCurrState(zEngine->stateMng);

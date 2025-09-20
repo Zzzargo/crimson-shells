@@ -37,6 +37,7 @@ BuilderEntry* getPrefab(PrefabsManager prefabMng, const char *key) {
         }
         entry = entry->next;  // go to the next entry in the chain if there was a collision
     }
+    fprintf(stderr, "Prefab with key '%s' not found\n", key);
     return NULL;  // data not found
 }
 
@@ -64,6 +65,19 @@ TankPrefab* getTankPrefab(PrefabsManager prefabMng, const char *key) {
     }
     fprintf(stderr, "Tank prefab with key '%s' not found or wrong type\n", key);
     return NULL;  // tank prefab not found or wrong type
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+Tile getTilePrefab(PrefabsManager prefabMng, const char *key) {
+    BuilderEntry *entry = getPrefab(prefabMng, key);
+    if (entry && entry->type == BUILDER_TILES) {
+        return *(Tile *)entry->data;  // cast the data to TilePrefab
+    }
+    fprintf(stderr, "Tile prefab with key '%s' not found or wrong type\n", key);
+    return (Tile){0};  // tile prefab not found or wrong type
 }
 
 /**
@@ -125,102 +139,177 @@ void removePrefab(PrefabsManager prefabMng, const char *key) {
  * =====================================================================================================================
  */
 
-void loadPrefabs(PrefabsManager prefabMng, const char *filePath) {
-    if (!prefabMng || !filePath) {
-        fprintf(stderr, "Invalid prefab manager or file path\n");
+void loadPrefabs(ZENg zEngine, const char *filePath) {
+    FILE *f = fopen(filePath, "rb");
+    if (!f) {
+        printf("Failed to open prefabs file: %s\n", filePath);
         return;
     }
 
-    FILE *fin = fopen(filePath, "r");
-    if (!fin) {
-        fprintf(stderr, "Failed to open prefab file: %s\n", filePath);
+    fseek(f, 0, SEEK_END);
+    long size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    char *data = malloc(size + 1);
+    fread(data, 1, size, f);
+    data[size] = '\0';
+    fclose(f);
+
+    cJSON *root = cJSON_Parse(data);
+    free(data);
+
+    if (!root) {
+        printf("Failed to parse prefabs JSON\n");
         return;
     }
 
-    char line[256];
-    while (fgets(line, sizeof(line), fin)) {
-        // Remove newline character
-        line[strcspn(line, "\n")] = 0;
+    // The prefabs JSON is an array of prefab objects
+    cJSON *prefabJson = NULL;
+    cJSON_ArrayForEach(prefabJson, root) {
+        cJSON *typeJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "prefabType");
+        char *typeStr = typeJson ? typeJson->valuestring : NULL;
 
-        // Skip empty lines and comments
-        if (line[0] == '\0' || line[0] == '#') {
+        cJSON *nameJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "prefabName");
+        char *nameStr = nameJson ? nameJson->valuestring : NULL;
+
+        if (!typeStr || !nameStr) {
+            printf("Prefab missing type or name\n");
             continue;
         }
-
-        char *typeStr = strtok(line, ":");
-        char *key = strtok(NULL, ":");
-        char *dataStr = strtok(NULL, "\n");
-
-        if (!typeStr || !key || !dataStr) {
-            fprintf(stderr, "Malformed line in prefab file: %s\n", line);
-            continue;
-        }
-
-        #ifdef DEBUG
-            printf("===============================================================================================\n");
-            printf("Loading prefab - Type: %s, Key: %s, Data: %s\n", typeStr, key, dataStr);
-        #endif
-
-        BuilderType type;
         if (strcmp(typeStr, "WEAPON") == 0) {
-            type = BUILDER_WEAPONS;
-            char *projTexturePath = calloc(64, sizeof(char));
-            char *projHitSoundPath = calloc(64, sizeof(char));
-            double_t fireRate = 0.0, projSpeed = 0.0, projLifetime = 0.0;
-            int projW = 0, projH = 0, dmg = 0;
-            Uint8 isPiercing = 0, isExplosive = 0;
-            sscanf(dataStr, "%lf:%d:%d:%lf:%d:%hhu:%hhu:%lf:%[^:]:%s",
-                &fireRate, &projW, &projH, &projSpeed, &dmg,
-                &isPiercing, &isExplosive, &projLifetime,
-                projTexturePath, projHitSoundPath
-            );
+            cJSON *fireRateJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "fireRate");
+            cJSON *projWJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "projW");
+            cJSON *projHJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "projH");
+            cJSON *projSpeedJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "projSpeed");
+            cJSON *dmgJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "damage");
+            cJSON *isPiercingJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "isPiercing");
+            cJSON *isExplosiveJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "isExplosive");
+            cJSON *projLifeTimeJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "projLifetime");
+            cJSON *projTexturePathJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "projTexturePath");
+            cJSON *projHitSoundPathJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "projHitSoundPath");
+
+            if (!fireRateJson || !projWJson || !projHJson || !projSpeedJson || !dmgJson ||
+                !isPiercingJson || !isExplosiveJson || !projLifeTimeJson ||
+                !projTexturePathJson || !projHitSoundPathJson) {
+                printf("Incomplete weapon prefab data for '%s'\n", nameStr);
+                continue;
+            }
+
+            double_t fireRate = fireRateJson->valuedouble;
+            int projW = projWJson->valueint;
+            int projH = projHJson->valueint;
+            double_t projSpeed = projSpeedJson->valuedouble;
+            int dmg = dmgJson->valueint;
+            Uint8 isPiercing = (Uint8)isPiercingJson->valueint;
+            Uint8 isExplosive = (Uint8)isExplosiveJson->valueint;
+            double_t projLifeTime = projLifeTimeJson->valuedouble;
+            char *projTexturePath = strdup(projTexturePathJson->valuestring);
+            char *projHitSoundPath = strdup(projHitSoundPathJson->valuestring);
+
             #ifdef DEBUG
+                printf("===============================================================================================\n");
                 printf(
                     "Parsed weapon prefab - name: %s, fireRate: %.2f, projW: %d, projH: %d, projSpeed: %.2f\n",
-                    key, fireRate, projW, projH, projSpeed
+                    nameStr, fireRate, projW, projH, projSpeed
                 );
                 printf(
                     "ProjLifetime: %.2f, isPiercing: %hhu, isExplosive: %hhu, dmg: %d\n",
-                    projLifetime, isPiercing, isExplosive, dmg
+                    projLifeTime, isPiercing, isExplosive, dmg
                 );
-                printf("ProjTexturePath: %s, projHitSoundPath: %s\n", projTexturePath, projHitSoundPath);
+                printf("ProjTexturePath: %s, projHitSoundPath: %s\n=============\n", projTexturePath, projHitSoundPath);
             #endif
 
             WeaponPrefab *prefab = createWeaponPrefab(
-                strdup(key), fireRate, projW, projH, projSpeed, dmg, isPiercing, isExplosive, projLifetime,
+                strdup(nameStr), fireRate, projW, projH, projSpeed, dmg, isPiercing, isExplosive, projLifeTime,
                 projTexturePath, projHitSoundPath
             );
-            addPrefab(prefabMng, key, (void *)prefab, type);
+            addPrefab(zEngine->prefabs, nameStr, (void *)prefab, BUILDER_WEAPONS);
         } else if (strcmp(typeStr, "TANK") == 0) {
-            type = BUILDER_TANKS;
-            EntityType entityType = 0;
-            Int32 maxHealth = 0;
-            double_t speed = 0.0;
-            int w = 0, h = 0;
-            Uint8 isSolid = 0;
-            char *texturePath = calloc(256, sizeof(char));
-            sscanf(dataStr, "%d:%d:%lf:%d:%d:%hhu:%s",
-                (int *)&entityType, &maxHealth, &speed, &w, &h, &isSolid, texturePath
-            );
+            cJSON *entityTypeJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "entityType");
+            cJSON *maxHealthJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "maxHealth");
+            cJSON *speedJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "speed");
+            cJSON *wJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "width");
+            cJSON *hJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "height");
+            cJSON *isSolidJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "isSolid");
+            cJSON *texturePathJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "texturePath");
+
+            if (!entityTypeJson || !maxHealthJson || !speedJson || !wJson || !hJson ||
+                !isSolidJson || !texturePathJson) {
+                printf("Incomplete tank prefab data for '%s'\n", nameStr);
+                continue;
+            }
+
+            EntityType entityType = (EntityType)entityTypeJson->valueint;
+            Int32 maxHealth = maxHealthJson->valueint;
+            double_t speed = speedJson->valuedouble;
+            int w = wJson->valueint;
+            int h = hJson->valueint;
+            Uint8 isSolid = (Uint8)isSolidJson->valueint;
+            char *texturePath = strdup(texturePathJson->valuestring);
+
             #ifdef DEBUG
-                printf("Parsed tank prefab - name: %s, entityType: %d, maxHealth: %d, maxSpeed: %.2f\n",
-                    key, entityType, maxHealth, speed
+                printf("===========================================================================================\n");
+                printf("Parsed tank prefab - name: %s, entityType: %d, maxHealth: %d, speed: %.2f\n",
+                    nameStr, entityType, maxHealth, speed
                 );
-                printf("Width: %d, height: %d, isSolid: %hhu, texture: %s\n", w, h, isSolid, texturePath);
+                printf("Width: %d, height: %d, isSolid: %hhu, texture: %s\n============\n", w, h, isSolid, texturePath);
             #endif
             TankPrefab *prefab = createTankPrefab(
-                strdup(key), entityType, maxHealth, speed, w, h, isSolid, texturePath
+                strdup(nameStr), entityType, maxHealth, speed, w, h, isSolid, texturePath
             );
-            addPrefab(prefabMng, key, (void *)prefab, type);
-        } else if (strcmp(typeStr, "PROJECTILE") == 0) {
-            type = BUILDER_PROJECTILES;
+            addPrefab(zEngine->prefabs, nameStr, (void *)prefab, BUILDER_TANKS);
+        } else if (strcmp(typeStr, "TILE") == 0) {
+            // Defaults
+            SDL_Texture *texture = NULL;
+            double_t speedMod = 1.0;
+            Int32 damage = 0;
+            TileType type = TILE_EMPTY;
+            Uint8 isWalkable = 1;
+            Uint8 isSolid = 0;
+
+            cJSON *typeJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "tileType");
+            if (typeJson) type = (TileType)typeJson->valueint;
+            cJSON *isWalkableJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "isWalkable");
+            if (isWalkableJson) isWalkable = (Uint8)cJSON_IsTrue(isWalkableJson);
+            cJSON *isSolidJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "isSolid");
+            if (isSolidJson) isSolid = (Uint8)cJSON_IsTrue(isSolidJson);
+            cJSON *texturePathJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "texturePath");
+            char *texturePath = NULL;
+            if (texturePathJson) {
+                texturePath = texturePathJson->valuestring;
+                texture = getTexture(zEngine->resources, texturePath);
+            }
+            cJSON *speedModJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "speedMod");
+            if (speedModJson) speedMod = speedModJson->valuedouble;
+            cJSON *damageJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "damage");
+            if (damageJson) damage = damageJson->valueint;
+
+            Tile *tile = calloc(1, sizeof(Tile));
+            if (!tile) {
+                fprintf(stderr, "Failed to allocate memory for TilePrefab\n");
+                continue;
+            }
+            tile->type = type;
+            tile->isWalkable = isWalkable;
+            tile->isSolid = isSolid;
+            tile->texture = texture;
+            tile->speedMod = speedMod;
+            tile->damage = damage;
+            #ifdef DEBUG
+            printf("===========================================================================================\n");
+            printf("Parsed tile prefab - name: %s, type: %d, isWalkable: %hhu, isSolid: %hhu\n",
+                nameStr, type, isWalkable, isSolid
+            );
+            printf("Texture path: %s, speedMod: %.2f, damage: %d\n============\n", texturePath, speedMod, damage);
+            #endif
+            addPrefab(zEngine->prefabs, nameStr, (void *)tile, BUILDER_TILES);
         } else {
-            fprintf(stderr, "Unknown prefab type '%s' in line: %s\n", typeStr, line);
+            printf("Unknown prefab type: %s\n", typeStr);
             continue;
         }
     }
 
-    fclose(fin);
+    cJSON_Delete(root);
 }
 
 /**
@@ -287,7 +376,7 @@ WeaponPrefab* createWeaponPrefab(
         exit(EXIT_FAILURE);
     }
 
-    prefab->name = name;
+    prefab->name = (char *)name;
     prefab->fireRate = fireRate;
     prefab->projW = projW;
     prefab->projH = projH;
@@ -296,8 +385,8 @@ WeaponPrefab* createWeaponPrefab(
     prefab->isPiercing = isPiercing;
     prefab->isExplosive = isExplosive;
     prefab->projLifeTime = projLifeTime;
-    prefab->projTexturePath = projTexturePath;
-    prefab->projHitSoundPath = projHitSoundPath;
+    prefab->projTexturePath = (char *)projTexturePath;
+    prefab->projHitSoundPath = (char *)projHitSoundPath;
 
     return prefab;
 }
@@ -316,14 +405,14 @@ TankPrefab* createTankPrefab(
         exit(EXIT_FAILURE);
     }
 
-    prefab->name = name;
+    prefab->name = (char *)name;
     prefab->entityType = entityType;
     prefab->maxHealth = maxHealth;
     prefab->maxSpeed = maxSpeed;
     prefab->w = w;
     prefab->h = h;
     prefab->isSolid = isSolid;
-    prefab->texturePath = texturePath;
+    prefab->texturePath = (char *)texturePath;
 
     return prefab;
 }

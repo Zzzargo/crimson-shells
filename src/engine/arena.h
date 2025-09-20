@@ -29,7 +29,6 @@ typedef struct {
 } Tile;
 
 typedef struct map {
-    Tile tileDefs[TILE_COUNT];  // Definitions for each tile type, initialized at engine start
     Tile **tiles;  // 2D array of tiles representing the arena
 } *Arena;
 

@@ -1,0 +1,143 @@
+[
+    {
+        "prefabType": "WEAPON",
+        "prefabName": "Rocket Launcher",
+        "fireRate": 0.6,
+        "projW": 20,
+        "projH": 20,
+        "projSpeed": 450,
+        "damage": 50,
+        "isPiercing": false,
+        "isExplosive": true,
+        "projLifetime": 5.0,
+        "projTexturePath": "assets/textures/bullet.png",
+        "projHitSoundPath": "assets/sounds/shell2.mp3"
+    },
+    {
+        "prefabType": "WEAPON",
+        "prefabName": "M45",
+        "fireRate": 1.3,
+        "projW": 14,
+        "projH": 14,
+        "projSpeed": 450,
+        "damage": 35,
+        "isPiercing": false,
+        "isExplosive": false,
+        "projLifetime": 5.0,
+        "projTexturePath": "assets/textures/bullet.png",
+        "projHitSoundPath": "assets/sounds/shell2.mp3"
+    },
+    {
+        "prefabType": "WEAPON",
+        "prefabName": "KWK57",
+        "fireRate": 1.0,
+        "projW": 16,
+        "projH": 16,
+        "projSpeed": 500,
+        "damage": 42,
+        "isPiercing": true,
+        "isExplosive": false,
+        "projLifetime": 5.0,
+        "projTexturePath": "assets/textures/bullet.png",
+        "projHitSoundPath": "assets/sounds/shell2.mp3"
+    },
+    {
+        "prefabType": "WEAPON",
+        "prefabName": "Bigfella",
+        "fireRate": 1.0,
+        "projW": 20,
+        "projH": 20,
+        "projSpeed": 500,
+        "damage": 42,
+        "isPiercing": true,
+        "isExplosive": true,
+        "projLifetime": 5.0,
+        "projTexturePath": "assets/textures/bullet.png",
+        "projHitSoundPath": "assets/sounds/shell1.mp3"
+    },
+    {
+        "prefabType": "WEAPON",
+        "prefabName": "PKT",
+        "fireRate": 4.5,
+        "projW": 10,
+        "projH": 10,
+        "projSpeed": 400,
+        "damage": 15,
+        "isPiercing": false,
+        "isExplosive": false,
+        "projLifetime": 3.0,
+        "projTexturePath": "assets/textures/bullet.png",
+        "projHitSoundPath": "assets/sounds/coaxmg1.mp3"
+    },
+    {
+        "prefabType": "WEAPON",
+        "prefabName": "M240C",
+        "fireRate": 6.5,
+        "projW": 8,
+        "projH": 8,
+        "projSpeed": 350,
+        "damage": 10,
+        "isPiercing": false,
+        "isExplosive": false,
+        "projLifetime": 3.0,
+        "projTexturePath": "assets/textures/bullet.png",
+        "projHitSoundPath": "assets/sounds/coaxmg2.mp3"
+    },
+    {
+        "prefabType": "WEAPON",
+        "prefabName": "L4A1",
+        "fireRate": 4.0,
+        "projW": 12,
+        "projH": 12,
+        "projSpeed": 450,
+        "damage": 20,
+        "isPiercing": true,
+        "isExplosive": false,
+        "projLifetime": 3.0,
+        "projTexturePath": "assets/textures/bullet.png",
+        "projHitSoundPath": "assets/sounds/coaxmg3.mp3"
+    },
+    {
+        "prefabType": "TANK",
+        "prefabName": "player",
+        "entityType": 0,
+        "maxHealth": 100,
+        "speed": 200,
+        "width": 2,
+        "height": 2,
+        "isSolid": true,
+        "texturePath": "assets/textures/tank2.png"
+    },
+    {
+        "prefabType": "TANK",
+        "prefabName": "tankBasic",
+        "entityType": 1,
+        "maxHealth": 100,
+        "speed": 200,
+        "width": 2,
+        "height": 2,
+        "isSolid": true,
+        "texturePath": "assets/textures/tank.png"
+    },
+    {
+        "prefabType": "TILE",
+        "prefabName": "TILE_EMPTY",
+        "tileType": 0
+    },
+    {
+        "prefabType":"TILE",
+        "prefabName":"TILE_BRICKS",
+        "tileType": 4,
+        "isWalkable": false,
+        "isSolid": true,
+        "texturePath":"assets/textures/brick.jpg"
+    },
+    {
+        "prefabType":"TILE",
+        "prefabName":"TILE_ROCK",
+        "tileType": 3,
+        "isWalkable": false,
+        "isSolid": true,
+        "texturePath":"assets/textures/rocks.jpg"
+    }
+]

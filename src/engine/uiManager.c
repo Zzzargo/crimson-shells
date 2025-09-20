@@ -674,7 +674,7 @@ void UIunmarkNodeDirty(UIManager uiManager) {
 void UIrenderNode(SDL_Renderer *rdr, UINode *node) {
     if (!node) return;
 
-    #ifdef DEBUG
+    #ifdef DEBUGPP
         // Guard against the empty UI tree
         if (node->rect) printf(
             "Rendering UI node of type %d (x=%d, y=%d, w=%d, h=%d)\n",

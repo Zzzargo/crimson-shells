@@ -1,7 +1,7 @@
 #include "stateManager.h"
 
 void onEnterPlayState(ZENg zEngine) {
-    initLevel(zEngine, "data/arenatest");
+    initLevel(zEngine, "data/arenatest.json");
 
     // Add some weapons to the player while testing the arena parser
     Entity mainGunID = createEntity(zEngine->ecs, STATE_PLAYING);
@@ -247,14 +247,14 @@ Uint8 handlePlayStateEvents(SDL_Event *e, ZENg zEngine) {
                 CDLLNode *currSecGun = playerLoadout->currSecondaryGun;
                 WeaponComponent *secGun = (WeaponComponent *)currSecGun->data;
                 if (!secGun) {
-                    #ifdef DEBUG
+                    #ifdef DEBUGPP
                         printf("No secondary weapons to switch to!\n");
                     #endif
                     return 1;
                 }
 
                 playerLoadout->currSecondaryGun = currSecGun->prev;
-                #ifdef DEBUG
+                #ifdef DEBUGPP
                     WeaponComponent *newWeapon = (WeaponComponent *)(playerLoadout->currSecondaryGun->data);
                     printf("Switched weapon left: %s -> %s\n", secGun->name, newWeapon->name);
                 #endif
@@ -268,14 +268,14 @@ Uint8 handlePlayStateEvents(SDL_Event *e, ZENg zEngine) {
                 CDLLNode *currSecGun = playerLoadout->currSecondaryGun;
                 WeaponComponent *secGun = (WeaponComponent *)currSecGun->data;
                 if (!secGun) {
-                    #ifdef DEBUG
+                    #ifdef DEBUGPP
                         printf("No secondary weapons to switch to!\n");
                     #endif
                     return 1;
                 }
 
                 playerLoadout->currSecondaryGun = currSecGun->next;
-                #ifdef DEBUG
+                #ifdef DEBUGPP
                     WeaponComponent *newWeapon = (WeaponComponent *)(playerLoadout->currSecondaryGun->data);
                     printf("Switched weapon right: %s -> %s\n", secGun->name, newWeapon->name);
                 #endif
@@ -349,7 +349,7 @@ void handlePlayStateInput(ZENg zEngine) {
         Uint64 mainGunDenseIdx = zEngine->ecs->components[WEAPON_COMPONENT].sparse[mainGunPage][mainGunPageIdx];
         WeaponComponent *mainGun = (WeaponComponent *)zEngine->ecs->components[WEAPON_COMPONENT].dense[mainGunDenseIdx];
 
-        #ifdef DEBUG
+        #ifdef DEBUGPP
             printf(
                 "Trying to shoot... timeSinceUse: %.4f    timeRequired: %.4f\n",
                 mainGun->timeSinceUse, (1.0 / mainGun->fireRate)
@@ -366,7 +366,7 @@ void handlePlayStateInput(ZENg zEngine) {
             );
             mainGun->timeSinceUse = 0;
         }
-        #ifdef DEBUG
+        #ifdef DEBUGPP
             else {
                 printf("Weapon has cooldown, can't shoot\n");
             }
@@ -378,7 +378,7 @@ void handlePlayStateInput(ZENg zEngine) {
         LoadoutComponent *playerLoadout = (LoadoutComponent *)zEngine->ecs->components[LOADOUT_COMPONENT].dense[loadoutDenseIdx];
         WeaponComponent *currSecGun = playerLoadout->currSecondaryGun->data;
 
-        #ifdef DEBUG
+        #ifdef DEBUGPP
             printf(
                 "Trying to shoot... timeSinceUse: %.4f    timeRequired: %.4f\n",
                 currSecGun->timeSinceUse, (1.0 / currSecGun->fireRate)
@@ -395,7 +395,7 @@ void handlePlayStateInput(ZENg zEngine) {
             );
             currSecGun->timeSinceUse = 0;
         }
-        #ifdef DEBUG
+        #ifdef DEBUGPP
             else {
                 printf("Weapon has cooldown, can't shoot\n");
             }
