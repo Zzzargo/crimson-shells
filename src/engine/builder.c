@@ -1,54 +1,12 @@
 #include "builder.h"
 #include "engine.h"  // This is some dark magic here
 
-void initPrefabsManager(PrefabsManager *prefabmng) {
-    *prefabmng = calloc(1, sizeof(struct prefabsmng));
-    if (!*prefabmng) {
-        fprintf(stderr, "Failed to allocate memory for PrefabsManager\n");
-        exit(EXIT_FAILURE);
-    }
-}
-
-/**
- * =====================================================================================================================
- */
-
-static inline Uint32 hashFunc(const char *key) {
-    Uint32 hash = 5381;
-    int c;
-
-    while (c = *key++)
-        hash = ((hash << 5) + hash) + (Uint32)c; // hash * 33 + c
-
-    return hash % PREFAB_HASHMAP_SIZE;
-}
-
-/**
- * =====================================================================================================================
- */
-
-BuilderEntry* getPrefab(PrefabsManager prefabMng, const char *key) {
-    Uint32 idx = hashFunc(key);
-
-    BuilderEntry *entry = prefabMng->hashmap[idx];
-    while (entry) {
-        if (strcmp(entry->key, key) == 0) {
-            return entry;  // found the data
-        }
-        entry = entry->next;  // go to the next entry in the chain if there was a collision
-    }
-    fprintf(stderr, "Prefab with key '%s' not found\n", key);
-    return NULL;  // data not found
-}
-
-/**
- * =====================================================================================================================
- */
-
-WeaponPrefab* getWeaponPrefab(PrefabsManager prefabMng, const char *key) {
-    BuilderEntry *entry = getPrefab(prefabMng, key);
-    if (entry && entry->type == BUILDER_WEAPONS) {
-        return (WeaponPrefab *)entry->data;  // cast the data to WeaponPrefab
+WeaponPrefab* getWeaponPrefab(HashMap prefabMng, const char *key) {
+    if (!prefabMng || !key) THROW_ERROR_AND_RETURN("Resource manager or key is NULL", NULL);
+    if (prefabMng->type != MAP_PREFABS) THROW_ERROR_AND_RETURN("Prefabs manager is of wrong type", NULL);
+    MapEntry *entry = MapGetEntry(prefabMng, key);
+    if (entry && entry->type == ENTRY_WEAPON_PREFAB) {
+        return (WeaponPrefab *)entry->data.ptr;
     }
     fprintf(stderr, "Weapon prefab with key '%s' not found or wrong type\n", key);
     return NULL;  // weapon prefab not found or wrong type
@@ -58,81 +16,28 @@ WeaponPrefab* getWeaponPrefab(PrefabsManager prefabMng, const char *key) {
  * =====================================================================================================================
  */
 
-TankPrefab* getTankPrefab(PrefabsManager prefabMng, const char *key) {
-    BuilderEntry *entry = getPrefab(prefabMng, key);
-    if (entry && entry->type == BUILDER_TANKS) {
-        return (TankPrefab *)entry->data;  // cast the data to TankPrefab
+TankPrefab* getTankPrefab(HashMap prefabMng, const char *key) {
+    if (!prefabMng || !key) THROW_ERROR_AND_RETURN("Resource manager or key is NULL", NULL);
+    if (prefabMng->type != MAP_PREFABS) THROW_ERROR_AND_RETURN("Prefabs manager is of wrong type", NULL);
+    MapEntry *entry = MapGetEntry(prefabMng, key);
+    if (entry && entry->type == ENTRY_TANK_PREFAB) {
+        return (TankPrefab *)entry->data.ptr;
     }
-    fprintf(stderr, "Tank prefab with key '%s' not found or wrong type\n", key);
-    return NULL;  // tank prefab not found or wrong type
+    THROW_ERROR_AND_DO("Tank prefab with key ", fprintf(stderr, "'%s' not found\n", key); return NULL;);
 }
 
 /**
  * =====================================================================================================================
  */
 
-Tile getTilePrefab(PrefabsManager prefabMng, const char *key) {
-    BuilderEntry *entry = getPrefab(prefabMng, key);
-    if (entry && entry->type == BUILDER_TILES) {
-        return *(Tile *)entry->data;  // cast the data to TilePrefab
+Tile getTilePrefab(HashMap prefabMng, const char *key) {
+    if (!prefabMng || !key) THROW_ERROR_AND_RETURN("Resource manager or key is NULL", (Tile){0});
+    if (prefabMng->type != MAP_PREFABS) THROW_ERROR_AND_RETURN("Prefabs manager is of wrong type", (Tile){0});
+    MapEntry *entry = MapGetEntry(prefabMng, key);
+    if (entry && entry->type == ENTRY_TILE_PREFAB) {
+        return *(Tile *)entry->data.ptr;
     }
-    fprintf(stderr, "Tile prefab with key '%s' not found or wrong type\n", key);
-    return (Tile){0};  // tile prefab not found or wrong type
-}
-
-/**
- * =====================================================================================================================
- */
-
-void addPrefab(PrefabsManager prefabMng, const char *key, void *data, BuilderType type) {
-    Uint32 idx = hashFunc(key);  // index at which to add the prefab
-    BuilderEntry *new = calloc(1, sizeof(BuilderEntry));
-    if (!new) {
-        fprintf(stderr, "Failed to allocate memory for new prefab entry\n");
-        exit(EXIT_FAILURE);
-    }
-
-    new->key = strdup(key);  // Safely copy the key
-    if (!new->key) {
-        fprintf(stderr, "Failed to allocate memory for prefab key\n");
-        free(new);
-        exit(EXIT_FAILURE);
-    }
-
-    new->data = data;
-    new->type = type;  // set the data type
-    new->next = prefabMng->hashmap[idx];  // the new entry is added at the beginning of the chain
-    prefabMng->hashmap[idx] = new;  // update the hashmap to point to the new entry
-}
-
-/**
- * =====================================================================================================================
- */
-
-void removePrefab(PrefabsManager prefabMng, const char *key) {
-    Uint32 idx = hashFunc(key);
-
-    BuilderEntry *entry = prefabMng->hashmap[idx];
-    BuilderEntry *prev = NULL;
-
-    while (entry) {
-        if (strcmp(entry->key, key) == 0) {
-            // found the data to remove
-            if (prev) {
-                prev->next = entry->next;  // link the previous entry to the one after the current
-            } else {
-                // if this is the first entry in the chain
-                prefabMng->hashmap[idx] = entry->next;  // update the head of the chain
-            }
-            free(entry->key);  // free the key string
-            free(entry);  // free the entry itself
-            return;
-        }
-        prev = entry;
-        entry = entry->next;  // go to the next entry in the chain
-    }
-    // if we reach here, the data was not found
-    fprintf(stderr, "Resource with key '%s' not found for removal\n", key);
+    THROW_ERROR_AND_DO("Tile prefab with key ", fprintf(stderr, "'%s' not found\n", key); return (Tile){0};);
 }
 
 /**
@@ -223,7 +128,7 @@ void loadPrefabs(ZENg zEngine, const char *filePath) {
                 strdup(nameStr), fireRate, projW, projH, projSpeed, dmg, isPiercing, isExplosive, projLifeTime,
                 projTexturePath, projHitSoundPath
             );
-            addPrefab(zEngine->prefabs, nameStr, (void *)prefab, BUILDER_WEAPONS);
+            MapAddEntry(zEngine->prefabs, nameStr, (MapEntryVal){.ptr = prefab}, ENTRY_WEAPON_PREFAB);
         } else if (strcmp(typeStr, "TANK") == 0) {
             cJSON *entityTypeJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "entityType");
             cJSON *maxHealthJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "maxHealth");
@@ -257,7 +162,7 @@ void loadPrefabs(ZENg zEngine, const char *filePath) {
             TankPrefab *prefab = createTankPrefab(
                 strdup(nameStr), entityType, maxHealth, speed, w, h, isSolid, texturePath
             );
-            addPrefab(zEngine->prefabs, nameStr, (void *)prefab, BUILDER_TANKS);
+            MapAddEntry(zEngine->prefabs, nameStr, (MapEntryVal){.ptr = prefab}, ENTRY_TANK_PREFAB);
         } else if (strcmp(typeStr, "TILE") == 0) {
             // Defaults
             SDL_Texture *texture = NULL;
@@ -302,7 +207,7 @@ void loadPrefabs(ZENg zEngine, const char *filePath) {
             );
             printf("Texture path: %s, speedMod: %.2f, damage: %d\n============\n", texturePath, speedMod, damage);
             #endif
-            addPrefab(zEngine->prefabs, nameStr, (void *)tile, BUILDER_TILES);
+            MapAddEntry(zEngine->prefabs, nameStr, (MapEntryVal){.ptr = tile}, ENTRY_TILE_PREFAB);
         } else {
             printf("Unknown prefab type: %s\n", typeStr);
             continue;
@@ -316,18 +221,18 @@ void loadPrefabs(ZENg zEngine, const char *filePath) {
  * =====================================================================================================================
  */
 
-void freePrefabsManager(PrefabsManager *prefabmng) {
-    if (!prefabmng || !*prefabmng) {
-        return;
-    }
+void freePrefabsManager(HashMap *prefabmng) {
+    if (!prefabmng || !*prefabmng) return;
+    if ((*prefabmng)->type != MAP_PREFABS) THROW_ERROR_AND_RETURN_VOID("Prefabs manager is of wrong type");
 
-    for (Uint32 i = 0; i < PREFAB_HASHMAP_SIZE; i++) {
-        BuilderEntry *entry = (*prefabmng)->hashmap[i];
+    size_t size = (*prefabmng)->size;
+    for (Uint32 i = 0; i < size; i++) {
+        MapEntry *entry = (*prefabmng)->entries[i];
         while (entry) {
-            BuilderEntry *next = entry->next;
+            MapEntry *next = entry->next;
             switch(entry->type) {
-                case BUILDER_WEAPONS: {
-                    WeaponPrefab *wp = (WeaponPrefab *)entry->data;
+                case ENTRY_WEAPON_PREFAB: {
+                    WeaponPrefab *wp = (WeaponPrefab *)entry->data.ptr;
                     if (wp->projTexturePath) {
                         free(wp->projTexturePath);
                     }
@@ -340,8 +245,8 @@ void freePrefabsManager(PrefabsManager *prefabmng) {
                     free(wp);
                     break;
                 }
-                case BUILDER_TANKS: {
-                    TankPrefab *tp = (TankPrefab *)entry->data;
+                case ENTRY_TANK_PREFAB: {
+                    TankPrefab *tp = (TankPrefab *)entry->data.ptr;
                     if (tp->texturePath) {
                         free(tp->texturePath);
                     }
@@ -351,10 +256,22 @@ void freePrefabsManager(PrefabsManager *prefabmng) {
                     free(tp);
                     break;
                 }
+                case ENTRY_TILE_PREFAB: {
+                    Tile *tile = (Tile *)entry->data.ptr;
+                    free(tile);
+                    break;
+                }
+                default: {
+                    THROW_ERROR_AND_DO(
+                        "Unknown prefab type ",
+                        fprintf(stderr, "%d for key '%s'\n", entry->type, entry->key);
+                    );
+                    break;
+                }
             }
-            free(entry->key);  // free the key string
-            free(entry);  // free the entry itself
-            entry = next;  // move to the next entry in the chain
+            free(entry->key);  // Free the key string
+            free(entry);  // Free the entry itself
+            entry = next;  // Move to the next entry in the chain
         }
     }
 

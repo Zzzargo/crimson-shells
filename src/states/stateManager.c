@@ -10,53 +10,28 @@ void initStateManager(StateManager *stateMng) {
 
 /**
  * =====================================================================================================================
- */
-
-void addStateData(GameState *state, void *data, StateDataType type) {
-    if (!state) {
-        fprintf(stderr, "Cannot add state data to a NULL GameState\n");
-        return;
-    }
-
-    if (state->stateDataCount >= state->stateDataCapacity) {
-        // Resize the array
-        size_t newCapacity = state->stateDataCapacity + 1;
-        StateData *newArray = realloc(state->stateDataArray, newCapacity * sizeof(StateData));
-        if (!newArray) {
-            fprintf(stderr, "Failed to resize state data array\n");
-            return;
-        }
-        state->stateDataArray = newArray;
-        state->stateDataCapacity = newCapacity;
-    }
-    state->stateDataArray[state->stateDataCount].data = data;
-    state->stateDataArray[state->stateDataCount].type = type;
-    state->stateDataCount++;
-}
-
-/**
- * =====================================================================================================================
- */
+*/
 
 void clearStateData(GameState *state) {
-    if (!state || !state->stateDataArray) return;
+    if (!state) THROW_ERROR_AND_RETURN_VOID("State is NULL. Can't free data");
+    HashMap map = state->stateData;
+    if (!map) THROW_ERROR_AND_RETURN_VOID("Map is NULL. Can't free");
 
-    for (size_t i = 0; i < state->stateDataCount; i++) {
-        if (state->stateDataArray[i].data) {
-            switch (state->stateDataArray[i].type) {
-                case STATE_DATA_PLAIN:
-                    free(state->stateDataArray[i].data);
-                    break;
-                default:
-                    fprintf(stderr, "Unknown StateDataType %d, cannot free data\n", state->stateDataArray[i].type);
-                    break;
+    for (size_t i = 0; i < map->size; i++) {
+        MapEntry *entry = map->entries[i];
+        while (entry) {
+            MapEntry *next = entry->next;
+            switch (entry->type) {
+                
             }
+            free(entry->key);  // Free the key string
+            free(entry);  // Free the entry itself
+            entry = next;  // Move to the next entry in the chain
         }
     }
-    free(state->stateDataArray);
-    state->stateDataArray = NULL;
-    state->stateDataCount = 0;
-    state->stateDataCapacity = 0;
+
+    free(map->entries);
+    free(map);
 }
 
 /**

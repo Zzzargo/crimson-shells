@@ -5,20 +5,14 @@ void loadSettings(ZENg zEngine, const char *filePath) {
     FILE *fin = fopen(filePath, "r");
 
     zEngine->inputMng = calloc(1, sizeof(struct inputmng));
-    if (!zEngine->inputMng) {
-        printf("Failed allocating memory for the input manager");
-        exit(EXIT_FAILURE);
-    }
+    if (!zEngine->inputMng) THROW_ERROR_AND_EXIT("Failed allocating memory for the input manager");
 
     zEngine->display = calloc(1, sizeof(struct displaymng));
-    if (!zEngine->display) {
-        printf("Failed allocating memory for the display manager");
-        exit(EXIT_FAILURE);
-    }
+    if (!zEngine->display) THROW_ERROR_AND_EXIT("Failed allocating memory for the display manager");
 
     if (!fin) {
         // file doesn't exist
-        printf("No config file found in %s. Using defaults\n", filePath);
+        fprintf(stderr, "No config file found in %s. Using defaults\n", filePath);
         setDefaultBindings(zEngine->inputMng);
         setDefaultDisplaySettings(zEngine->display);
         
@@ -31,18 +25,16 @@ void loadSettings(ZENg zEngine, const char *filePath) {
             zEngine->display->currentMode.h,
             zEngine->display->wdwFlags
         );
-        if (!zEngine->display->window) {
-            printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
-            exit(EXIT_FAILURE);
-        }
+        if (!zEngine->display->window) THROW_ERROR_AND_DO(
+            "Window creation failed: ", fprintf(stderr, "%s\n", SDL_GetError()); exit(EXIT_FAILURE);
+        );
         zEngine->display->renderer = SDL_CreateRenderer(
             zEngine->display->window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC
         );
-        if (!zEngine->display->renderer) {
-            printf("Renderer could not be created! SDL_Error: %s\n", SDL_GetError());
-            SDL_DestroyWindow(zEngine->display->window);
-            exit(EXIT_FAILURE);
-        }
+        if (!zEngine->display->renderer) THROW_ERROR_AND_DO(
+            "Renderer creation failed: ", fprintf(stderr, "%s\n", SDL_GetError());
+            SDL_DestroyWindow(zEngine->display->window); exit(EXIT_FAILURE);
+        );
         return;
     }
 
@@ -150,10 +142,9 @@ void loadSettings(ZENg zEngine, const char *filePath) {
         zEngine->display->wdwFlags
     );
 
-    if (!zEngine->display->window) {
-        printf("Window creation failed: %s\n", SDL_GetError());
-        exit(EXIT_FAILURE);
-    }
+    if (!zEngine->display->window) THROW_ERROR_AND_DO(
+        "Window creation failed: ", fprintf(stderr, "%s\n", SDL_GetError()); exit(EXIT_FAILURE);
+    );
 
     // Create renderer
     Int32 rendererFlags = SDL_RENDERER_ACCELERATED;
@@ -162,11 +153,10 @@ void loadSettings(ZENg zEngine, const char *filePath) {
     zEngine->display->renderer = SDL_CreateRenderer(
         zEngine->display->window, -1, rendererFlags
     );
-    if (!zEngine->display->renderer) {
-        printf("Renderer creation failed: %s\n", SDL_GetError());
-        SDL_DestroyWindow(zEngine->display->window);
-        exit(EXIT_FAILURE);
-    }
+    if (!zEngine->display->renderer) THROW_ERROR_AND_DO(
+        "Renderer creation failed: ", fprintf(stderr, "%s\n", SDL_GetError());
+        SDL_DestroyWindow(zEngine->display->window); exit(EXIT_FAILURE);
+    );
 
     printf("Settings loaded from %s\n", filePath);
 
@@ -185,36 +175,20 @@ void loadSettings(ZENg zEngine, const char *filePath) {
  */
 
 void initLevel(ZENg zEngine, const char *levelFilePath) {
-    if (!zEngine || !levelFilePath) {
-        fprintf(stderr, "Invalid engine or level file path\n");
-        return;
-    }
+    if (!zEngine || !levelFilePath) THROW_ERROR_AND_RETURN_VOID("zEngine or levelFilePath is NULL in initLevel");
 
-    zEngine->map = calloc(1, sizeof(struct map));
-    if (!zEngine->map) {
-        fprintf(stderr, "Failed to allocate memory for the arena map\n");
-        exit(EXIT_FAILURE);
-    }
+    zEngine->map = calloc(1, sizeof(struct arena));
+    if (!zEngine->map) THROW_ERROR_AND_EXIT("Failed to allocate memory for Arena");
 
     zEngine->map->tiles = calloc(ARENA_HEIGHT, sizeof(Tile*));
-    if (!zEngine->map->tiles) {
-        fprintf(stderr, "Failed to allocate memory for arena tiles rows\n");
-        free(zEngine->map);
-        exit(EXIT_FAILURE);
-    }
+    if (!zEngine->map->tiles) THROW_ERROR_AND_EXIT("Failed to allocate memory for arena tiles rows");
     for (Uint32 i = 0; i < ARENA_HEIGHT; i++) {
         zEngine->map->tiles[i] = calloc(ARENA_WIDTH, sizeof(Tile));
-        if (!zEngine->map->tiles[i]) {
-            fprintf(stderr, "Failed to allocate memory for arena tiles columns\n");
-            exit(EXIT_FAILURE);
-        }
+        if (!zEngine->map->tiles[i]) THROW_ERROR_AND_EXIT("Failed to allocate memory for arena tiles columns");
     }
 
     FILE *f = fopen(levelFilePath, "rb");
-    if (!f) {
-        printf("Failed to open level file: %s\n", levelFilePath);
-        return;
-    }
+    if (!f) THROW_ERROR_AND_DO("Failed to open level file: ", fprintf(stderr, "'%s'\n", levelFilePath); return;);
 
     fseek(f, 0, SEEK_END);
     long size = ftell(f);
@@ -228,18 +202,11 @@ void initLevel(ZENg zEngine, const char *levelFilePath) {
     cJSON *root = cJSON_Parse(data);
     free(data);
 
-    if (!root) {
-        printf("Failed to parse prefabs JSON\n");
-        return;
-    }
+    if (!root) THROW_ERROR_AND_RETURN_VOID("Failed to parse level JSON");
 
     // The arena files have an object with the arrays "tiles" and "entities"
     cJSON *tilesArray = cJSON_GetObjectItem(root, "tiles");
-    if (!cJSON_IsArray(tilesArray)) {
-        fprintf(stderr, "Invalid or missing 'tiles' array in level file\n");
-        cJSON_Delete(root);
-        return;
-    }
+    if (!cJSON_IsArray(tilesArray)) THROW_ERROR_AND_RETURN_VOID("Invalid or missing 'tiles' array in level file");
 
     char *tileTypeToStr[] = {
         [TILE_EMPTY] = "TILE_EMPTY",
@@ -255,59 +222,45 @@ void initLevel(ZENg zEngine, const char *levelFilePath) {
     cJSON *tileRow = NULL;
 
     cJSON_ArrayForEach(tileRow, tilesArray) {
-        if (!cJSON_IsArray(tileRow)) {
-            fprintf(stderr, "Invalid row in 'tiles' array at index %d\n", row);
-            continue;
-        }
-        if (row >= ARENA_HEIGHT) {
-            fprintf(
-                stderr,
-                "Warning: More tile rows in level file than expected (%d). Ignoring extra rows.\n", ARENA_HEIGHT
-            );
-            break;
-        }
+        if (!cJSON_IsArray(tileRow)) THROW_ERROR_AND_DO(
+            "Invalid tile row at index ", fprintf(stderr, "%d\n", row); continue;
+        );
+        if (row >= ARENA_HEIGHT) THROW_ERROR_AND_DO(
+            "Warning: More tile rows in level file than expected",
+            fprintf(stderr, " (%d). Ignoring extra rows\n", ARENA_HEIGHT); break;
+        );
         Uint32 col = 0;
         cJSON *tile = NULL;
         cJSON_ArrayForEach(tile, tileRow) {
-            if (!cJSON_IsNumber(tile)) {
-                fprintf(stderr, "Invalid tile value at row %d, column %d\n", row, col);
-                continue;
-            }
-            if (col >= ARENA_WIDTH) {
-                fprintf(
-                    stderr,
-                    "Warning: More tile columns in level file than expected (%d). Ignoring extra columns\n", ARENA_WIDTH
-                );
-                break;
-            }
+            if (!cJSON_IsNumber(tile)) THROW_ERROR_AND_DO(
+                "Invalid tile type at row ", fprintf(stderr, "%d, column %d\n", row, col); continue;
+            );
+            if (col >= ARENA_WIDTH) THROW_ERROR_AND_DO(
+                "Warning: More tile columns in row ",
+                fprintf(stderr, "%d than expected (%d). Ignoring extra columns\n", row, ARENA_WIDTH); break;
+            );
             TileType currTileType = (TileType)tile->valueint;
-            if (currTileType < 0 || currTileType >= TILE_COUNT) {
-                fprintf(
-                    stderr,
-                    "Invalid tile type %d at row %d, column %d. Defaulting to TILE_EMPTY.\n", currTileType, row, col
-                );
+            if (currTileType < 0 || currTileType >= TILE_COUNT) THROW_ERROR_AND_DO(
+                "Invalid tile type value at row ",
+                fprintf(stderr, "%d, column %d: %d. Defaulting to TILE_EMPTY\n", row, col, currTileType);
                 currTileType = TILE_EMPTY;
-            }
+            );
             zEngine->map->tiles[row][col] = getTilePrefab(zEngine->prefabs, tileTypeToStr[currTileType]);
             zEngine->map->tiles[row][col].idx = row * ARENA_WIDTH + col;
             col++;
         }
-        if (col < ARENA_WIDTH) {
-            fprintf(
-                stderr,
-                "Warning: Fewer tile columns (%d) in row %d than expected (%d). The rest are filled with TILE_EMPTY.\n",
-                col, row, ARENA_WIDTH
-            );
-        }
+        if (col < ARENA_WIDTH) THROW_ERROR_AND_DO(
+            "Warning: Fewer tile columns (",
+            fprintf(stderr, "%d) in row %d than expected (%d). The rest are TILE_EMPTY.\n",
+            col, row, ARENA_WIDTH);
+        );
         row++;
     }
-    if (row < ARENA_HEIGHT) {
-        fprintf(
-            stderr,
-            "Warning: Fewer tile rows (%d) in level file than expected (%d). The rest are filled with TILE_EMPTY.\n",
-            row, ARENA_HEIGHT
-        );
-    }
+    if (row < ARENA_HEIGHT) THROW_ERROR_AND_DO(
+        "Warning: Fewer tile rows (",
+        fprintf(stderr, "%d) in level file than expected (%d). The rest are TILE_EMPTY.\n",
+        row, ARENA_HEIGHT);
+    );
 
     cJSON *entitiesArray = cJSON_GetObjectItem(root, "entities");
     if (cJSON_IsArray(entitiesArray)) {
@@ -317,10 +270,9 @@ void initLevel(ZENg zEngine, const char *levelFilePath) {
             cJSON *xJson = cJSON_GetObjectItem(entityJson, "x");
             cJSON *yJson = cJSON_GetObjectItem(entityJson, "y");
 
-            if (!cJSON_IsString(entityTypeJson) || !cJSON_IsNumber(xJson) || !cJSON_IsNumber(yJson)) {
-                fprintf(stderr, "Invalid entity definition in level file\n");
-                continue;
-            }
+            if (!cJSON_IsString(entityTypeJson) || !cJSON_IsNumber(xJson) || !cJSON_IsNumber(yJson)) THROW_ERROR_AND_DO(
+                "Invalid entity in entities array. Skipping.\n", continue;
+            );
             char entityTypeStr[64];
             strncpy(entityTypeStr, entityTypeJson->valuestring, sizeof(entityTypeStr));
             entityTypeStr[sizeof(entityTypeStr) - 1] = '\0';
@@ -345,10 +297,7 @@ void initLevel(ZENg zEngine, const char *levelFilePath) {
  */
 
 void clearLevel(ZENg zEngine) {
-    if (!zEngine || !zEngine->map) {
-        fprintf(stderr, "Invalid engine or map, cannot clear level\n");
-        return;
-    }
+    if (!zEngine || !zEngine->map) THROW_ERROR_AND_RETURN_VOID("zEngine or zEngine->map is NULL in clearLevel");
 
     if (zEngine->map->tiles) {
         for (Uint32 i = 0; i < ARENA_HEIGHT; i++) {
@@ -368,16 +317,10 @@ void clearLevel(ZENg zEngine) {
 
 DependencyGraph* initDependencyGraph() {
     DependencyGraph *graph = calloc(1, sizeof(DependencyGraph));
-    if (!graph) {
-        fprintf(stderr, "Failed to allocate memory for dependency graph\n");
-        exit(EXIT_FAILURE);
-    }
+    if (!graph) THROW_ERROR_AND_EXIT("Failed to allocate memory for dependency graph");
+
     graph->nodes = calloc(SYS_COUNT, sizeof(SystemNode*));
-    if (!graph->nodes) {
-        fprintf(stderr, "Failed to allocate memory for dependency graph nodes\n");
-        free(graph);
-        exit(EXIT_FAILURE);
-    }
+    if (!graph->nodes) THROW_ERROR_AND_EXIT("Failed to allocate memory for system nodes array");
 
     typedef struct {
         SystemType type;
@@ -441,9 +384,10 @@ DependencyGraph* initDependencyGraph() {
                 };
                 printf("Added system dependency: %s -> %s\n", sysNames[dependency->type], sysNames[dependent->type]);
             #endif
-        } else {
-            fprintf(stderr, "Invalid dependency pair: %d -> %d\n", dependencies[i].dependency, dependencies[i].dependent);
-        }
+        } else THROW_ERROR_AND_DO(
+            "Invalid system relationship in dependencies array: ",
+            fprintf(stderr, "(%d -> %d)\n", dependencies[i].dependency, dependencies[i].dependent);
+        );
     }
 
     return graph;
@@ -455,31 +399,38 @@ DependencyGraph* initDependencyGraph() {
 
 ZENg initGame() {
     ZENg zEngine = calloc(1, sizeof(struct engine));
-    if (!zEngine) {
-        printf("Failed to allocate memory for the game engine\n");
-        exit(EXIT_FAILURE);
-    }
+    if (!zEngine) THROW_ERROR_AND_EXIT("Failed to allocate memory for the game engine");
     // Initialize SDL
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0) {
-        printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
-        exit(EXIT_FAILURE);
-    }
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0) THROW_ERROR_AND_DO(
+        "SDL_Init Error: ", fprintf(stderr, "%s\n", SDL_GetError()); exit(EXIT_FAILURE);
+    );
 
-    // And open the audio device
-    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
-        printf("Couldn't initialize SDL_Mixer: %s\n", Mix_GetError());
-        exit(EXIT_FAILURE);
-    }
+    // Prepare the audio device
+    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) THROW_ERROR_AND_DO(
+        "SDL_Mixer could not initialize: ",
+        fprintf(stderr, "%s\n", Mix_GetError()); exit(EXIT_FAILURE);
+    );
+
+    // Init fonts
+    if (TTF_Init() == -1) THROW_ERROR_AND_DO(
+        "SDL_TTF could not initialize: ",
+        fprintf(stderr, "%s\n", TTF_GetError()); exit(EXIT_FAILURE);
+    );
+
+    // Init SDL_Image
+    if (IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG) == 0) THROW_ERROR_AND_DO(
+        "SDL_Image could not initialize: ",
+        fprintf(stderr, "%s\n", IMG_GetError()); exit(EXIT_FAILURE);
+    );
 
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
 
     // Initalize the display and input managers by reading settings file if existent
     loadSettings(zEngine, "settings.ini");
     // Set logical screen size
-    if (SDL_RenderSetLogicalSize(zEngine->display->renderer, LOGICAL_WIDTH, LOGICAL_HEIGHT) < 0) {
-        printf("Could not set logical size: %s\n", SDL_GetError());
-        exit(EXIT_FAILURE);
-    }
+    if (SDL_RenderSetLogicalSize(zEngine->display->renderer, LOGICAL_WIDTH, LOGICAL_HEIGHT) < 0)
+        THROW_ERROR_AND_DO("SDL_RenderSetLogicalSize failed: ", fprintf(stderr, "%s\n", SDL_GetError());
+    );
 
     // After setting the display resolution define the tile size
     // The tiles are guaranteed to be square integers
@@ -489,11 +440,11 @@ ZENg initGame() {
     initECS(&zEngine->ecs);
 
     // Initialize the resource manager and preload resources
-    initResourceManager(&zEngine->resources);
+    zEngine->resources = MapInit(257, MAP_RESOURCES);
     preloadResources(zEngine->resources, zEngine->display->renderer);
 
     // Initialize the prefabs manager
-    initPrefabsManager(&zEngine->prefabs);
+    zEngine->prefabs = MapInit(127, MAP_PREFABS);
     loadPrefabs(zEngine, "data/prefabs.json");
 
     zEngine->uiManager = initUIManager();
@@ -501,10 +452,7 @@ ZENg initGame() {
     // Start on the main menu
     initStateManager(&zEngine->stateMng);
     GameState *mainMenuState = calloc(1, sizeof(GameState));
-    if (!mainMenuState) {
-        printf("Failed to allocate memory for main menu state\n");
-        exit(EXIT_FAILURE);
-    }
+    if (!mainMenuState) THROW_ERROR_AND_EXIT("Failed to allocate memory for main menu state");
 
     mainMenuState->type = STATE_MAIN_MENU;
     mainMenuState->onEnter = &onEnterMainMenu;
@@ -533,7 +481,10 @@ void velocitySystem(ZENg zEngine, double_t deltaTime) {
     }
     
     #ifdef DEBUGSYSTEMS
-        printf("[VELOCITY SYSTEM] Running velocity system for %lu entities\n", zEngine->ecs->components[VELOCITY_COMPONENT].denseSize);
+        printf(
+            "[VELOCITY SYSTEM] Running velocity system for %lu entities\n",
+            zEngine->ecs->components[VELOCITY_COMPONENT].denseSize
+        );
     #endif
 
     // for each entity with a VELOCITY_COMPONENT, update its position based on the current velocity
@@ -548,7 +499,8 @@ void velocitySystem(ZENg zEngine, double_t deltaTime) {
         }
 
         Uint64 posDenseIdx = zEngine->ecs->components[POSITION_COMPONENT].sparse[page][idx];
-        PositionComponent *posComp = (PositionComponent *)zEngine->ecs->components[POSITION_COMPONENT].dense[posDenseIdx];
+        PositionComponent *posComp =
+        (PositionComponent *)zEngine->ecs->components[POSITION_COMPONENT].dense[posDenseIdx];
         if (!posComp) {
             continue;
         }
@@ -562,7 +514,8 @@ void velocitySystem(ZENg zEngine, double_t deltaTime) {
         if (velComp->predictedPos.y < 0) velComp->predictedPos.y = 0;  // prevent going out of bounds
 
         Uint64 denseRenderIndex = zEngine->ecs->components[RENDER_COMPONENT].sparse[page][idx];
-        SDL_Rect *entityRect = ((RenderComponent *)(zEngine->ecs->components[RENDER_COMPONENT].dense[denseRenderIndex]))->destRect;
+        SDL_Rect *entityRect =
+        ((RenderComponent *)(zEngine->ecs->components[RENDER_COMPONENT].dense[denseRenderIndex]))->destRect;
         if (entityRect) {
             if (velComp->predictedPos.x + entityRect->w >= LOGICAL_WIDTH) {
                 velComp->predictedPos.x = LOGICAL_WIDTH - entityRect->w;  // prevent going out of bounds
@@ -589,7 +542,10 @@ void positionSystem(ZENg zEngine, double_t deltaTime) {
         return;
     }
     #ifdef DEBUGSYSTEMS
-        printf("[POSITION SYSTEM] Running position system for %lu entities\n", zEngine->ecs->components[POSITION_COMPONENT].denseSize);
+        printf(
+            "[POSITION SYSTEM] Running position system for %lu entities\n",
+            zEngine->ecs->components[POSITION_COMPONENT].denseSize
+        );
     #endif
 
     for (Uint64 i = 0; i  < zEngine->ecs->components[POSITION_COMPONENT].denseSize; i++) {
@@ -613,7 +569,8 @@ void positionSystem(ZENg zEngine, double_t deltaTime) {
 
         // Entities with velocity are guaranteed to have also direction
         Uint64 dirDenseIdx = zEngine->ecs->components[DIRECTION_COMPONENT].sparse[page][idx];
-        DirectionComponent *dirComp = (DirectionComponent *)(zEngine->ecs->components[DIRECTION_COMPONENT].dense[dirDenseIdx]);
+        DirectionComponent *dirComp =
+        (DirectionComponent *)(zEngine->ecs->components[DIRECTION_COMPONENT].dense[dirDenseIdx]);
 
         Uint8 movingX = fabs(dirComp->x) > EPSILON;
         Uint8 movingY = fabs(dirComp->y) > EPSILON;
@@ -650,7 +607,10 @@ void lifetimeSystem(ZENg zEngine, double_t deltaTime) {
     }
     
     #ifdef DEBUGSYSTEMS
-        printf("[LIFETIME SYSTEM] Running lifetime system for %lu entities\n", zEngine->ecs->components[LIFETIME_COMPONENT].denseSize);
+        printf(
+            "[LIFETIME SYSTEM] Running lifetime system for %lu entities\n",
+            zEngine->ecs->components[LIFETIME_COMPONENT].denseSize
+        );
     #endif
 
     for (Uint64 i = 0; i < zEngine->ecs->components[LIFETIME_COMPONENT].denseSize; i++) {
@@ -669,7 +629,9 @@ void lifetimeSystem(ZENg zEngine, double_t deltaTime) {
  * =====================================================================================================================
  */
 
-void handleEntitiesCollision(ZENg zEngine, CollisionComponent *AColComp, CollisionComponent *BColComp, Entity AOwner, Entity BOwner) {
+void handleEntitiesCollision(
+    ZENg zEngine, CollisionComponent *AColComp, CollisionComponent *BColComp, Entity AOwner, Entity BOwner
+) {
     if (!AColComp->isSolid && !BColComp->isSolid) {
         // two bullets collide - skip collision check
         return;
@@ -687,10 +649,12 @@ void handleEntitiesCollision(ZENg zEngine, CollisionComponent *AColComp, Collisi
     }
 
     Uint64 ADenseIndex = zEngine->ecs->components[PROJECTILE_COMPONENT].sparse[APage][AIndex];
-    ProjectileComponent *AProjComp = (ProjectileComponent *)(zEngine->ecs->components[PROJECTILE_COMPONENT].dense[ADenseIndex]);
+    ProjectileComponent *AProjComp =
+    (ProjectileComponent *)(zEngine->ecs->components[PROJECTILE_COMPONENT].dense[ADenseIndex]);
 
     Uint64 BDenseIndex = zEngine->ecs->components[PROJECTILE_COMPONENT].sparse[BPage][BIndex];
-    ProjectileComponent *BProjComp = (ProjectileComponent *)(zEngine->ecs->components[PROJECTILE_COMPONENT].dense[BDenseIndex]);
+    ProjectileComponent *BProjComp =
+    (ProjectileComponent *)(zEngine->ecs->components[PROJECTILE_COMPONENT].dense[BDenseIndex]);
 
     // if a bullet hits a solid entity, delete the bullet and do damage
     if (AColComp->role == COL_BULLET && BColComp->isSolid && BOwner != PLAYER_ID && AProjComp) {
@@ -786,7 +750,7 @@ void entityCollisionSystem(ZENg zEngine, double_t deltaTime) {
         Entity AOwner = zEngine->ecs->components[COLLISION_COMPONENT].denseToEntity[i];
 
         if (!AColComp || !AColComp->hitbox) {
-            printf("Warning: Entity %ld has an invalid collision component\n", AOwner);
+            fprintf(stderr, "Warning: Entity %ld has an invalid collision component\n", AOwner);
             continue;
         }
 
@@ -806,11 +770,12 @@ void entityCollisionSystem(ZENg zEngine, double_t deltaTime) {
 
         // Check collisions with other entities in the vicinity
         for (Uint64 j = i + 1; j < zEngine->ecs->components[COLLISION_COMPONENT].denseSize; j++) {
-            CollisionComponent *BColComp = (CollisionComponent *)(zEngine->ecs->components[COLLISION_COMPONENT].dense[j]);
+            CollisionComponent *BColComp =
+            (CollisionComponent *)(zEngine->ecs->components[COLLISION_COMPONENT].dense[j]);
             Entity BOwner = zEngine->ecs->components[COLLISION_COMPONENT].denseToEntity[j];
 
             if (!BColComp || !BColComp->hitbox) {
-                printf("Warning: Entity %ld has an invalid collision component\n", BOwner);
+                fprintf(stderr, "Warning: Entity %ld has an invalid collision component\n", BOwner);
                 continue;
             }
 
@@ -894,7 +859,7 @@ void worldCollisionSystem(ZENg zEngine, double_t deltaTime) {
 
         CollisionComponent *eColComp = (CollisionComponent *)(zEngine->ecs->components[COLLISION_COMPONENT].dense[i]);
         if (!eColComp || !eColComp->hitbox) {
-            printf("Warning: Entity %ld has an invalid collision component\n", e);
+            fprintf(stderr, "Warning: Entity %ld has an invalid collision component\n", e);
             continue;
         }
         
@@ -905,7 +870,7 @@ void worldCollisionSystem(ZENg zEngine, double_t deltaTime) {
         Uint64 velIdx = zEngine->ecs->components[VELOCITY_COMPONENT].sparse[page][index];
         VelocityComponent *eVelComp = (VelocityComponent *)(zEngine->ecs->components[VELOCITY_COMPONENT].dense[velIdx]);
         if (!eVelComp) {
-            printf("Warning: Entity %ld has an invalid velocity component\n", e);
+            fprintf(stderr, "Warning: Entity %ld has an invalid velocity component\n", e);
             continue;
         }
 
@@ -915,7 +880,7 @@ void worldCollisionSystem(ZENg zEngine, double_t deltaTime) {
         Uint64 posIdx = zEngine->ecs->components[POSITION_COMPONENT].sparse[page][index];
         PositionComponent *posComp = (PositionComponent *)(zEngine->ecs->components[POSITION_COMPONENT].dense[posIdx]);
         if (!posComp) {
-            printf("Warning: Entity %ld has an invalid position component\n", e);
+            fprintf(stderr, "Warning: Entity %ld has an invalid position component\n", e);
             continue;
         }
 
@@ -1013,7 +978,10 @@ void worldCollisionSystem(ZENg zEngine, double_t deltaTime) {
 
 void healthSystem(ZENg zEngine, double_t deltaTime) {
     #ifdef DEBUGSYSTEMS
-        printf("[HEALTH SYSTEM] There are %lu dirty health components\n", zEngine->ecs->components[HEALTH_COMPONENT].dirtyCount);
+        printf(
+            "[HEALTH SYSTEM] There are %lu dirty health components\n",
+            zEngine->ecs->components[HEALTH_COMPONENT].dirtyCount
+        );
     #endif
 
     if (zEngine->ecs->components[HEALTH_COMPONENT].dirtyCount != 0) {
@@ -1105,11 +1073,15 @@ void transformSystem(ZENg zEngine, double_t deltaTime) {
 
             Uint64 denseIndex = zEngine->ecs->components[RENDER_COMPONENT].sparse[page][index];
             if (denseIndex >= zEngine->ecs->components[RENDER_COMPONENT].denseSize) {
-                printf("Warning: Entity %ld has a render component with invalid dense index %lu\n", entitty, denseIndex);
+                fprintf(
+                    stderr,
+                    "Warning: Entity %ld has a render component with invalid dense index %lu\n", entitty, denseIndex
+                );
                 continue;
             }
             // Update the render component's destination rectangle based on the position component
-            RenderComponent *renderComp = (RenderComponent *)(zEngine->ecs->components[RENDER_COMPONENT].dense[denseIndex]);
+            RenderComponent *renderComp =
+            (RenderComponent *)(zEngine->ecs->components[RENDER_COMPONENT].dense[denseIndex]);
 
             if (renderComp) {  // sanity check cause I've been pretty insane lately
                 renderComp->destRect->x = (int)posComp->x;
@@ -1202,7 +1174,8 @@ void renderSystem(ZENg zEngine, double_t deltaTime) {
             bitset hasDirection = 1 << DIRECTION_COMPONENT;
             if (zEngine->ecs->componentsFlags[owner] & hasDirection) {
                 Uint64 dirDenseIdx = zEngine->ecs->components[DIRECTION_COMPONENT].sparse[page][index];
-                DirectionComponent *dirComp = (DirectionComponent *)(zEngine->ecs->components[DIRECTION_COMPONENT].dense[dirDenseIdx]);
+                DirectionComponent *dirComp =
+                (DirectionComponent *)(zEngine->ecs->components[DIRECTION_COMPONENT].dense[dirDenseIdx]);
 
                 if (VEC2_EQUAL(*dirComp, DIR_UP)) {
                     angle = 0.0;
@@ -1215,7 +1188,9 @@ void renderSystem(ZENg zEngine, double_t deltaTime) {
                 }
             }
 
-            SDL_RenderCopyEx(zEngine->display->renderer, render->texture, NULL, render->destRect, angle, NULL, SDL_FLIP_NONE);
+            SDL_RenderCopyEx(
+                zEngine->display->renderer, render->texture, NULL, render->destRect, angle, NULL, SDL_FLIP_NONE
+            );
         }
     }
     
@@ -1269,16 +1244,16 @@ void uiSystem(ZENg zEngine, double_t deltaTime) {
                     btn->text,
                     btn->currColor
                 );
-                if (!btnSurface) {
-                    printf("Failed to create button surface: %s\n", TTF_GetError());
-                    exit(EXIT_FAILURE);
-                }
+                if (!btnSurface) THROW_ERROR_AND_DO(
+                    "Failed to create button surface: ",
+                    fprintf(stderr, "%s\n", SDL_GetError()); exit(EXIT_FAILURE);
+                );
                 btn->texture = SDL_CreateTextureFromSurface(zEngine->display->renderer, btnSurface);
                 SDL_FreeSurface(btnSurface);
-                if (!btn->texture) {
-                    printf("Failed to create button texture: %s\n", SDL_GetError());
-                    exit(EXIT_FAILURE);
-                }
+                if (!btn->texture) THROW_ERROR_AND_DO(
+                    "Failed to create button texture: ",
+                    fprintf(stderr, "%s\n", SDL_GetError()); exit(EXIT_FAILURE);
+                );
                 break;
             }
         }
@@ -1294,10 +1269,9 @@ void renderArena(ZENg zEngine) {
     SDL_SetRenderDrawColor(zEngine->display->renderer, 20, 20, 20, 200);  // background color - grey
     SDL_RenderClear(zEngine->display->renderer);
 
-    if (!zEngine->map || !zEngine->map->tiles) {
-        printf("The arena was no initialized correctly.\n");
-        exit(EXIT_FAILURE);
-    }
+    if (!zEngine->map || !zEngine->map->tiles) THROW_ERROR_AND_EXIT(
+        "Error: Cannot render arena - map or tiles are NULL\n"
+    );
 
     for (Uint64 y = 0; y < ARENA_HEIGHT; y++) {
         for (Uint64 x = 0; x < ARENA_WIDTH; x++) {

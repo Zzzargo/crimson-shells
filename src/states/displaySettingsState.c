@@ -21,7 +21,7 @@ void onExitVideoSettings(ZENg zEngine) {
  * =====================================================================================================================
  */
 
-void getResolutions(ZENg zEngine, ParserMap map) {
+void getResolutions(ZENg zEngine, HashMap map) {
     if (!zEngine) {
         fprintf(stderr, "Cannot get resolutions from a NULL ZENg\n");
         return;
@@ -34,15 +34,8 @@ void getResolutions(ZENg zEngine, ParserMap map) {
         *insertCount = (Uint8)count;
     }
 
-    for (int i = 0; i < count; i++) {
-        char key[32];
-        snprintf(key, sizeof(key), "resolutions[%d]", i);
-        addParserEntry(map, key, (MapEntryVal){ .displayMode = &modes[i] }, MAP_ENTRY_DISPLAYMODE);
-    }
-    addParserEntry(map, "resolutionsCount", (MapEntryVal){ .boolean = insertCount }, MAP_ENTRY_BOOL);
-
-    addStateData(getCurrState(zEngine->stateMng), (void *)modes, STATE_DATA_PLAIN);
-    addStateData(getCurrState(zEngine->stateMng), (void *)insertCount, STATE_DATA_PLAIN);
+    // addStateData(getCurrState(zEngine->stateMng), (void *)modes, STATE_DATA_PLAIN);
+    // addStateData(getCurrState(zEngine->stateMng), (void *)insertCount, STATE_DATA_PLAIN);
 
     #ifdef DEBUG
         printf("Added %d resolutions to parser map\n", *insertCount);
@@ -66,7 +59,7 @@ void changeRes(ZENg zEngine, void *data) {
  * =====================================================================================================================
  */
 
-void getWindowModes(ZENg zEngine, ParserMap map) {
+void getWindowModes(ZENg zEngine, HashMap map) {
     if (!zEngine) {
         fprintf(stderr, "Cannot get window modes from a NULL ZENg\n");
         return;
@@ -95,13 +88,13 @@ void getWindowModes(ZENg zEngine, ParserMap map) {
     }
     *windowModeCount = 2;  // windowed and fullscreen
     
-    addParserEntry(map, "windowModes[0]", (MapEntryVal){ .boolean = windowModeWindowed }, MAP_ENTRY_BOOL);
-    addParserEntry(map, "windowModes[1]", (MapEntryVal){ .boolean = windowModeFullscreen }, MAP_ENTRY_BOOL);
-    addParserEntry(map, "windowModesCount", (MapEntryVal){ .boolean = windowModeCount }, MAP_ENTRY_BOOL);
+    // MapAddEntry(map, "windowModes[0]", (MapEntryVal){ .boolean = windowModeWindowed }, MAP_ENTRY_BOOL);
+    // MapAddEntry(map, "windowModes[1]", (MapEntryVal){ .boolean = windowModeFullscreen }, MAP_ENTRY_BOOL);
+    // MapAddEntry(map, "windowModesCount", (MapEntryVal){ .boolean = windowModeCount }, MAP_ENTRY_BOOL);
 
-    addStateData(getCurrState(zEngine->stateMng), (void *)windowModeWindowed, STATE_DATA_PLAIN);
-    addStateData(getCurrState(zEngine->stateMng), (void *)windowModeFullscreen, STATE_DATA_PLAIN);
-    addStateData(getCurrState(zEngine->stateMng), (void *)windowModeCount, STATE_DATA_PLAIN);
+    // addStateData(getCurrState(zEngine->stateMng), (void *)windowModeWindowed, STATE_DATA_PLAIN);
+    // addStateData(getCurrState(zEngine->stateMng), (void *)windowModeFullscreen, STATE_DATA_PLAIN);
+    // addStateData(getCurrState(zEngine->stateMng), (void *)windowModeCount, STATE_DATA_PLAIN);
 
     #ifdef DEBUG
         printf("Added %d window modes to parser map\n", *windowModeCount);

@@ -37,14 +37,13 @@ UINode* UIparseFromFile(ZENg zEngine, const char *filename) {
     if (!root) return NULL;
 
     // Prepare the hashmap
-    ParserMap parserMap;
-    initParserMap(&parserMap);
-    loadParserEntries(parserMap);
+    HashMap parserMap = MapInit(64, MAP_PARSER);
+    loadParserEntries(parserMap, getCurrState(zEngine->stateMng)->type);
 
     // Parse recursively from the root
     UINode *uiRoot = UIparseNode(zEngine, parserMap, root);
     cJSON_Delete(root);
-    freeParserMap(&parserMap);
+    MapFree(parserMap);
 
     return uiRoot;
 }
@@ -53,7 +52,7 @@ UINode* UIparseFromFile(ZENg zEngine, const char *filename) {
  * =====================================================================================================================
  */
 
-UINode* UIparseNode(ZENg zEngine, ParserMap parserMap, cJSON *json) {
+UINode* UIparseNode(ZENg zEngine, HashMap parserMap, cJSON *json) {
     const char *type = cJSON_GetObjectItemCaseSensitive(json, "type")->valuestring;
     UINode *node = NULL;
 
@@ -245,59 +244,102 @@ UINode* UIparseNode(ZENg zEngine, ParserMap parserMap, cJSON *json) {
                 return NULL;
             }
             char *providerStr = providerJson->valuestring;
-            void (*providerFunc)(ZENg, ParserMap) = resolveProvider(parserMap, providerStr);
+            void (*providerFunc)(ZENg, HashMap) = resolveProvider(parserMap, providerStr);
             if (providerFunc) providerFunc(zEngine, parserMap);
-            if (strcmp(providerStr, "getWindowModes") == 0) {
-                Uint8 *windowModesCount = resolveBool(parserMap, "windowModesCount");
-                for (Uint8 i = 0; i < *windowModesCount; i++) {
-                    char key[32];
-                    snprintf(key, sizeof(key), "windowModes[%d]", i);
-                    Uint8 *mode = resolveBool(parserMap, key);
+            // if (strcmp(providerStr, "getWindowModes") == 0) {
+            //     // Uint8 *windowModesCount = resolveBool(parserMap, "windowModesCount");
+            //     for (Uint8 i = 0; i < *windowModesCount; i++) {
+            //         char key[32];
+            //         snprintf(key, sizeof(key), "windowModes[%d]", i);
+            //         // Uint8 *mode = resolveBool(parserMap, key);
 
-                    char *btnText = calloc(32, sizeof(char));
-                    snprintf(btnText, 32, "%s", *mode == 0 ? "Windowed" : "Fullscreen");
+            //         char *btnText = calloc(32, sizeof(char));
+            //         snprintf(btnText, 32, "%s", *mode == 0 ? "Windowed" : "Fullscreen");
 
-                    UINode *btn = UIcreateButton(
-                        zEngine->display->renderer,
-                        font,
-                        btnText,
-                        UI_STATE_NORMAL,
-                        colors,
-                        NULL,
-                        (void *)mode
-                    );
-                    if (!options) {
-                        options = initList((void *)btn);
-                    } else {
-                        CDLLInsertLast(options, (void *)btn);
-                    }
-                }
-            } else if (strcmp(providerStr, "getResolutions") == 0) {
-                Uint8 *resCount = resolveBool(parserMap, "resolutionsCount");
-                for (Uint8 i = 0; i < *resCount; i++) {
-                    char key[32];
-                    snprintf(key, sizeof(key), "resolutions[%d]", i);
-                    SDL_DisplayMode *mode = resolveDisplayMode(parserMap, key);
+            //         UINode *btn = UIcreateButton(
+            //             zEngine->display->renderer,
+            //             font,
+            //             btnText,
+            //             UI_STATE_NORMAL,
+            //             colors,
+            //             NULL,
+            //             (void *)mode
+            //         );
+            //         if (!options) {
+            //             options = initList((void *)btn);
+            //         } else {
+            //             CDLLInsertLast(options, (void *)btn);
+            //         }
+            //     }
+            // } else if (strcmp(providerStr, "getResolutions") == 0) {
+            //     Uint8 *resCount = resolveBool(parserMap, "resolutionsCount");
+            //     SDL_DisplayMode *modes = resolveDisplayMode(parserMap, "resolutions");
+            //     for (Uint8 i = 0; i < *resCount; i++) {
+            //         SDL_DisplayMode *mode = &modes[i];
 
-                    char *btnText = calloc(16, sizeof(char));
-                    snprintf(btnText, 16, "%dx%d", mode->w, mode->h);
+            //         char *btnText = calloc(16, sizeof(char));
+            //         snprintf(btnText, 16, "%dx%d", mode->w, mode->h);
 
-                    UINode *btn = UIcreateButton(
-                        zEngine->display->renderer,
-                        font,
-                        btnText,
-                        UI_STATE_NORMAL,
-                        colors,
-                        NULL,
-                        (void *)mode
-                    );
-                    if (!options) {
-                        options = initList((void *)btn);
-                    } else {
-                        CDLLInsertLast(options, (void *)btn);
-                    }
-                }
+            //         UINode *btn = UIcreateButton(
+            //             zEngine->display->renderer,
+            //             font,
+            //             btnText,
+            //             UI_STATE_NORMAL,
+            //             colors,
+            //             NULL,
+            //             (void *)mode
+            //         );
+            //         if (!options) {
+            //             options = initList((void *)btn);
+            //         } else {
+            //             CDLLInsertLast(options, (void *)btn);
+            //         }
+            //     }
+            // }
+        } else if (strcmp(listTypeStr, "imageList") == 0) {
+            cJSON *dataJson = cJSON_GetObjectItem(optionsJson, "data");
+            if (!dataJson) {
+                printf("Option cycle options missing data definition\n");
+                return NULL;
             }
+            cJSON *providerJson = cJSON_GetObjectItem(dataJson, "provider");
+            if (!providerJson) {
+                printf("Option cycle options missing data provider definition\n");
+                return NULL;
+            }
+            char *providerStr = providerJson->valuestring;
+            void (*providerFunc)(ZENg, HashMap) = resolveProvider(parserMap, providerStr);
+            if (providerFunc) providerFunc(zEngine, parserMap);
+            // if (strcmp(providerStr, "getMainGuns") == 0) {
+            //     // getMainGuns must provide an array of guns entities, one of SDL_Rects for weapon icons and their count
+            //     // The texture is fetched from each gun entity's render component
+            //     // Data is a pointer to the current entity
+            //     // Uint8 *mainGunsCount = resolveBool(parserMap, "mainGunsCount");
+            //     // Entity *mainGuns = resolveEntityArray(parserMap, "mainGuns");
+            //     // SDL_Rect *mainGunsRects = resolveRectArray(parserMap, "mainGunsRects");
+            //     for (Uint8 i = 0; i < *mainGunsCount; i++) {
+            //         char key[32] = {0};
+            //         snprintf(key, sizeof(key), "mainGuns[%d]", i);
+
+            //         UINode *img = UIcreateImage(
+            //             mainGunsRects[i],
+            //             getTexture(zEngine->resources, key),
+            //             &mainGuns[i]
+            //         );
+            //         if (!options) {
+            //             options = initList((void *)img);
+            //         } else {
+            //             CDLLInsertLast(options, (void *)img);
+            //         }
+            //     }
+            // } else if (strcmp(providerStr, "getSecondaryGuns") == 0) {
+
+            // } else if (strcmp(providerStr, "getHulls") == 0) {
+
+            // } else if (strcmp(providerStr, "getModules") == 0) {
+
+            // }
+
         }
 
         // Nav arrows
@@ -1074,112 +1116,49 @@ UINode* UIcreateOptionCycle(
  * =====================================================================================================================
  */
 
-void initParserMap(ParserMap *parserMap) {
-    (*parserMap) = calloc(1, sizeof(struct parsermap));
-    if (!(*parserMap)) {
-        printf("Failed to allocate memory for parser map\n");
-        exit(EXIT_FAILURE);
-    }
+void* resolveAction(HashMap parserMap, const char *key) {
+    if (!parserMap || !key) THROW_ERROR_AND_RETURN("Parser map or key is NULL", NULL);
+    if (parserMap->type != MAP_PARSER) THROW_ERROR_AND_RETURN("Parser map is of wrong type", NULL);
+    MapEntry *entry = MapGetEntry(parserMap, key);
+    if (entry && entry->type == ENTRY_BTN_FUNC) return entry->data.ptr;
+    THROW_ERROR_AND_DO(
+        "Action with key", fprintf(stderr, "'%s' not found in parser map\n", key); return NULL;
+    );
 }
 
 /**
  * =====================================================================================================================
  */
 
-static inline Uint32 hashFunc(const char *key) {
-    Uint32 hash = 5381;
-    int c;
-    while ((c = *key++)) {
-        hash = ((hash << 5) + hash) + c; // hash * 33 + c
-    }
-    return hash % PARSER_HASHMAP_SIZE;
+void* resolveProvider(HashMap parserMap, const char *key) {
+    if (!parserMap || !key) THROW_ERROR_AND_RETURN("Parser map or key is NULL", NULL);
+    if (parserMap->type != MAP_PARSER) THROW_ERROR_AND_RETURN("Parser map is of wrong type", NULL);
+    MapEntry *entry = MapGetEntry(parserMap, key);
+    if (entry && entry->type == ENTRY_PROVIDER_FUNC) return entry->data.ptr;
+    THROW_ERROR_AND_DO(
+        "Provider with key", fprintf(stderr, "'%s' not found in parser map\n", key); return NULL;
+    );
 }
 
 /**
  * =====================================================================================================================
  */
 
-MapEntry* getParserEntry(ParserMap parserMap, const char *key) {
-    Uint32 index = hashFunc(key);
-    MapEntry *entry = parserMap->entries[index];
-    while (entry) {
-        if (strcmp(entry->key, key) == 0) {
-            return entry;
-        }
-        entry = entry->next;
-    }
-    printf("No parser entry found for key: %s\n", key);
-    return NULL;
+SDL_Color resolveColor(HashMap parserMap, const char *key) {
+    if (!parserMap || !key) THROW_ERROR_AND_RETURN("Parser map or key is NULL", COLOR_WHITE);
+    if (parserMap->type != MAP_PARSER) THROW_ERROR_AND_RETURN("Parser map is of wrong type", COLOR_WHITE);
+    MapEntry *entry = MapGetEntry(parserMap, key);
+    if (entry && entry->type == ENTRY_COLOR) return *(SDL_Color *)entry->data.ptr;
+    THROW_ERROR_AND_DO(
+        "Color with key", fprintf(stderr, "'%s' not found in parser map\n", key); return COLOR_WHITE;
+    );
 }
 
 /**
  * =====================================================================================================================
  */
 
-void* resolveAction(ParserMap parserMap, const char *key) {
-    MapEntry *entry = getParserEntry(parserMap, key);
-    if (entry) {
-        return entry->value.btnFunc;
-    }
-    return NULL;
-}
-
-/**
- * =====================================================================================================================
- */
-
-void* resolveProvider(ParserMap parserMap, const char *key) {
-    MapEntry *entry = getParserEntry(parserMap, key);
-    if (entry) {
-        return entry->value.providerFunc;
-    }
-    return NULL;
-}
-
-/**
- * =====================================================================================================================
- */
-
-Uint8* resolveBool(ParserMap parserMap, const char *key) {
-    MapEntry *entry = getParserEntry(parserMap, key);
-    if (entry) {
-        return entry->value.boolean;
-    }
-    #ifdef DEBUG
-        printf("Boolean key not found: %s\n", key);
-    #endif
-    return NULL; // Default
-}
-
-/**
- * =====================================================================================================================
- */
-
-SDL_DisplayMode* resolveDisplayMode(ParserMap parserMap, const char *key) {
-    MapEntry *entry = getParserEntry(parserMap, key);
-    if (entry) {
-        return entry->value.displayMode;
-    }
-    return NULL;
-}
-
-/**
- * =====================================================================================================================
- */
-
-SDL_Color resolveColor(ParserMap parserMap, const char *key) {
-    MapEntry *entry = getParserEntry(parserMap, key);
-    if (entry) {
-        return entry->value.color;
-    }
-    return COLOR_WHITE; // Default color
-}
-
-/**
- * =====================================================================================================================
- */
-
-SDL_Color applyColorAlpha(ParserMap parserMap, cJSON *colorJson) {
+SDL_Color applyColorAlpha(HashMap parserMap, cJSON *colorJson) {
     if (colorJson) {
         // Colors with transparency are of the form: <color>_<alpha(see global.h)>
         char colorCopy[strlen(colorJson->valuestring) + 1];
@@ -1202,169 +1181,81 @@ SDL_Color applyColorAlpha(ParserMap parserMap, cJSON *colorJson) {
  * =====================================================================================================================
  */
 
-void addParserEntry(ParserMap parserMap, const char *key, MapEntryVal value, MapEntryType type) {
-    Uint32 index = hashFunc(key);
-    MapEntry *newEntry = calloc(1, sizeof(MapEntry));
-    if (!newEntry) {
-        printf("Failed to allocate memory for parser map entry\n");
-        exit(EXIT_FAILURE);
-    }
-    newEntry->key = strdup(key);
-    if (!newEntry->key) {
-        printf("Failed to allocate memory for parser map entry key\n");
-        free(newEntry);
-        exit(EXIT_FAILURE);
-    }
-    switch(type) {
-        case MAP_ENTRY_BTNFUNC: {
-            newEntry->value.btnFunc = value.btnFunc;
+void loadParserEntries(HashMap parserMap, GameStateType state) {
+    // Some colors
+    MapAddEntry(parserMap, "white", (MapEntryVal){.ptr = (void *)&COLOR_TABLE[IDX_WHITE]}, ENTRY_COLOR);
+    MapAddEntry(parserMap, "black", (MapEntryVal){.ptr = (void *)&COLOR_TABLE[IDX_BLACK]}, ENTRY_COLOR);
+    MapAddEntry(parserMap, "gray", (MapEntryVal){.ptr = (void *)&COLOR_TABLE[IDX_GRAY]}, ENTRY_COLOR);
+    MapAddEntry(parserMap, "red", (MapEntryVal){.ptr = (void *)&COLOR_TABLE[IDX_RED]}, ENTRY_COLOR);
+    MapAddEntry(parserMap, "green", (MapEntryVal){.ptr = (void *)&COLOR_TABLE[IDX_GREEN]}, ENTRY_COLOR);
+    MapAddEntry(parserMap, "blue", (MapEntryVal){.ptr = (void *)&COLOR_TABLE[IDX_BLUE]}, ENTRY_COLOR);
+    MapAddEntry(parserMap, "yellow", (MapEntryVal){.ptr = (void *)&COLOR_TABLE[IDX_YELLOW]}, ENTRY_COLOR);
+    MapAddEntry(parserMap, "cyan", (MapEntryVal){.ptr = (void *)&COLOR_TABLE[IDX_CYAN]}, ENTRY_COLOR);
+    MapAddEntry(parserMap, "magenta", (MapEntryVal){.ptr = (void *)&COLOR_TABLE[IDX_MAGENTA]}, ENTRY_COLOR);
+    MapAddEntry(parserMap, "crimson", (MapEntryVal){.ptr = (void *)&COLOR_TABLE[IDX_CRIMSON]}, ENTRY_COLOR);
+    MapAddEntry(parserMap, "purple", (MapEntryVal){.ptr = (void *)&COLOR_TABLE[IDX_PURPLE]}, ENTRY_COLOR);
+    MapAddEntry(parserMap, "pink", (MapEntryVal){.ptr = (void *)&COLOR_TABLE[IDX_PINK]}, ENTRY_COLOR);
+    MapAddEntry(parserMap, "crimsondark", (MapEntryVal){.ptr = (void *)&COLOR_TABLE[IDX_CRIMSON_DARK]}, ENTRY_COLOR);
+    MapAddEntry(parserMap, "gold", (MapEntryVal){.ptr = (void *)&COLOR_TABLE[IDX_GOLD]}, ENTRY_COLOR);
+    MapAddEntry(parserMap, "brown", (MapEntryVal){.ptr = (void *)&COLOR_TABLE[IDX_BROWN]}, ENTRY_COLOR);
+
+    switch (state) {
+        case STATE_MAIN_MENU: {
+            MapAddEntry(parserMap, "prepareExit", (MapEntryVal){.ptr = &prepareExit}, ENTRY_BTN_FUNC);
+            MapAddEntry(parserMap, "mMenuToPlay", (MapEntryVal){.ptr = &mMenuToPlay}, ENTRY_BTN_FUNC);
+            MapAddEntry(parserMap, "mMenuToGarage", (MapEntryVal){.ptr = &mMenuToGarage}, ENTRY_BTN_FUNC);
+            MapAddEntry(parserMap, "mMenuToSettings", (MapEntryVal){.ptr = &mMenuToSettings}, ENTRY_BTN_FUNC);
             break;
         }
-        case MAP_ENTRY_PROVIDERFUNC: {
-            newEntry->value.providerFunc = value.providerFunc;
+        case STATE_PLAYING: {
+            // Nothing for now
             break;
         }
-        case MAP_ENTRY_BOOL: {
-            newEntry->value.boolean = value.boolean;
+        case STATE_PAUSED: {
+            MapAddEntry(parserMap, "pauseToMMenu", (MapEntryVal){.ptr = &pauseToMMenu}, ENTRY_BTN_FUNC);
+            MapAddEntry(parserMap, "pauseToPlay", (MapEntryVal){.ptr = &pauseToPlay}, ENTRY_BTN_FUNC);
             break;
         }
-        case MAP_ENTRY_DISPLAYMODE: {
-            newEntry->value.displayMode = value.displayMode;
+        case STATE_GARAGE: {
+            MapAddEntry(parserMap, "getMainGuns", (MapEntryVal){.ptr = &getMainGuns}, ENTRY_PROVIDER_FUNC);
+            MapAddEntry(parserMap, "garageToMMenu", (MapEntryVal){.ptr = &garageToMMenu}, ENTRY_BTN_FUNC);
             break;
         }
-        case MAP_ENTRY_COLOR: {
-            newEntry->value.color = value.color;
+        case STATE_SETTINGS: {
+            MapAddEntry(parserMap, "settingsToGameSettings", (MapEntryVal){.ptr = &settingsToGameSettings},
+            ENTRY_BTN_FUNC);
+            MapAddEntry(parserMap, "settingsToAudioSettings", (MapEntryVal){.ptr = &settingsToAudioSettings},
+            ENTRY_BTN_FUNC);
+            MapAddEntry(parserMap, "settingsToVideoSettings", (MapEntryVal){.ptr = &settingsToVideoSettings},
+            ENTRY_BTN_FUNC);
+            MapAddEntry(parserMap, "settingsToControlsSettings", (MapEntryVal){.ptr = &settingsToControlsSettings},
+            ENTRY_BTN_FUNC);
+            MapAddEntry(parserMap, "settingsToMMenu", (MapEntryVal){.ptr = &settingsToMMenu}, ENTRY_BTN_FUNC);
             break;
         }
-        default: {
-            printf("Unknown MapEntryType in addParserEntry\n");
-            free(newEntry->key);
-            free(newEntry);
-            exit(EXIT_FAILURE);
+        case STATE_GAME_SETTINGS: {
+            MapAddEntry(parserMap, "gameSettingsToSettings", (MapEntryVal){.ptr = &gameSettingsToSettings},
+            ENTRY_BTN_FUNC);
+            break;
+        }
+        case STATE_AUDIO_SETTINGS: {
+            MapAddEntry(parserMap, "audioSettingsToSettings", (MapEntryVal){.ptr = &audioSettingsToSettings},
+            ENTRY_BTN_FUNC);
+            break;
+        }
+        case STATE_VIDEO_SETTINGS: {
+            MapAddEntry(parserMap, "getResolutions", (MapEntryVal){.ptr = &getResolutions}, ENTRY_PROVIDER_FUNC);
+            MapAddEntry(parserMap, "getWindowModes", (MapEntryVal){.ptr = &getWindowModes}, ENTRY_PROVIDER_FUNC);
+            MapAddEntry(parserMap, "changeWindowMode", (MapEntryVal){.ptr = &changeWindowMode}, ENTRY_BTN_FUNC);
+            MapAddEntry(parserMap, "changeRes", (MapEntryVal){.ptr = &changeRes}, ENTRY_BTN_FUNC);
+            MapAddEntry(parserMap, "videoSettingsToSettings", (MapEntryVal){.ptr = &videoSettingsToSettings},
+            ENTRY_BTN_FUNC);
+            break;
+        }
+        case STATE_CONTROLS_SETTINGS: {
+            MapAddEntry(parserMap, "controlsSettingsToSettings", (MapEntryVal){.ptr = &controlsSettingsToSettings},
+            ENTRY_BTN_FUNC);
+            break;
         }
     }
-
-    newEntry->type = type;
-    newEntry->next = parserMap->entries[index];
-    parserMap->entries[index] = newEntry;
-}
-
-/**
- * =====================================================================================================================
- */
-
-void removeParserEntry(ParserMap parserMap, const char *key) {
-    Uint32 index = hashFunc(key);
-    MapEntry *entry = parserMap->entries[index];
-    MapEntry *prev = NULL;
-    while (entry) {
-        if (strcmp(entry->key, key) == 0) {
-            if (prev) {
-                prev->next = entry->next;
-            } else {
-                parserMap->entries[index] = entry->next;
-            }
-            free(entry->key);
-            free(entry);
-            return;
-        }
-        prev = entry;
-        entry = entry->next;
-    }
-}
-
-/**
- * =====================================================================================================================
- */
-
-void loadParserEntries(ParserMap parserMap) {
-    addParserEntry(parserMap, "white", (MapEntryVal){.color = COLOR_WHITE}, MAP_ENTRY_COLOR);
-    addParserEntry(parserMap, "black", (MapEntryVal){.color = COLOR_BLACK}, MAP_ENTRY_COLOR);
-    addParserEntry(parserMap, "gray", (MapEntryVal){.color = COLOR_GRAY}, MAP_ENTRY_COLOR);
-    addParserEntry(parserMap, "red", (MapEntryVal){.color = COLOR_RED}, MAP_ENTRY_COLOR);
-    addParserEntry(parserMap, "green", (MapEntryVal){.color = COLOR_GREEN}, MAP_ENTRY_COLOR);
-    addParserEntry(parserMap, "blue", (MapEntryVal){.color = COLOR_BLUE}, MAP_ENTRY_COLOR);
-    addParserEntry(parserMap, "yellow", (MapEntryVal){.color = COLOR_YELLOW}, MAP_ENTRY_COLOR);
-    addParserEntry(parserMap, "cyan", (MapEntryVal){.color = COLOR_CYAN}, MAP_ENTRY_COLOR);
-    addParserEntry(parserMap, "magenta", (MapEntryVal){.color = COLOR_MAGENTA}, MAP_ENTRY_COLOR);
-    addParserEntry(parserMap, "crimson", (MapEntryVal){.color = COLOR_CRIMSON}, MAP_ENTRY_COLOR);
-    addParserEntry(parserMap, "purple", (MapEntryVal){.color = COLOR_PURPLE}, MAP_ENTRY_COLOR);
-    addParserEntry(parserMap, "pink", (MapEntryVal){.color = COLOR_PINK}, MAP_ENTRY_COLOR);
-    addParserEntry(parserMap, "crimsondark", (MapEntryVal){.color = COLOR_CRIMSON_DARK}, MAP_ENTRY_COLOR);
-    addParserEntry(parserMap, "gold", (MapEntryVal){.color = COLOR_GOLD}, MAP_ENTRY_COLOR);
-    addParserEntry(parserMap, "brown", (MapEntryVal){.color = COLOR_BROWN}, MAP_ENTRY_COLOR);
-
-    addParserEntry(parserMap, "prepareExit", (MapEntryVal){.btnFunc = &prepareExit}, MAP_ENTRY_BTNFUNC);
-    addParserEntry(parserMap, "mMenuToPlay", (MapEntryVal){.btnFunc = &mMenuToPlay}, MAP_ENTRY_BTNFUNC);
-    addParserEntry(parserMap, "mMenuToGarage", (MapEntryVal){.btnFunc = &mMenuToGarage}, MAP_ENTRY_BTNFUNC);
-    addParserEntry(parserMap, "mMenuToSettings", (MapEntryVal){.btnFunc = &mMenuToSettings}, MAP_ENTRY_BTNFUNC);
-
-    addParserEntry(parserMap, "pauseToMMenu", (MapEntryVal){.btnFunc = &pauseToMMenu}, MAP_ENTRY_BTNFUNC);
-    addParserEntry(parserMap, "pauseToPlay", (MapEntryVal){.btnFunc = &pauseToPlay}, MAP_ENTRY_BTNFUNC);
-
-    addParserEntry(parserMap, "garageToMMenu", (MapEntryVal){.btnFunc = &garageToMMenu}, MAP_ENTRY_BTNFUNC);
-
-    addParserEntry(
-        parserMap, "settingsToGameSettings", (MapEntryVal){.btnFunc = &settingsToGameSettings}, MAP_ENTRY_BTNFUNC
-    );
-    addParserEntry(
-        parserMap, "settingsToAudioSettings", (MapEntryVal){.btnFunc = &settingsToAudioSettings}, MAP_ENTRY_BTNFUNC
-    );
-    addParserEntry(
-        parserMap, "settingsToVideoSettings", (MapEntryVal){.btnFunc = &settingsToVideoSettings}, MAP_ENTRY_BTNFUNC
-    );
-    addParserEntry(
-        parserMap, "settingsToControlsSettings", (MapEntryVal){.btnFunc = &settingsToControlsSettings}, MAP_ENTRY_BTNFUNC
-    );
-    addParserEntry(
-        parserMap, "settingsToMMenu", (MapEntryVal){.btnFunc = &settingsToMMenu}, MAP_ENTRY_BTNFUNC
-    );
-
-    addParserEntry(
-        parserMap, "gameSettingsToSettings", (MapEntryVal){.btnFunc = &gameSettingsToSettings}, MAP_ENTRY_BTNFUNC
-    );
-
-    addParserEntry(
-        parserMap, "audioSettingsToSettings", (MapEntryVal){.btnFunc = &audioSettingsToSettings}, MAP_ENTRY_BTNFUNC
-    );
-
-    addParserEntry(
-        parserMap, "getResolutions", (MapEntryVal){.providerFunc = &getResolutions}, MAP_ENTRY_PROVIDERFUNC
-    );
-    addParserEntry(
-        parserMap, "getWindowModes", (MapEntryVal){.providerFunc = &getWindowModes}, MAP_ENTRY_PROVIDERFUNC
-    );
-    addParserEntry(
-        parserMap, "changeWindowMode", (MapEntryVal){.btnFunc = &changeWindowMode}, MAP_ENTRY_BTNFUNC
-    );
-    addParserEntry(
-        parserMap, "changeRes", (MapEntryVal){.btnFunc = &changeRes}, MAP_ENTRY_BTNFUNC
-    );
-    addParserEntry(
-        parserMap, "videoSettingsToSettings", (MapEntryVal){.btnFunc = &videoSettingsToSettings}, MAP_ENTRY_BTNFUNC
-    );
-
-    addParserEntry(
-        parserMap, "controlsSettingsToSettings", (MapEntryVal){.btnFunc = &controlsSettingsToSettings}, MAP_ENTRY_BTNFUNC
-    );
-}
-
-/**
- * =====================================================================================================================
- */
-
-void freeParserMap(ParserMap *parserMap) {
-    if (!parserMap || !(*parserMap)) return;
-
-    for (size_t i = 0; i < PARSER_HASHMAP_SIZE; i++) {
-        MapEntry *entry = (*parserMap)->entries[i];
-        while (entry) {
-            MapEntry *next = entry->next;
-            free(entry->key);
-            free(entry);
-            entry = next;
-        }
-    }
-    free(*parserMap);
-    *parserMap = NULL;
 }

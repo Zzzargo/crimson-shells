@@ -43,64 +43,214 @@
                     "h": "center",
                     "v": "center"
                 },
-                "spacing": 0.1
+                "spacing": 0.05
             },
             "children": [
                 {
-                    "type": "button",
-                    "text": "Main Gun",
-                    "font": "assets/fonts/ByteBounce.ttf#32",
-                    "color": {
-                        "normal": "crimson",
-                        "focused": "gold",
-                        "selected": "crimsondark"
+                    "type": "optionCycle",
+                    "rect": {
+                        "x": 0,
+                        "y": 0,
+                        "w": 672,
+                        "h": 128
                     },
-                    "onClick": "garageToMMenu",
-                    "focused": true
+                    "layout": {
+                        "type": "vertical",
+                        "padding": {
+                            "top": 0.1,
+                            "bottom": 0.1,
+                            "left": 0.1,
+                            "right": 0.1
+                        },
+                        "alignment": {
+                            "h": "center",
+                            "v": "center"
+                        },
+                        "spacing": 0.3
+                    },
+                    "selector": {
+                        "type": "button",
+                        "text": "Main Gun",
+                        "font": "assets/fonts/ByteBounce.ttf#32",
+                        "color": {
+                            "normal": "crimson",
+                            "focused": "gold",
+                            "selected": "crimsondark"
+                        },
+                        "onClick": "garageToMMenu"
+                    },
+                    "options": {
+                        "type": "imageList",
+                        "data": {
+                            "provider": "getMainGuns"
+                        }
+                    },
+                    "focused": true,
+                    "arrows": "assets/ui/arrow.png"
                 },
                 {
-                    "type": "button",
-                    "text": "Coaxial Gun 1",
-                    "font": "assets/fonts/ByteBounce.ttf#32",
-                    "color": {
-                        "normal": "crimson",
-                        "focused": "gold",
-                        "selected": "crimsondark"
+                    "type": "optionCycle",
+                    "rect": {
+                        "x": 0,
+                        "y": 0,
+                        "w": 672,
+                        "h": 128
                     },
-                    "onClick": "garageToMMenu"
+                    "layout": {
+                        "type": "vertical",
+                        "padding": {
+                            "top": 0.1,
+                            "bottom": 0.1,
+                            "left": 0.1,
+                            "right": 0.1
+                        },
+                        "alignment": {
+                            "h": "center",
+                            "v": "center"
+                        },
+                        "spacing": 0.3
+                    },
+                    "selector": {
+                        "type": "button",
+                        "text": "Coaxial Gun 1",
+                        "font": "assets/fonts/ByteBounce.ttf#32",
+                        "color": {
+                            "normal": "crimson",
+                            "focused": "gold",
+                            "selected": "crimsondark"
+                        },
+                        "onClick": "garageToMMenu"
+                    },
+                    "options": {
+                        "type": "imageList",
+                        "data": {
+                            "provider": "getCoaxialGuns"
+                        }
+                    },
+                    "arrows": "assets/ui/arrow.png"
                 },
                 {
-                    "type": "button",
-                    "text": "Coaxial Gun 2",
-                    "font": "assets/fonts/ByteBounce.ttf#32",
-                    "color": {
-                        "normal": "crimson",
-                        "focused": "gold",
-                        "selected": "crimsondark"
+                    "type": "optionCycle",
+                    "rect": {
+                        "x": 0,
+                        "y": 0,
+                        "w": 672,
+                        "h": 128
                     },
-                    "onClick": "garageToMMenu"
+                    "layout": {
+                        "type": "vertical",
+                        "padding": {
+                            "top": 0.1,
+                            "bottom": 0.1,
+                            "left": 0.1,
+                            "right": 0.1
+                        },
+                        "alignment": {
+                            "h": "center",
+                            "v": "center"
+                        },
+                        "spacing": 0.3
+                    },
+                    "selector": {
+                        "type": "button",
+                        "text": "Coaxial Gun 2",
+                        "font": "assets/fonts/ByteBounce.ttf#32",
+                        "color": {
+                            "normal": "crimson",
+                            "focused": "gold",
+                            "selected": "crimsondark"
+                        },
+                        "onClick": "garageToMMenu"
+                    },
+                    "options": {
+                        "type": "imageList",
+                        "data": {
+                            "provider": "getCoaxialGuns"
+                        }
+                    },
+                    "arrows": "assets/ui/arrow.png"
                 },
                 {
-                    "type": "button",
-                    "text": "Hull",
-                    "font": "assets/fonts/ByteBounce.ttf#32",
-                    "color": {
-                        "normal": "crimson",
-                        "focused": "gold",
-                        "selected": "crimsondark"
+                    "type": "optionCycle",
+                    "rect": {
+                        "x": 0,
+                        "y": 0,
+                        "w": 672,
+                        "h": 128
                     },
-                    "onClick": "garageToMMenu"
+                    "layout": {
+                        "type": "vertical",
+                        "padding": {
+                            "top": 0.1,
+                            "bottom": 0.1,
+                            "left": 0.1,
+                            "right": 0.1
+                        },
+                        "alignment": {
+                            "h": "center",
+                            "v": "center"
+                        },
+                        "spacing": 0.3
+                    },
+                    "selector": {
+                        "type": "button",
+                        "text": "Hull",
+                        "font": "assets/fonts/ByteBounce.ttf#32",
+                        "color": {
+                            "normal": "crimson",
+                            "focused": "gold",
+                            "selected": "crimsondark"
+                        },
+                        "onClick": "garageToMMenu"
+                    },
+                    "options": {
+                        "type": "imageList",
+                        "data": {
+                            "provider": "getHulls"
+                        }
+                    },
+                    "arrows": "assets/ui/arrow.png"
                 },
                 {
-                    "type": "button",
-                    "text": "Module",
-                    "font": "assets/fonts/ByteBounce.ttf#32",
-                    "color": {
-                        "normal": "crimson",
-                        "focused": "gold",
-                        "selected": "crimsondark"
+                    "type": "optionCycle",
+                    "rect": {
+                        "x": 0,
+                        "y": 0,
+                        "w": 672,
+                        "h": 128
                     },
-                    "onClick": "garageToMMenu"
+                    "layout": {
+                        "type": "vertical",
+                        "padding": {
+                            "top": 0.1,
+                            "bottom": 0.1,
+                            "left": 0.1,
+                            "right": 0.1
+                        },
+                        "alignment": {
+                            "h": "center",
+                            "v": "center"
+                        },
+                        "spacing": 0.3
+                    },
+                    "selector": {
+                        "type": "button",
+                        "text": "Module",
+                        "font": "assets/fonts/ByteBounce.ttf#32",
+                        "color": {
+                            "normal": "crimson",
+                            "focused": "gold",
+                            "selected": "crimsondark"
+                        },
+                        "onClick": "garageToMMenu"
+                    },
+                    "options": {
+                        "type": "imageList",
+                        "data": {
+                            "provider": "getModules"
+                        }
+                    },
+                    "arrows": "assets/ui/arrow.png"
                 },
                 {
                     "type": "button",

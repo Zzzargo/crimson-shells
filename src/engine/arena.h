@@ -28,7 +28,7 @@ typedef struct {
     Uint8 isSolid;  // If true, projectiles cannot pass through
 } Tile;
 
-typedef struct map {
+typedef struct arena {
     Tile **tiles;  // 2D array of tiles representing the arena
 } *Arena;
 

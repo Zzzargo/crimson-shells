@@ -15,8 +15,8 @@ typedef struct statemng *StateManager;
 typedef struct engine {
     DisplayManager display;  // Pointer to the display manager
     UIManager uiManager;  // Pointer to the UI manager
-    ResourceManager resources;  // Pointer to the resource manager
-    PrefabsManager prefabs;  // Pointer to the prefabs manager
+    HashMap resources;  // Pointer to the resource manager
+    HashMap prefabs;  // Pointer to the prefabs manager
     InputManager inputMng;  // Pointer to the input manager
     StateManager stateMng;  // Pointer to the state manager
     ECS ecs;  // Pointer to the game ECS

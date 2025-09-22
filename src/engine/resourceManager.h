@@ -3,72 +3,52 @@
 
 #include "../global/global.h"
 
-typedef enum {
-    RESOURCE_TEXTURE,
-    RESOURCE_SOUND,
-    RESOURCE_MUSIC,
-    RESOURCE_FONT,
-    RESOURCE_COUNT  // automatically counts the number of resource types
-} ResourceType;
-
-#ifndef RES_HASHMAP_SIZE
-#define RES_HASHMAP_SIZE 256  // size of the resource hash map
-#endif
-
-typedef struct resEntry {
-    char *key;  // an entry's key is the resource's path
-    void *resource;  // pointer to the resource
-    struct resEntry *next;  // this hashmap uses chaining for collision resolution
-    ResourceType type;  // type of the resource
-} ResourceEntry;
-
-typedef struct resmng {
-    ResourceEntry *hashmap[RES_HASHMAP_SIZE];  // resource hashmap
-} *ResourceManager;
-
-// allocates memory for a new ResourceManager
-void initResourceManager(ResourceManager *resMng);
-
-// Hashes a string (resource path) to an index in the hashmap
-// Uses djb2
-static inline Uint32 hashFunc(const char *key);
-
-// finds a resource in the hashmap
-static inline ResourceEntry* getResource(ResourceManager resMng, const char *key);
-
-// adds a resource to the hashmap
-void addResource(ResourceManager resMng, const char *key, void *resource, ResourceType type);
-
-// removes a resource from the hashmap
-void removeResource(ResourceManager resMng, const char *key);
-
-// frees all the memory used by the ResourceManager
-void freeResourceManager(ResourceManager *resMng);
-
-// retrieves a texture resource from the ResourceManager
-SDL_Texture* getTexture(ResourceManager resMng, const char *key);
-
-// retrieves a font resource from the ResourceManager
-TTF_Font* getFont(ResourceManager resMng, const char *key);
-
-// retrieves a sound resource from the ResourceManager
-Mix_Chunk *getSound(ResourceManager resMng, const char *key);
+/**
+ * Retrieves a texture resource from the Resource Manager
+ * @param resMng the Resource Manager HashMap = struct map*
+ * @param key the resource's path
+ * @return the texture resource if found, NULL otherwise
+*/
+SDL_Texture* getTexture(HashMap resMng, const char *key);
 
 /**
- * 
+ * Retrieves a font resource from the Resource Manager
+ * @param resMng the Resource Manager HashMap = struct map*
+ * @param key the resource's path
+ * @return the font resource if found, NULL otherwise
+*/ 
+TTF_Font* getFont(HashMap resMng, const char *key);
+
+/**
+ * Retrieves a sound resource from the Resource Manager\
+ * @param resMng the Resource Manager HashMap = struct map*
+ * @param key the resource's path
+ * @return the sound resource if found, NULL otherwise
  */
-Mix_Music *getMusic(ResourceManager resMng, const char *key);
+Mix_Chunk* getSound(HashMap resMng, const char *key);
 
-// retrieves a resource from the ResourceManager if it's there, otherwise loads it
-void* getOrLoadResource(ResourceManager resMng, SDL_Renderer *renderer, const char *key, ResourceType type);
+/**
+ * Retrieves a resource from the Resource Manager if it's there, otherwise loads it
+ * @param resMng the Resource Manager HashMap = struct map*
+ * @param renderer the SDL_Renderer, needed for loading textures (can be NULL for non-texture resources)
+ * @param key the resource's path
+ * @param type the type of resource to load
+ * @return an entry value if found or loaded successfully, a MapEntryVal with .ptr = NULL otherwise
+ */
+MapEntryVal getOrLoadResource(HashMap resMng, SDL_Renderer *renderer, const char *key, MapEntryType type);
 
-// retrieves a texture resource from the ResourceManager or loads it if not found
-SDL_Texture* getOrLoadTexture(ResourceManager resMng, SDL_Renderer *renderer, const char *key);
+/**
+ * Preloads the frequently used resources into the Resource Manager
+ * @param resMng the Resource Manager HashMap = struct map*
+ * @param renderer the SDL_Renderer, needed for loading textures
+ * @note be careful about which resources to preload, as they have a lifetime of the entire game's duration
+ */
+void preloadResources(HashMap resMng, SDL_Renderer *renderer);
 
-// retrieves a sound resource from the ResourceManager or loads it if not found
-Mix_Chunk *getOrLoadSound(ResourceManager resMng, const char *key);
-
-// preloads the frequently used resources
-void preloadResources(ResourceManager resMng, SDL_Renderer *renderer);
+/**
+ * Frees all resources used by the Resource Manager
+ * @param resMng pointer to the Resource Manager HashMap = struct map**
+ */
+void freeResourceManager(HashMap *resMng);
 
 #endif // RESOURCE_MANAGER_H

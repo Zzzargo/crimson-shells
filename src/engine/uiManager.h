@@ -1,7 +1,7 @@
 #ifndef UI_MANAGER_H
 #define UI_MANAGER_H
 
-#include "../global/global.h"
+#include "ecs.h"
 
 // Here begins my journey into hell
 
@@ -120,8 +120,6 @@ typedef struct UIManager {
     Uint64 dirtyCapacity;  // Capacity of the dirty nodes array
 } *UIManager;
 
-typedef struct parsermap *ParserMap;
-
 /**
  * Initialises the UI manager
  * @return UIManager = struct UIManager*
@@ -139,11 +137,11 @@ UINode* UIparseFromFile(ZENg zEngine, const char *filePath);
 /**
  * Parses an UI node from a cJSON object
  * @param zEngine pointer to the engine = struct engine*
- * @param parserMap the Parser Map = struct parserMap*
+ * @param parserMap the Parser Map = struct map*
  * @param json the cJSON object
  * @return UINode* = pointer to the created UI node
  */
-UINode* UIparseNode(ZENg zEngine, ParserMap parserMap, cJSON *json);
+UINode* UIparseNode(ZENg zEngine, HashMap parserMap, cJSON *json);
 
 /**
  * Adds a new UI node to the UI tree
@@ -306,137 +304,45 @@ UINode* UIcreateOptionCycle(
     SDL_Rect rect, UILayout *layout, UINode *selectorBtn, CDLLNode *currOption, SDL_Texture *arrowTexture
 );
 
-// =====================================================================================================================
-
-// With JSON parsing I need a way to map(get it?) strings to various data in the JSON file
-
-#ifndef PARSER_HASHMAP_SIZE
-    #define PARSER_HASHMAP_SIZE 256
-#endif
-
-typedef enum {
-    MAP_ENTRY_BTNFUNC,
-    MAP_ENTRY_COLOR,
-    MAP_ENTRY_PROVIDERFUNC,
-    MAP_ENTRY_BOOL,
-    MAP_ENTRY_DISPLAYMODE
-} MapEntryType;
-
-typedef union {
-    void (*btnFunc)(ZENg, void *);  // Pointer to a button onClick function
-    SDL_Color color;  // A color (for button colors mainly)
-    void (*providerFunc)(ZENg, ParserMap);  // Pointer to a provider function
-    Uint8 *boolean;  // A boolean value (or a one byte number, you do you boo)
-    SDL_DisplayMode *displayMode;  // A display mode (for resolutions mainly)
-} MapEntryVal;
-
-typedef struct MapEntry {
-    char *key;
-    MapEntryType type;
-    MapEntryVal value;
-    struct MapEntry *next;  // For collision handling in the hashmap
-} MapEntry;
-
-typedef struct parsermap {
-    MapEntry *entries[PARSER_HASHMAP_SIZE];
-} *ParserMap;
-
-/**
- * Allocates memory for a new Parser Map
- * @param parserMap pointer to the Parser Map = struct parserMap**
- */
-void initParserMap(ParserMap *parserMap);
-
-/**
- * Hashing function for this hashmap
- * Uses djb2
- * @param key the string to hash
- * @return the index in the hashmap
- */
-static inline Uint32 hashFunc(const char *key);
-
-/**
- * Finds a parser entry in the hashmap
- * @param parserMap the Parser Map = struct parserMap*
- * @param key the entry's key
- * @return the MapEntry if found, NULL otherwise
- */
-MapEntry* getParserEntry(ParserMap parserMap, const char *key);
+// ===========================================PARSER MAP================================================================
 
 /**
  * Gets a function pointer from the Parser Map
- * @param parserMap the Parser Map = struct parserMap*
+ * @param parserMap the Parser Map = struct map*
  * @param key the entry's key
  * @return pointer to the function if found, NULL otherwise
  */
-void* resolveAction(ParserMap parserMap, const char *key);
+void* resolveAction(HashMap parserMap, const char *key);
 
 /**
  * Gets a provider function from the Parser Map
- * @param parserMap the Parser Map = struct parserMap*
+ * @param parserMap the Parser Map = struct map*
  * @param key the entry's key
  * @return pointer to the provider function if found, NULL otherwise
  */
-void* resolveProvider(ParserMap parserMap, const char *key);
-
-/**
- * Gets a boolean from the Parser Map
- * @param parserMap the Parser Map = struct parserMap*
- * @param key the entry's key
- * @return the boolean value if found, 0 otherwise
- */
-Uint8* resolveBool(ParserMap parserMap, const char *key);
-
-/**
- * Gets a display mode from the Parser Map
- * @param parserMap the Parser Map = struct parserMap*
- * @param key the entry's key
- * @return pointer to the display mode if found, NULL otherwise
- */
-SDL_DisplayMode* resolveDisplayMode(ParserMap parserMap, const char *key);
+void* resolveProvider(HashMap parserMap, const char *key);
 
 /**
  * Gets a color from the Parser Map
- * @param parserMap the Parser Map = struct parserMap*
+ * @param parserMap the Parser Map = struct map*
  * @param key the entry's key
  * @return the color if found, NULL otherwise
  */
-SDL_Color resolveColor(ParserMap parserMap, const char *key);
+SDL_Color resolveColor(HashMap parserMap, const char *key);
 
 /**
  * Applies alpha to a color if specified in the JSON
- * @param parserMap the Parser Map = struct parserMap*
+ * @param parserMap the Parser Map = struct map*
  * @param colorJson the cJSON object containing the color string
  * @return the color with applied alpha if specified, opaque otherwise
  */
-SDL_Color applyColorAlpha(ParserMap parserMap, cJSON *colorJson);
-
-/**
- * Adds a parser entry to the hashmap
- * @param parserMap the Parser Map = struct parserMap*
- * @param key the entry's key
- * @param value the entry's value (function pointer or color)
- * @param type the type of the entry (MapEntryType enum)
- */
-void addParserEntry(ParserMap parserMap, const char *key, MapEntryVal value, MapEntryType type);
-
-/**
- * Removes a parser entry from the hashmap
- * @param parserMap the Parser Map = struct parserMap*
- * @param key the entry's key
- */
-void removeParserEntry(ParserMap parserMap, const char *key);
+SDL_Color applyColorAlpha(HashMap parserMap, cJSON *colorJson);
 
 /**
  * Preloads the needed parser entries into the Parser Map
- * @param parserMap the Parser Map = struct parserMap*
+ * @param parserMap the Parser Map = struct map*
+ * @param state the state for which to load the entries
  */
-void loadParserEntries(ParserMap parserMap);
-
-/**
- * Frees all the memory used by the Parser Map
- * @param parserMap pointer to the Parser Map = struct parserMap**
- */
-void freeParserMap(ParserMap *parserMap);
+void loadParserEntries(HashMap parserMap, GameStateType state);
 
 #endif  // UI_MANAGER_H

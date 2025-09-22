@@ -16,8 +16,21 @@
 #include <string.h>
 #include "vec2.h"
 #include "DLinkList.h"
+#include "hashMap.h"
 
 typedef struct engine *ZENg;  // Forward declaration of the engine struct
+
+/**
+ * This enum is used to differentiate between entity types only at creation, for example in arena initialization
+ * It should never be added as a component to an entity for the sake of ECS purity
+*/
+typedef enum {
+    ENTITY_PLAYER,  // Your tank
+    ENTITY_TANK_BASIC,
+    ENTITY_TANK_LIGHT,
+    ENTITY_TANK_HEAVY,
+    ENTITY_TYPE_COUNT  // Automatically counts
+} EntityType;
 
 typedef int32_t Int32;
 typedef int64_t Int64;
@@ -62,6 +75,44 @@ typedef int64_t Int64;
 #define COLOR_PURPLE (SDL_Color){128, 0, 128, 255}
 #define COLOR_GOLD (SDL_Color){210, 105, 30, 255}
 
+typedef enum {
+    IDX_WHITE,
+    IDX_BLACK,
+    IDX_GRAY,
+    IDX_RED,
+    IDX_GREEN,
+    IDX_BLUE,
+    IDX_YELLOW,
+    IDX_CYAN,
+    IDX_MAGENTA,
+    IDX_CRIMSON,
+    IDX_PINK,
+    IDX_CRIMSON_DARK,
+    IDX_BROWN,
+    IDX_PURPLE,
+    IDX_GOLD,
+    COLOR_TABLE_SIZE
+} ColorIndex;
+
+// Sorry about this
+static const SDL_Color COLOR_TABLE[] = {
+    [IDX_WHITE] = COLOR_WHITE,
+    [IDX_BLACK] = COLOR_BLACK,
+    [IDX_GRAY] = COLOR_GRAY,
+    [IDX_RED] = COLOR_RED,
+    [IDX_GREEN] = COLOR_GREEN,
+    [IDX_BLUE] = COLOR_BLUE,
+    [IDX_YELLOW] = COLOR_YELLOW,
+    [IDX_CYAN] = COLOR_CYAN,
+    [IDX_MAGENTA] = COLOR_MAGENTA,
+    [IDX_CRIMSON] = COLOR_CRIMSON,
+    [IDX_PINK] = COLOR_PINK,
+    [IDX_CRIMSON_DARK] = COLOR_CRIMSON_DARK,
+    [IDX_BROWN] = COLOR_BROWN,
+    [IDX_PURPLE] = COLOR_PURPLE,
+    [IDX_GOLD] = COLOR_GOLD
+};
+
 // Coordinate system axis
 typedef enum {
     AXIS_NONE,  // For initializations
@@ -75,5 +126,38 @@ typedef enum {
 #define DIR_RIGHT (Vec2){1.0, 0.0}
 #define DIR_UP (Vec2){0.0, -1.0}
 #define DIR_DOWN (Vec2){0.0, 1.0}
+
+// I just found out about those sorceries
+
+#define THROW_ERROR_AND_RETURN(msg, ret) \
+    do { \
+        fprintf(stderr, "ERROR: %s\n", msg); \
+        return ret; \
+    } while (0)
+
+#define THROW_ERROR_AND_RETURN_VOID(msg) \
+    do { \
+        fprintf(stderr, "ERROR: %s\n", msg); \
+        return; \
+    } while (0)
+
+#define THROW_ERROR_AND_CONTINUE(msg) \
+    do { \
+        fprintf(stderr, "ERROR: %s\n", msg); \
+        continue; \
+    } while (0)
+
+#define THROW_ERROR_AND_EXIT(msg) \
+    do { \
+        fprintf(stderr, "ERROR: %s\n", msg); \
+        exit(EXIT_FAILURE); \
+    } while (0)
+
+// This one doesn't write a newline at the end of the error message
+#define THROW_ERROR_AND_DO(msg, code) \
+    do { \
+        fprintf(stderr, "ERROR: %s", msg); \
+        code \
+    } while (0)
 
 #endif // GLOBAL_H

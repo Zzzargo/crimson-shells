@@ -4,15 +4,6 @@
 #include "../global/global.h"
 #include "../engine/engine.h"
 
-typedef enum {
-    STATE_DATA_PLAIN  // Value or array of values, need one free
-} StateDataType;
-
-typedef struct {
-    void *data;
-    StateDataType type;
-} StateData;
-
 // A game state is described by a set of functions that handle its lifecycle
 typedef struct state {
     void (*onEnter)(ZENg);  // load state's assets
@@ -20,13 +11,8 @@ typedef struct state {
     Uint8 (*handleEvents)(SDL_Event*, ZENg);  // handle input via events
     void (*handleInput)(ZENg);  // handle continuous input like player movement
 
-    /**
-     * Optional data needed by the state
-     * Note: the state data is added by piece, while the deletion is done all at once at state exit
-     */
-    StateData *stateDataArray;
-    size_t stateDataCount;  // number of elements in the stateDataArray
-    size_t stateDataCapacity;  // capacity of the stateDataArray
+    // Optional data needed by the state
+    HashMap stateData;
 
     GameStateType type;
     Uint8 isOverlay;  // for short lifetime states like pause state
@@ -103,6 +89,14 @@ void onEnterGarage(ZENg zEngine);
  * @param zEngine pointer to the engine
  */
 void onExitGarage(ZENg zEngine);
+
+/**
+ * Provider function to get the player's main guns
+ * It adds them to the parser map and to the current state's data for later freeing
+ * @param zEngine pointer to the engine
+ * @param map pointer to the parser map where the guns will be stored
+ */
+void getMainGuns(ZENg zEngine, HashMap parserMap);
 
 /**
  * Handles the events in the garage state
@@ -249,7 +243,7 @@ void onExitVideoSettings(ZENg zEngine);
  * @param zEngine pointer to the engine
  * @param map pointer to the parser map where the resolutions will be stored
  */
-void getResolutions(ZENg zEngine, ParserMap map);
+void getResolutions(ZENg zEngine, HashMap parserMap);
 
 /**
  * Button action to toggle fullscreen/windowed mode
@@ -271,7 +265,7 @@ void changeRes(ZENg zEngine, void *data);
  * @param zEngine pointer to the engine
  * @param map pointer to the parser map where the window modes will be stored
  */
-void getWindowModes(ZENg zEngine, ParserMap map);
+void getWindowModes(ZENg zEngine, HashMap parserMap);
 
 /**
  * Handles the events in the video Settings menu
@@ -430,14 +424,6 @@ typedef struct statemng {
  * @return void
  */
  void initStateManager(StateManager *stateMng);
-
-/**
- * Adds data to a GameState's stateDataArray
- * @param state pointer to the GameState
- * @param data pointer to the data to add
- * @param type StateDataType enum value describing the type of data being added
- */
-void addStateData(GameState *state, void *data, StateDataType type);
 
 /**
  * Clears all state data from a GameState
