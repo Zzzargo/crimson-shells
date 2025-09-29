@@ -6,6 +6,7 @@
 
 typedef struct {
     char *name;
+    char *iconPath;  // Path to the icon texture
     char *projTexturePath;  // Path to the projectile texture
     char *projHitSoundPath;  // Path to the projectile hit sound
     double_t fireRate;  // Shots per second
@@ -20,6 +21,7 @@ typedef struct {
 
 typedef struct {
     char *name;
+    char *iconPath;  // Path to the icon texture
     EntityType entityType;
     Int32 maxHealth;
     double_t maxSpeed;
@@ -81,6 +83,7 @@ void freePrefabsManager(HashMap *prefabmng);
  * @param projLifeTime projectile lifetime in seconds
  * @param projTexturePath path to the projectile texture
  * @param projHitSoundPath path to the projectile hit sound
+ * @param iconPath path to the weapon icon
  * @return pointer to the created WeaponPrefab
  * @note the strings should be allocated before calling this function
  */
@@ -95,7 +98,8 @@ WeaponPrefab* createWeaponPrefab(
     Uint8 isExplosive,
     double_t projLifeTime,
     const char *projTexturePath,
-    const char *projHitSoundPath
+    const char *projHitSoundPath,
+    const char *iconPath
 );
 
 /**
@@ -108,6 +112,7 @@ WeaponPrefab* createWeaponPrefab(
  * @param h height of the tank sprite (in tiles)
  * @param isSolid is the tank solid (for collisions)
  * @param texturePath path to the tank texture
+ * @param iconPath path to the tank icon
  * @return pointer to the created TankPrefab
  * @note the strings should be allocated before calling this function
  */
@@ -119,7 +124,8 @@ TankPrefab* createTankPrefab(
     int w,
     int h,
     Uint8 isSolid,
-    const char *texturePath
+    const char *texturePath,
+    const char *iconPath
 );
 
 #endif // BUILDER_H

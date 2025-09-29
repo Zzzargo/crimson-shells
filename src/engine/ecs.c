@@ -235,7 +235,7 @@ CollisionComponent* createCollisionComponent(int x, int y, int w, int h, Uint8 i
  * =====================================================================================================================
  */
 
-RenderComponent* createRenderComponent(SDL_Texture *texture, int x, int y, int w, int h, Uint8 active, Uint8 selected) {
+RenderComponent* createRenderComponent(SDL_Texture *texture, int x, int y, int w, int h, Uint8 active) {
     RenderComponent *comp = calloc(1, sizeof(RenderComponent));
     if (!comp) {
         printf("Failed to allocate memory for render component\n");
@@ -243,7 +243,6 @@ RenderComponent* createRenderComponent(SDL_Texture *texture, int x, int y, int w
     }
     comp->texture = texture;
     comp->active = active;
-    comp->selected = selected;
 
     comp->destRect = calloc(1, sizeof(SDL_Rect));
     if (!comp->destRect) {

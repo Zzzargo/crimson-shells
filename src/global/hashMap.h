@@ -8,7 +8,8 @@
 typedef enum {
     MAP_RESOURCES,
     MAP_PREFABS,
-    MAP_PARSER
+    MAP_PARSER,
+    MAP_STATE_DATA
 } MapType;
 
 typedef enum {
@@ -21,7 +22,7 @@ typedef enum {
     ENTRY_BTN_FUNC,
     ENTRY_COLOR,
     ENTRY_PROVIDER_FUNC,
-    ENTRY_
+    ENTRY_PROVIDER_RESULT
 } MapEntryType;
 
 // This boi right there can hold the Earth if he wants to

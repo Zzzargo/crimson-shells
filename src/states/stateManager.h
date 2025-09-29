@@ -94,9 +94,9 @@ void onExitGarage(ZENg zEngine);
  * Provider function to get the player's main guns
  * It adds them to the parser map and to the current state's data for later freeing
  * @param zEngine pointer to the engine
- * @param map pointer to the parser map where the guns will be stored
+ * @return ProviderResult pointer containing the Entity array and its size
  */
-void getMainGuns(ZENg zEngine, HashMap parserMap);
+ProviderResult* getMainGuns(ZENg zEngine);
 
 /**
  * Handles the events in the garage state
@@ -241,9 +241,10 @@ void onExitVideoSettings(ZENg zEngine);
  * Provider function to get the available display resolutions
  * It adds them to the parser map and to the current state's data for later freeing
  * @param zEngine pointer to the engine
- * @param map pointer to the parser map where the resolutions will be stored
+ * @return ProviderResult pointer containing the SDL_DisplayMode array and its size
+ * @note The data is added to the current state's data for later freeing
  */
-void getResolutions(ZENg zEngine, HashMap parserMap);
+ProviderResult* getResolutions(ZENg zEngine);
 
 /**
  * Button action to toggle fullscreen/windowed mode
@@ -263,9 +264,9 @@ void changeRes(ZENg zEngine, void *data);
  * Provider function to get the available window modes (windowed/fullscreen)
  * It adds them to the parser map and to the current state's data for later freeing
  * @param zEngine pointer to the engine
- * @param map pointer to the parser map where the window modes will be stored
+ * @return ProviderResult pointer containing the Uint8 array and its size
  */
-void getWindowModes(ZENg zEngine, HashMap parserMap);
+ProviderResult* getWindowModes(ZENg zEngine);
 
 /**
  * Handles the events in the video Settings menu

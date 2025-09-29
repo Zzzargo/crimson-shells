@@ -1167,7 +1167,7 @@ void renderSystem(ZENg zEngine, double_t deltaTime) {
         Uint64 page = owner / PAGE_SIZE;
         Uint64 index = owner % PAGE_SIZE;
 
-        if (render && render->destRect) {
+        if (render && render->destRect && render->active) {
             double angle = 0.0;
 
             // Check if the entity has a direction component

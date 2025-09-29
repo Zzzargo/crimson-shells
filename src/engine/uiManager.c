@@ -145,7 +145,7 @@ UINode* UIparseNode(ZENg zEngine, HashMap parserMap, cJSON *json) {
             }
         }
 
-        void (*action)(ZENg, void*);
+        ActionFunc action = NULL;
         if (actionStr) action = resolveAction(parserMap, actionStr);
 
         node = UIcreateButton(
@@ -213,22 +213,34 @@ UINode* UIparseNode(ZENg zEngine, HashMap parserMap, cJSON *json) {
             return NULL;
         }
         char *listTypeStr = cJSON_GetObjectItem(optionsJson, "type")->valuestring;
-        if (strcmp(listTypeStr, "buttonList") == 0) {
-            cJSON *dataJson = cJSON_GetObjectItem(optionsJson, "data");
-            if (!dataJson) {
-                printf("Option cycle options missing data definition\n");
-                return NULL;
-            }
+        cJSON *dataJson = cJSON_GetObjectItem(optionsJson, "data");
+        if (!dataJson) {
+            printf("Option cycle options missing data definition\n");
+            return NULL;
+        }
 
+        cJSON *providerJson = cJSON_GetObjectItem(dataJson, "provider");
+        if (!providerJson) {
+            printf("Option cycle options missing data provider definition\n");
+            return NULL;
+        }
+        char *providerStr = providerJson->valuestring;
+
+        TTF_Font *font = NULL;
+        SDL_Color colors[UI_STATE_COUNT] = {0};
+        ProviderFunc provider = resolveProvider(parserMap, providerStr);
+        ProviderResult *result = NULL;
+        if (provider) result = provider(zEngine);
+
+        if (strcmp(listTypeStr, "buttonList") == 0) {
             cJSON *fontJson = cJSON_GetObjectItem(optionsJson, "font");
             if (!fontJson) {
                 printf("Option cycle options missing font definition\n");
                 return NULL;
             }
-            TTF_Font *font = getFont(zEngine->resources, fontJson->valuestring);
+            font = getFont(zEngine->resources, fontJson->valuestring);
 
             cJSON *colorJson = cJSON_GetObjectItem(optionsJson, "color");
-            SDL_Color colors[UI_STATE_COUNT] = {0};
             if (colorJson) {
                 for (Uint8 j = 0; j < UI_STATE_COUNT; j++) {
                     const char *state = j == UI_STATE_NORMAL ? "normal" : j == UI_STATE_FOCUSED ?
@@ -237,109 +249,23 @@ UINode* UIparseNode(ZENg zEngine, HashMap parserMap, cJSON *json) {
                     colors[j] = applyColorAlpha(parserMap, colorStateJson);
                 }
             }
-
-            cJSON *providerJson = cJSON_GetObjectItem(dataJson, "provider");
-            if (!providerJson) {
-                printf("Option cycle options missing data provider definition\n");
-                return NULL;
-            }
-            char *providerStr = providerJson->valuestring;
-            void (*providerFunc)(ZENg, HashMap) = resolveProvider(parserMap, providerStr);
-            if (providerFunc) providerFunc(zEngine, parserMap);
-            // if (strcmp(providerStr, "getWindowModes") == 0) {
-            //     // Uint8 *windowModesCount = resolveBool(parserMap, "windowModesCount");
-            //     for (Uint8 i = 0; i < *windowModesCount; i++) {
-            //         char key[32];
-            //         snprintf(key, sizeof(key), "windowModes[%d]", i);
-            //         // Uint8 *mode = resolveBool(parserMap, key);
-
-            //         char *btnText = calloc(32, sizeof(char));
-            //         snprintf(btnText, 32, "%s", *mode == 0 ? "Windowed" : "Fullscreen");
-
-            //         UINode *btn = UIcreateButton(
-            //             zEngine->display->renderer,
-            //             font,
-            //             btnText,
-            //             UI_STATE_NORMAL,
-            //             colors,
-            //             NULL,
-            //             (void *)mode
-            //         );
-            //         if (!options) {
-            //             options = initList((void *)btn);
-            //         } else {
-            //             CDLLInsertLast(options, (void *)btn);
-            //         }
-            //     }
-            // } else if (strcmp(providerStr, "getResolutions") == 0) {
-            //     Uint8 *resCount = resolveBool(parserMap, "resolutionsCount");
-            //     SDL_DisplayMode *modes = resolveDisplayMode(parserMap, "resolutions");
-            //     for (Uint8 i = 0; i < *resCount; i++) {
-            //         SDL_DisplayMode *mode = &modes[i];
-
-            //         char *btnText = calloc(16, sizeof(char));
-            //         snprintf(btnText, 16, "%dx%d", mode->w, mode->h);
-
-            //         UINode *btn = UIcreateButton(
-            //             zEngine->display->renderer,
-            //             font,
-            //             btnText,
-            //             UI_STATE_NORMAL,
-            //             colors,
-            //             NULL,
-            //             (void *)mode
-            //         );
-            //         if (!options) {
-            //             options = initList((void *)btn);
-            //         } else {
-            //             CDLLInsertLast(options, (void *)btn);
-            //         }
-            //     }
-            // }
+            ButtonNodeContext *btnCtx = malloc(sizeof(ButtonNodeContext));
+            if (!btnCtx) THROW_ERROR_AND_EXIT("Failed to allocate memory for button list context\n");
+            btnCtx->renderer = zEngine->display->renderer;
+            btnCtx->font = font;
+            memcpy(btnCtx->colors, colors, sizeof(SDL_Color) * UI_STATE_COUNT);
+            btnCtx->options = options;
+            handleProviderResult(result, &insertToList, (void *)btnCtx);
+            options = btnCtx->options;  // Update options with the list returned from the handler
+            free(btnCtx);
         } else if (strcmp(listTypeStr, "imageList") == 0) {
-            cJSON *dataJson = cJSON_GetObjectItem(optionsJson, "data");
-            if (!dataJson) {
-                printf("Option cycle options missing data definition\n");
-                return NULL;
-            }
-            cJSON *providerJson = cJSON_GetObjectItem(dataJson, "provider");
-            if (!providerJson) {
-                printf("Option cycle options missing data provider definition\n");
-                return NULL;
-            }
-            char *providerStr = providerJson->valuestring;
-            void (*providerFunc)(ZENg, HashMap) = resolveProvider(parserMap, providerStr);
-            if (providerFunc) providerFunc(zEngine, parserMap);
-            // if (strcmp(providerStr, "getMainGuns") == 0) {
-            //     // getMainGuns must provide an array of guns entities, one of SDL_Rects for weapon icons and their count
-            //     // The texture is fetched from each gun entity's render component
-            //     // Data is a pointer to the current entity
-            //     // Uint8 *mainGunsCount = resolveBool(parserMap, "mainGunsCount");
-            //     // Entity *mainGuns = resolveEntityArray(parserMap, "mainGuns");
-            //     // SDL_Rect *mainGunsRects = resolveRectArray(parserMap, "mainGunsRects");
-            //     for (Uint8 i = 0; i < *mainGunsCount; i++) {
-            //         char key[32] = {0};
-            //         snprintf(key, sizeof(key), "mainGuns[%d]", i);
-
-            //         UINode *img = UIcreateImage(
-            //             mainGunsRects[i],
-            //             getTexture(zEngine->resources, key),
-            //             &mainGuns[i]
-            //         );
-            //         if (!options) {
-            //             options = initList((void *)img);
-            //         } else {
-            //             CDLLInsertLast(options, (void *)img);
-            //         }
-            //     }
-            // } else if (strcmp(providerStr, "getSecondaryGuns") == 0) {
-
-            // } else if (strcmp(providerStr, "getHulls") == 0) {
-
-            // } else if (strcmp(providerStr, "getModules") == 0) {
-
-            // }
-
+            ImageNodeContext *imgCtx = malloc(sizeof(ImageNodeContext));
+            if (!imgCtx) THROW_ERROR_AND_EXIT("Failed to allocate memory for image list context\n");
+            imgCtx->ecs = zEngine->ecs;
+            imgCtx->options = options;
+            handleProviderResult(result, &insertToList, (void *)imgCtx);
+            options = imgCtx->options;  // Update options with the list returned from the handler
+            free(imgCtx);
         }
 
         // Nav arrows
@@ -354,6 +280,7 @@ UINode* UIparseNode(ZENg zEngine, HashMap parserMap, cJSON *json) {
 
         // Add those as children to apply layout
         UIinsertNode(zEngine->uiManager, node, selector);
+        if (!options) THROW_ERROR_AND_RETURN("Option cycle NULL in UIparseNode\n", node);
         UIinsertNode(zEngine->uiManager, node, (UINode *)options->data);
     }
 
@@ -759,8 +686,23 @@ void UIrenderNode(SDL_Renderer *rdr, UINode *node) {
                 if (selector->texture) SDL_RenderCopy(rdr, selector->texture, NULL, selectorNode->rect);
 
                 UINode *currOptionNode = (UINode *)optionCycle->currOption->data;
-                UIButton *currOptionBtn = (UIButton *)(currOptionNode->widget);
-                if (currOptionBtn->texture) SDL_RenderCopy(rdr, currOptionBtn->texture, NULL, currOptionNode->rect);
+                switch(currOptionNode->type) {
+                    case UI_BUTTON: {
+                        UIButton *currOptionBtn = (UIButton *)(currOptionNode->widget);
+                        if (currOptionBtn->texture)
+                            SDL_RenderCopy(rdr, currOptionBtn->texture, NULL, currOptionNode->rect);
+                        break;
+                    }
+                    case UI_IMAGE: {
+                        UIImage *currOptionImg = (UIImage *)(currOptionNode->widget);
+                        if (currOptionImg->texture)
+                            SDL_RenderCopy(rdr, currOptionImg->texture, NULL, currOptionNode->rect);
+                        break;
+                    }
+                    default: {
+                        THROW_ERROR_AND_DO("Check yo back on uiManager.c:706 cuh\n", break;);
+                    }
+                }
 
                 if (optionCycle->arrowTexture) {
                     // Render two arrows on the sides of the current option
@@ -983,7 +925,7 @@ UINode* UIcreateLabel(SDL_Renderer *rdr, TTF_Font *font, char *text, SDL_Color c
 
 UINode* UIcreateButton(
     SDL_Renderer *rdr, TTF_Font *font, char *text, UIState state, SDL_Color colors[UI_STATE_COUNT],
-    void (*onClick)(ZENg, void*), void *data
+    ActionFunc onClick, void *data
 ) {
     UINode *node = calloc(1, sizeof(UINode));
     if (!node) {
@@ -1116,7 +1058,7 @@ UINode* UIcreateOptionCycle(
  * =====================================================================================================================
  */
 
-void* resolveAction(HashMap parserMap, const char *key) {
+ActionFunc resolveAction(HashMap parserMap, const char *key) {
     if (!parserMap || !key) THROW_ERROR_AND_RETURN("Parser map or key is NULL", NULL);
     if (parserMap->type != MAP_PARSER) THROW_ERROR_AND_RETURN("Parser map is of wrong type", NULL);
     MapEntry *entry = MapGetEntry(parserMap, key);
@@ -1130,7 +1072,7 @@ void* resolveAction(HashMap parserMap, const char *key) {
  * =====================================================================================================================
  */
 
-void* resolveProvider(HashMap parserMap, const char *key) {
+ProviderFunc resolveProvider(HashMap parserMap, const char *key) {
     if (!parserMap || !key) THROW_ERROR_AND_RETURN("Parser map or key is NULL", NULL);
     if (parserMap->type != MAP_PARSER) THROW_ERROR_AND_RETURN("Parser map is of wrong type", NULL);
     MapEntry *entry = MapGetEntry(parserMap, key);
@@ -1138,6 +1080,95 @@ void* resolveProvider(HashMap parserMap, const char *key) {
     THROW_ERROR_AND_DO(
         "Provider with key", fprintf(stderr, "'%s' not found in parser map\n", key); return NULL;
     );
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+void insertToList(UINode *node, void *context) {
+    if (!node || !context) THROW_ERROR_AND_RETURN_VOID("Node or context is NULL in insertToList");
+
+    switch(node->type) {
+        case UI_BUTTON: {
+            ButtonNodeContext *btnCtx = (ButtonNodeContext *)context;
+            if (!btnCtx->options) btnCtx->options = initList((void *)node);
+            else CDLLInsertLast(btnCtx->options, (void *)node);
+            break;
+        }
+        case UI_IMAGE: {
+            ImageNodeContext *imgCtx = (ImageNodeContext *)context;
+            if (!imgCtx->options) imgCtx->options = initList((void *)node);
+            else CDLLInsertLast(imgCtx->options, (void *)node);
+            break;
+        }
+        default: {
+            THROW_ERROR_AND_RETURN_VOID("Node type unknown in insertToList");
+        }
+    }
+}
+
+/**
+ * =====================================================================================================================
+ */
+
+void handleProviderResult(ProviderResult *result, NodeConsumer consumer, void *context) {
+    if (!result) THROW_ERROR_AND_RETURN_VOID("Provider result is NULL");
+    if (!consumer) THROW_ERROR_AND_RETURN_VOID("Consumer function is NULL");
+
+    switch (result->type) {
+        case RESULT_DISPLAYMODE_ARRAY: {
+            SDL_DisplayMode *modes = (SDL_DisplayMode *)result->data;
+            ButtonNodeContext *btnContext = (ButtonNodeContext *)context;
+            for (size_t i = 0; i < result->size; i++) {
+                char *btnText = calloc(16, sizeof(char));
+                snprintf(btnText, 16, "%dx%d", modes[i].w, modes[i].h);
+
+                UINode *btn = UIcreateButton(
+                    btnContext->renderer, btnContext->font, btnText,
+                    UI_STATE_NORMAL, btnContext->colors, NULL, &modes[i]
+                );
+                consumer(btn, context);  // This is getting insane
+            }
+            break;
+        }
+        case RESULT_WINDOWMODE_ARRAY: {
+            Uint8 *values = (Uint8 *)result->data;
+            ButtonNodeContext *btnContext = (ButtonNodeContext *)context;
+            for (size_t i = 0; i < result->size; i++) {
+                char *btnText = calloc(20, sizeof(char));
+                snprintf(btnText, 20, "%s", values[i] == 0 ? "Windowed" : "Fullscreen");
+
+                UINode *btn = UIcreateButton(
+                    btnContext->renderer, btnContext->font, btnText,
+                    UI_STATE_NORMAL, btnContext->colors, NULL, &values[i]
+                );
+                consumer(btn, context);
+            }
+            break;
+        }
+        case RESULT_WEAPONS_ARRAY: {
+            Entity *weapons = (Entity *)result->data;
+            ImageNodeContext *imgContext = (ImageNodeContext *)context;
+            for (size_t i = 0; i < result->size; i++) {
+                // Need to get the guns' rects(or assume a fixed size),
+                // textures and data which will be passed to the button connected to the optionCycle
+
+                Uint64 page = weapons[i] / PAGE_SIZE;
+                Uint64 offset = weapons[i] % PAGE_SIZE;
+                Uint64 rdrDenseIdx = imgContext->ecs->components[RENDER_COMPONENT].sparse[page][offset];
+                RenderComponent *rdrComp =
+                (RenderComponent *)imgContext->ecs->components[RENDER_COMPONENT].dense[rdrDenseIdx];
+
+                UINode *img = UIcreateImage(*rdrComp->destRect, rdrComp->texture, (void *)(&weapons[i]));
+                consumer(img, context);
+            }
+            break;
+        }
+        default: {
+            break;
+        }
+    }
 }
 
 /**

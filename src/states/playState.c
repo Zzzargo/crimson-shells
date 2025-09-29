@@ -4,30 +4,31 @@ void onEnterPlayState(ZENg zEngine) {
     initLevel(zEngine, "data/arenatest.json");
 
     // Add some weapons to the player while testing the arena parser
-    Entity mainGunID = createEntity(zEngine->ecs, STATE_PLAYING);
+    ECS ecs = zEngine->ecs;
+    Entity mainGunID = createEntity(ecs, STATE_PLAYING);
     WeaponPrefab *mainGunPrefab = getWeaponPrefab(zEngine->prefabs, "Bigfella");
     WeaponComponent *mainG = instantiateWeapon(zEngine, mainGunPrefab, PLAYER_ID);
-    addComponent(zEngine->ecs, mainGunID, WEAPON_COMPONENT, (void *)mainG);
+    addComponent(ecs, mainGunID, WEAPON_COMPONENT, (void *)mainG);
 
-    Entity secGun1ID = createEntity(zEngine->ecs, STATE_PLAYING);
+    Entity secGun1ID = createEntity(ecs, STATE_PLAYING);
     WeaponPrefab *secGun1Prefab = getWeaponPrefab(zEngine->prefabs, "PKT");
     WeaponComponent *secGun1 = instantiateWeapon(zEngine, secGun1Prefab, PLAYER_ID);
-    addComponent(zEngine->ecs, secGun1ID, WEAPON_COMPONENT, (void *)secGun1);
+    addComponent(ecs, secGun1ID, WEAPON_COMPONENT, (void *)secGun1);
     CDLLNode *weapList = initList((void *)secGun1);
 
-    Entity secGun2ID = createEntity(zEngine->ecs, STATE_PLAYING);
+    Entity secGun2ID = createEntity(ecs, STATE_PLAYING);
     WeaponPrefab *secGun2Prefab = getWeaponPrefab(zEngine->prefabs, "M240C");
     WeaponComponent *secGun2 = instantiateWeapon(zEngine, secGun2Prefab, PLAYER_ID);
-    addComponent(zEngine->ecs, secGun2ID, WEAPON_COMPONENT, (void *)secGun2);
+    addComponent(ecs, secGun2ID, WEAPON_COMPONENT, (void *)secGun2);
     CDLLInsertLast(weapList, (void *)secGun2);
 
-    Entity hullID = createEntity(zEngine->ecs, STATE_PLAYING);
-    Entity moduleID = createEntity(zEngine->ecs, STATE_PLAYING);
+    Entity hullID = createEntity(ecs, STATE_PLAYING);
+    Entity moduleID = createEntity(ecs, STATE_PLAYING);
     LoadoutComponent *loadout = createLoadoutComponent(mainGunID, weapList, hullID, moduleID);
-    addComponent(zEngine->ecs, PLAYER_ID, LOADOUT_COMPONENT, (void *)loadout);
+    addComponent(ecs, PLAYER_ID, LOADOUT_COMPONENT, (void *)loadout);
 
     // Enable the systems required by the play state
-    SystemNode **systems = zEngine->ecs->depGraph->nodes;
+    SystemNode **systems = ecs->depGraph->nodes;
     systems[SYS_LIFETIME]->isActive = 1;
     systems[SYS_WEAPONS]->isActive = 1;
     systems[SYS_VELOCITY]->isActive = 1;
@@ -96,7 +97,7 @@ WeaponComponent* instantiateWeapon(ZENg zEngine, WeaponPrefab *prefab, Entity ow
  */
 
 Entity instantiateTank(ZENg zEngine, TankPrefab *prefab, Vec2 position) {
-    Entity id = createEntity(zEngine->ecs, STATE_PLAYING);
+    Entity id = createEntity(zEngine->ecs, getCurrState(zEngine->stateMng)->type);
     if (prefab->entityType == ENTITY_PLAYER) {
         PLAYER_ID = id;  // set the global player ID
     }
@@ -128,8 +129,7 @@ Entity instantiateTank(ZENg zEngine, TankPrefab *prefab, Vec2 position) {
 
     RenderComponent *renderComp = createRenderComponent(
         getTexture(zEngine->resources, prefab->texturePath),
-        posComp->x, posComp->y, colComp->hitbox->w, colComp->hitbox->h,
-        1, 0
+        posComp->x, posComp->y, colComp->hitbox->w, colComp->hitbox->h, 1
     );
     addComponent(zEngine->ecs, id, RENDER_COMPONENT, (void *)renderComp);
 }
@@ -203,7 +203,7 @@ void spawnBulletProjectile( ZENg zEngine, Entity shooter, int bulletW, int bulle
 
     RenderComponent *bulletRender = createRenderComponent(
         texture, (int)bulletPos->x, (int)bulletPos->y,
-        bulletW, bulletH, 1, 0
+        bulletW, bulletH, 1
     );
     addComponent(zEngine->ecs, bulletID, RENDER_COMPONENT, (void *)bulletRender);
 

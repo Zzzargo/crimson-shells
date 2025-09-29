@@ -128,6 +128,8 @@ void preloadResources(HashMap resMng, SDL_Renderer *renderer) {
     getOrLoadResource(resMng, renderer, "assets/textures/bullet.png", ENTRY_TEXTURE);
     getOrLoadResource(resMng, renderer, "assets/textures/brick.jpg", ENTRY_TEXTURE);
     getOrLoadResource(resMng, renderer, "assets/textures/rocks.jpg", ENTRY_TEXTURE);
+    getOrLoadResource(resMng, renderer, "assets/textures/testgun.png", ENTRY_TEXTURE);
+    getOrLoadResource(resMng, renderer, "assets/textures/testgun2.png", ENTRY_TEXTURE);
 
     // Sounds
     getOrLoadResource(resMng, renderer, "assets/sounds/button-press.mp3", ENTRY_SOUND);

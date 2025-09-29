@@ -85,8 +85,9 @@ typedef struct UILabel {
     SDL_Color currColor;  // Color of the text
 } UILabel;
 
+typedef void (*ActionFunc)(ZENg, void *);  // Forward declaration. See the footer for details
 typedef struct UIButton {
-    void (*onClick)(ZENg, void *);  // What the button does
+    ActionFunc onClick;  // What the button does
     char *text;
     TTF_Font *font;  // Font used by the button text
     SDL_Texture *texture;
@@ -277,7 +278,7 @@ UINode* UIcreateLabel(SDL_Renderer *rdr, TTF_Font *font, char *text, SDL_Color c
  */
 UINode* UIcreateButton(
     SDL_Renderer *rdr, TTF_Font *font, char *text, UIState state, SDL_Color colors[UI_STATE_COUNT],
-    void (*onClick)(ZENg, void*), void *data
+    ActionFunc onClick, void *data
 );
 
 /**
@@ -306,13 +307,52 @@ UINode* UIcreateOptionCycle(
 
 // ===========================================PARSER MAP================================================================
 
+typedef enum {
+    RESULT_DISPLAYMODE_ARRAY,
+    RESULT_WINDOWMODE_ARRAY,
+    RESULT_WEAPONS_ARRAY
+} ProviderResultType;
+
+typedef struct {
+    void *data;  // Pointer to the data
+    size_t size;  // Size of the data (for arrays)
+    ProviderResultType type;  // Tells what type of data is stored here
+} ProviderResult;
+
+// That's a tough one. Normally you'd think ProviderResult* is a pointer to the ProviderFunc
+// In reality that means a pointer to a function that returns a ProviderResult*, which ProviderFunc is
+typedef ProviderResult* (*ProviderFunc)(ZENg);
+typedef void (*ActionFunc)(ZENg, void *);  // Same here, ActionFunc is not a void type
+
+// I feel like I went down a rabbit hole
+typedef void (*NodeConsumer)(UINode* node, void *context);
+
+typedef struct {
+    SDL_Renderer *renderer;
+    TTF_Font *font;
+    SDL_Color colors[UI_STATE_COUNT];
+    CDLLNode *options;  // Maybe will swap this with void *
+} ButtonNodeContext;
+
+typedef struct {
+    ECS ecs;
+    CDLLNode *options;
+} ImageNodeContext;
+
+/**
+ * Consumer function that inserts UINodes into a CDLL (the context)
+ * @param node the node to be inserted
+ * @param context pointer to the CDLL (struct CDLLNode**)
+ */
+void insertToList(UINode *node, void *context);
+
 /**
  * Gets a function pointer from the Parser Map
  * @param parserMap the Parser Map = struct map*
  * @param key the entry's key
  * @return pointer to the function if found, NULL otherwise
  */
-void* resolveAction(HashMap parserMap, const char *key);
+ActionFunc resolveAction(HashMap parserMap, const char *key);
 
 /**
  * Gets a provider function from the Parser Map
@@ -320,7 +360,16 @@ void* resolveAction(HashMap parserMap, const char *key);
  * @param key the entry's key
  * @return pointer to the provider function if found, NULL otherwise
  */
-void* resolveProvider(HashMap parserMap, const char *key);
+ProviderFunc resolveProvider(HashMap parserMap, const char *key);
+
+/**
+ * Handles the result of a provider function
+ * @param result pointer to the ProviderResult returned by the provider function
+ * @param consumer function that will consume the node(s) created with the data from the provider result
+ * @param context pointer to any context data the consumer function might need
+ * @note the consumer function is called for each node created with the data from the provider result
+ */
+void handleProviderResult(ProviderResult *result, NodeConsumer consumer, void *context);
 
 /**
  * Gets a color from the Parser Map

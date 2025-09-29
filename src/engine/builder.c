@@ -92,10 +92,11 @@ void loadPrefabs(ZENg zEngine, const char *filePath) {
             cJSON *projLifeTimeJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "projLifetime");
             cJSON *projTexturePathJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "projTexturePath");
             cJSON *projHitSoundPathJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "projHitSoundPath");
+            cJSON *iconPathJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "iconPath");
 
             if (!fireRateJson || !projWJson || !projHJson || !projSpeedJson || !dmgJson ||
                 !isPiercingJson || !isExplosiveJson || !projLifeTimeJson ||
-                !projTexturePathJson || !projHitSoundPathJson) {
+                !projTexturePathJson || !projHitSoundPathJson || !iconPathJson) {
                 printf("Incomplete weapon prefab data for '%s'\n", nameStr);
                 continue;
             }
@@ -110,9 +111,10 @@ void loadPrefabs(ZENg zEngine, const char *filePath) {
             double_t projLifeTime = projLifeTimeJson->valuedouble;
             char *projTexturePath = strdup(projTexturePathJson->valuestring);
             char *projHitSoundPath = strdup(projHitSoundPathJson->valuestring);
+            char *iconPath = strdup(iconPathJson->valuestring);
 
             #ifdef DEBUG
-                printf("===============================================================================================\n");
+                printf("===========================================================================================\n");
                 printf(
                     "Parsed weapon prefab - name: %s, fireRate: %.2f, projW: %d, projH: %d, projSpeed: %.2f\n",
                     nameStr, fireRate, projW, projH, projSpeed
@@ -121,12 +123,15 @@ void loadPrefabs(ZENg zEngine, const char *filePath) {
                     "ProjLifetime: %.2f, isPiercing: %hhu, isExplosive: %hhu, dmg: %d\n",
                     projLifeTime, isPiercing, isExplosive, dmg
                 );
-                printf("ProjTexturePath: %s, projHitSoundPath: %s\n=============\n", projTexturePath, projHitSoundPath);
+                printf(
+                    "ProjTexturePath: %s, projHitSoundPath: %s, iconPath: %s\n================================\n",
+                    projTexturePath, projHitSoundPath, iconPath
+                );
             #endif
 
             WeaponPrefab *prefab = createWeaponPrefab(
                 strdup(nameStr), fireRate, projW, projH, projSpeed, dmg, isPiercing, isExplosive, projLifeTime,
-                projTexturePath, projHitSoundPath
+                projTexturePath, projHitSoundPath, iconPath
             );
             MapAddEntry(zEngine->prefabs, nameStr, (MapEntryVal){.ptr = prefab}, ENTRY_WEAPON_PREFAB);
         } else if (strcmp(typeStr, "TANK") == 0) {
@@ -137,9 +142,10 @@ void loadPrefabs(ZENg zEngine, const char *filePath) {
             cJSON *hJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "height");
             cJSON *isSolidJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "isSolid");
             cJSON *texturePathJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "texturePath");
+            cJSON *iconPathJson = cJSON_GetObjectItemCaseSensitive(prefabJson, "iconPath");
 
             if (!entityTypeJson || !maxHealthJson || !speedJson || !wJson || !hJson ||
-                !isSolidJson || !texturePathJson) {
+                !isSolidJson || !texturePathJson || !iconPathJson) {
                 printf("Incomplete tank prefab data for '%s'\n", nameStr);
                 continue;
             }
@@ -151,16 +157,20 @@ void loadPrefabs(ZENg zEngine, const char *filePath) {
             int h = hJson->valueint;
             Uint8 isSolid = (Uint8)isSolidJson->valueint;
             char *texturePath = strdup(texturePathJson->valuestring);
+            char *iconPath = strdup(iconPathJson->valuestring);
 
             #ifdef DEBUG
                 printf("===========================================================================================\n");
                 printf("Parsed tank prefab - name: %s, entityType: %d, maxHealth: %d, speed: %.2f\n",
                     nameStr, entityType, maxHealth, speed
                 );
-                printf("Width: %d, height: %d, isSolid: %hhu, texture: %s\n============\n", w, h, isSolid, texturePath);
+                printf(
+                    "Width: %d, height: %d, isSolid: %hhu, texture: %s, icon: %s\n==================================\n",
+                    w, h, isSolid, texturePath, iconPath
+                );
             #endif
             TankPrefab *prefab = createTankPrefab(
-                strdup(nameStr), entityType, maxHealth, speed, w, h, isSolid, texturePath
+                strdup(nameStr), entityType, maxHealth, speed, w, h, isSolid, texturePath, iconPath
             );
             MapAddEntry(zEngine->prefabs, nameStr, (MapEntryVal){.ptr = prefab}, ENTRY_TANK_PREFAB);
         } else if (strcmp(typeStr, "TILE") == 0) {
@@ -285,7 +295,8 @@ void freePrefabsManager(HashMap *prefabmng) {
 
 WeaponPrefab* createWeaponPrefab(
     const char *name, double_t fireRate, int projW, int projH, double_t projSpeed, int dmg, Uint8 isPiercing,
-    Uint8 isExplosive, double_t projLifeTime, const char *projTexturePath, const char *projHitSoundPath
+    Uint8 isExplosive, double_t projLifeTime, const char *projTexturePath, const char *projHitSoundPath,
+    const char *iconPath
 ) {
     WeaponPrefab *prefab = calloc(1, sizeof(WeaponPrefab));
     if (!prefab) {
@@ -304,6 +315,7 @@ WeaponPrefab* createWeaponPrefab(
     prefab->projLifeTime = projLifeTime;
     prefab->projTexturePath = (char *)projTexturePath;
     prefab->projHitSoundPath = (char *)projHitSoundPath;
+    prefab->iconPath = (char *)iconPath;
 
     return prefab;
 }
@@ -314,7 +326,7 @@ WeaponPrefab* createWeaponPrefab(
 
 TankPrefab* createTankPrefab(
     const char *name, EntityType entityType, Int32 maxHealth, double_t maxSpeed, int w, int h,
-    Uint8 isSolid, const char *texturePath
+    Uint8 isSolid, const char *texturePath, const char *iconPath
 ) {
     TankPrefab *prefab = calloc(1, sizeof(TankPrefab));
     if (!prefab) {
@@ -330,6 +342,7 @@ TankPrefab* createTankPrefab(
     prefab->h = h;
     prefab->isSolid = isSolid;
     prefab->texturePath = (char *)texturePath;
+    prefab->iconPath = (char *)iconPath;
 
     return prefab;
 }

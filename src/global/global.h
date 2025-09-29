@@ -1,7 +1,7 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
-#define DEBUG
+// #define DEBUG
 // #define DEBUGPP
 // #define DEBUGSYSTEMS
 

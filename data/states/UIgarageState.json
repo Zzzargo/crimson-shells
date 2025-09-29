@@ -124,7 +124,7 @@
                     "options": {
                         "type": "imageList",
                         "data": {
-                            "provider": "getCoaxialGuns"
+                            "provider": "getMainGuns"
                         }
                     },
                     "arrows": "assets/ui/arrow.png"
@@ -165,7 +165,7 @@
                     "options": {
                         "type": "imageList",
                         "data": {
-                            "provider": "getCoaxialGuns"
+                            "provider": "getMainGuns"
                         }
                     },
                     "arrows": "assets/ui/arrow.png"
@@ -206,7 +206,7 @@
                     "options": {
                         "type": "imageList",
                         "data": {
-                            "provider": "getHulls"
+                            "provider": "getMainGuns"
                         }
                     },
                     "arrows": "assets/ui/arrow.png"
@@ -247,7 +247,7 @@
                     "options": {
                         "type": "imageList",
                         "data": {
-                            "provider": "getModules"
+                            "provider": "getMainGuns"
                         }
                     },
                     "arrows": "assets/ui/arrow.png"
@@ -294,12 +294,6 @@
                     "text": "Garage",
                     "font": "assets/fonts/ByteBounce.ttf#48",
                     "color": "crimsondark"
-                },
-                {
-                    "type": "label",
-                    "text": "Here would be the tank",
-                    "font": "assets/fonts/ByteBounce.ttf#48",
-                    "color": "purple"
                 }
             ]
         },

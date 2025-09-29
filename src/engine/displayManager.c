@@ -16,6 +16,10 @@ void setDefaultDisplaySettings(DisplayManager display) {
     display->vsync = 0;
 }
 
+/**
+ * =====================================================================================================================
+ */
+
 void toggleFullscreen(DisplayManager mgr) {
     if (!mgr) return;
 
@@ -32,8 +36,12 @@ void toggleFullscreen(DisplayManager mgr) {
     }
 }
 
+/**
+ * =====================================================================================================================
+ */
+
 SDL_DisplayMode* getAvailableDisplayModes(DisplayManager mgr, int *count) {
-    if (!mgr || !count) return NULL;
+    if (!mgr || !count) THROW_ERROR_AND_RETURN("Display manager or count pointer is NULL", NULL);
 
     SDL_DisplayMode *availableModes = NULL;
     int modeCount = SDL_GetNumDisplayModes(0);  // 0 for the primary display
@@ -59,47 +67,36 @@ SDL_DisplayMode* getAvailableDisplayModes(DisplayManager mgr, int *count) {
     int neededCount = sizeof(neededResolutions) / sizeof(Resolution);
     *count = 0;
     SDL_DisplayMode *neededModes = calloc(neededCount, sizeof(SDL_DisplayMode));
-    if (!neededModes) {
-        printf("Failed to allocate memory for display neededModes\n");
-        return NULL;
-    }
+    if (!neededModes) THROW_ERROR_AND_EXIT("Failed to allocate memory for needed modes in getAvailableDisplayModes");
 
     availableModes = calloc(modeCount, sizeof(SDL_DisplayMode));
-    if (!availableModes) {
-        printf("Failed to allocate memory for display availableModes\n");
-        return NULL;
-    }
+    if (!availableModes)
+        THROW_ERROR_AND_EXIT("Failed to allocate memory for available modes in getAvailableDisplayModes");
 
     for (int i = 0; i < modeCount; i++) {
-        if (SDL_GetDisplayMode(0, i, &availableModes[i]) != 0) {
-            printf("SDL_GetDisplayMode failed: %s\n", SDL_GetError());
-            free(availableModes);
-            free(neededModes);
+        if (SDL_GetDisplayMode(0, i, &availableModes[i]) != 0) THROW_ERROR_AND_DO(
+            "SDL_GetDisplayMode failed: ", fprintf(stderr, "'%s'\n", SDL_GetError());
             return NULL;
-        }
+        );
         if (
             (double)availableModes[i].w / availableModes[i].h < 1.8
             && (double)availableModes[i].w / availableModes[i].h > 1.7
-        ) {
-            // 16:9 ratio with a big enough decimal tolerance
-            neededModes[(*count)++] = availableModes[i];
-        }
-        if ((availableModes[i].w <= 1024) && (availableModes[i].h <= 576)) {
-            // Skip availableModes that are too small
-            break;
-        }
+        )
+            neededModes[(*count)++] = availableModes[i];  // 16:9 ratio with a big enough decimal tolerance
+        if ((availableModes[i].w <= 1024) && (availableModes[i].h <= 576))
+            break;  // Skip availableModes that are too small
     }
     if (neededCount != *count) {
         neededModes = realloc(neededModes, *count * sizeof(SDL_DisplayMode));
-        if (!neededModes) {
-            printf("Failed to reallocate memory for neededModes\n");
-            free(availableModes);
-            return NULL;
-        }
+        if (!neededModes) THROW_ERROR_AND_EXIT("Failed to resize needed modes in getAvailableDisplayModes");
     }
     free(availableModes);
     return neededModes;
 }
+
+/**
+ * =====================================================================================================================
+ */
 
 void setDisplayMode(DisplayManager mgr, const SDL_DisplayMode *mode) {
     if (!mgr || !mode) return;
@@ -127,6 +124,10 @@ void setDisplayMode(DisplayManager mgr, const SDL_DisplayMode *mode) {
         );
     #endif
 }
+
+/**
+ * =====================================================================================================================
+ */
 
 void saveDisplaySettings(DisplayManager mgr, const char *filePath) {
     if (!mgr || !filePath) return;

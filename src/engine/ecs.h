@@ -113,7 +113,6 @@ typedef struct {
     SDL_Texture *texture;  // Texture to render
     SDL_Rect *destRect;  // Where to render the texture
     Uint8 active;
-    Uint8 selected;  // For UI components
 } RenderComponent;
 
 // =========================================================== LOADOUT =================================================
@@ -138,7 +137,7 @@ typedef struct {
 
 typedef struct {
     Entity primaryGun;  // Entity ID of the primary weapon
-    CDLLNode *currSecondaryGun;  // A circular doubly linked list containing secondary guns
+    CDLLNode *currSecondaryGun;  // A circular doubly linked list containing secondary guns (entities)
     Entity hull;  // Entity ID of the hull
     Entity module;  // Entity ID of the equipped module
 } LoadoutComponent;
@@ -369,10 +368,9 @@ CollisionComponent* createCollisionComponent(int x, int y, int w, int h, Uint8 i
  * @param w the width of the destination rectangle
  * @param h the height of the destination rectangle
  * @param active indicates if the component is active
- * @param selected indicates if the component is selected (for UI components)
  * @return a pointer to a RenderComponent
  */
-RenderComponent* createRenderComponent(SDL_Texture *texture, int x, int y, int w, int h, Uint8 active, Uint8 selected);
+RenderComponent* createRenderComponent(SDL_Texture *texture, int x, int y, int w, int h, Uint8 active);
 
 /**
  * Creates a loadout component
