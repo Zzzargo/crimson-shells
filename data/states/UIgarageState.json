@@ -45,6 +45,8 @@
                 },
                 "spacing": 0.05
             },
+            "bgColor": "bluecrimson",
+            "bgTexture": "assets/ui/metalwall.png",
             "children": [
                 {
                     "type": "optionCycle",
@@ -320,6 +322,8 @@
                 },
                 "spacing": 0.15
             },
+            "bgColor": "bluedark",
+            "bgTexture": "assets/ui/metalwall.png",
             "children": [
                 {
                     "type": "label",

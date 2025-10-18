@@ -7,6 +7,7 @@
 #include "displayManager.h"
 #include "arena.h"
 #include "uiManager.h"
+#include "collisionManager.h"
 
 struct statemng;  // forward declaration
 typedef struct statemng *StateManager;
@@ -19,11 +20,12 @@ typedef struct engine {
     HashMap prefabs;  // Pointer to the prefabs manager
     InputManager inputMng;  // Pointer to the input manager
     StateManager stateMng;  // Pointer to the state manager
+    CollisionManager collisionMng;  // Pointer to the collision manager
     ECS ecs;  // Pointer to the game ECS
     Arena map;  // Pointer to the arena structure
 } *ZENg;
 
-#include "../states/stateManager.h"  // stateManager needs the engine definition
+#include "../states/stateManager.h"
 
 /**
  * Loads the settings from a file
@@ -73,14 +75,12 @@ void velocitySystem(ZENg zEngine, double_t deltaTime);
 void lifetimeSystem(ZENg zEngine, double_t deltaTime);
 
 /**
- * Handles collisions between entities
+ * Checks and handles collisions between entities
  * @param zEngine pointer to the engine
- * @param AColComp pointer to the first collision component
- * @param BColComp pointer to the second collision component
- * @param AOwner the owner entity of the first collision component
- * @param BOwner the owner entity of the second collision component
+ * @param entity entity for which the collisions are checked
+ * @return the number of entities the current one has collided with (maybe will change to track them later)
  */
-void handleEntitiesCollision(ZENg zEngine, CollisionComponent *AColComp, CollisionComponent *BColComp, Entity AOwner, Entity BOwner);
+Uint8 checkAndHandleEntityCollisions(ZENg zEngine, Entity entity);
 
 /**
  * Passes the collision components to the collision handler
@@ -97,13 +97,12 @@ void renderDebugCollision(ZENg zEngine);
 #endif
 
 /**
- * Checks whether a SDL_Rect (usually a hitbox) collides with the world (walls)
+ * Checks whether an entity collides with the world (walls mostly) and passes the colliders to a handling function
  * @param zEngine pointer to the engine
- * @param hitbox pointer to a SDL_Rect
- * @param collidedTile a pointer to a tile with which the entity collided
- * @return 1 if a collision was detected, 0 otherwise
+ * @param entity entity for which the collision is checker
+ * @return number of tiles the entity has collided with
  */
-Uint8 checkWorldCollision(ZENg zEngine, SDL_Rect *hitbox, Tile *collidedTile);
+Uint8 checkAndHandleWorldCollisions(ZENg zEngine, Entity entity);
 
 /**
  * Passes the collision components to the collision handler

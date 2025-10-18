@@ -65,6 +65,7 @@ typedef int64_t Int64;
 #define COLOR_RED (SDL_Color){255, 0, 0, 255}
 #define COLOR_GREEN (SDL_Color){0, 255, 0, 255}
 #define COLOR_BLUE (SDL_Color){0, 0, 255, 255}
+#define COLOR_BLUE_DARK (SDL_Color){28, 22, 43, 255}
 #define COLOR_YELLOW (SDL_Color){255, 255, 0, 255}
 #define COLOR_CYAN (SDL_Color){0, 255, 255, 255}
 #define COLOR_MAGENTA (SDL_Color){255, 0, 255, 255}
@@ -82,6 +83,7 @@ typedef enum {
     IDX_RED,
     IDX_GREEN,
     IDX_BLUE,
+    IDX_BLUE_DARK,
     IDX_YELLOW,
     IDX_CYAN,
     IDX_MAGENTA,
@@ -102,6 +104,7 @@ static const SDL_Color COLOR_TABLE[] = {
     [IDX_RED] = COLOR_RED,
     [IDX_GREEN] = COLOR_GREEN,
     [IDX_BLUE] = COLOR_BLUE,
+    [IDX_BLUE_DARK] = COLOR_BLUE_DARK,
     [IDX_YELLOW] = COLOR_YELLOW,
     [IDX_CYAN] = COLOR_CYAN,
     [IDX_MAGENTA] = COLOR_MAGENTA,

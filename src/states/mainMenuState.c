@@ -83,10 +83,10 @@ Uint8 handleMenuNavigation(SDL_Event *event, ZENg zEngine) {
                     UIOptionCycle *optCycle = (UIOptionCycle *)(focused->widget);
                     if (optCycle->currOption && optCycle->currOption->next) {
                         // Remove the current option from the node's children
-                        UIremoveChild(focused, (UINode *)optCycle->currOption->data);
+                        UIremoveChild(focused, (UINode *)optCycle->currOption->data.ptr);
 
                         // And add the next option as child
-                        UIaddChild(focused, (UINode *)optCycle->currOption->next->data);
+                        UIaddChild(focused, (UINode *)optCycle->currOption->next->data.ptr);
 
                         optCycle->currOption = optCycle->currOption->next;
                         // Arrange the new node
@@ -101,10 +101,10 @@ Uint8 handleMenuNavigation(SDL_Event *event, ZENg zEngine) {
                     UIOptionCycle *optCycle = (UIOptionCycle *)(focused->widget);
                     if (optCycle->currOption && optCycle->currOption->prev) {
                         // Remove the current option from the node's children
-                        UIremoveChild(focused, (UINode *)optCycle->currOption->data);
+                        UIremoveChild(focused, (UINode *)optCycle->currOption->data.ptr);
 
                         // And add the previous option as child
-                        UIaddChild(focused, (UINode *)optCycle->currOption->prev->data);
+                        UIaddChild(focused, (UINode *)optCycle->currOption->prev->data.ptr);
 
                         optCycle->currOption = optCycle->currOption->prev;
                         // Arrange the new node
@@ -132,7 +132,7 @@ Uint8 handleMenuNavigation(SDL_Event *event, ZENg zEngine) {
                         UIButton *btn = (UIButton *)(optCycle->selector->widget);
 
                         // The cycle buttons contain the needed data
-                        UINode *optNode = (UINode *)optCycle->currOption->data;
+                        UINode *optNode = (UINode *)optCycle->currOption->data.ptr;
                         switch (optNode->type) {
                             case UI_BUTTON: {
                                 UIButton *opt = (UIButton *)optNode->widget;

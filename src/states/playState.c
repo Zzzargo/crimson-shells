@@ -14,13 +14,13 @@ void onEnterPlayState(ZENg zEngine) {
     WeaponPrefab *secGun1Prefab = getWeaponPrefab(zEngine->prefabs, "PKT");
     WeaponComponent *secGun1 = instantiateWeapon(zEngine, secGun1Prefab, PLAYER_ID);
     addComponent(ecs, secGun1ID, WEAPON_COMPONENT, (void *)secGun1);
-    CDLLNode *weapList = initList((void *)secGun1);
+    CDLLNode *weapList = initList((GenericData){.u64 = secGun1ID}, DATA_U64);
 
     Entity secGun2ID = createEntity(ecs, STATE_PLAYING);
     WeaponPrefab *secGun2Prefab = getWeaponPrefab(zEngine->prefabs, "M240C");
     WeaponComponent *secGun2 = instantiateWeapon(zEngine, secGun2Prefab, PLAYER_ID);
     addComponent(ecs, secGun2ID, WEAPON_COMPONENT, (void *)secGun2);
-    CDLLInsertLast(weapList, (void *)secGun2);
+    CDLLInsertLast(weapList, (GenericData){.u64 = secGun2ID}, DATA_U64);
 
     Entity hullID = createEntity(ecs, STATE_PLAYING);
     Entity moduleID = createEntity(ecs, STATE_PLAYING);
@@ -242,10 +242,16 @@ Uint8 handlePlayStateEvents(SDL_Event *e, ZENg zEngine) {
             }
             case INPUT_SWITCH_LEFT: {
                 Uint64 loadDenseIdx = zEngine->ecs->components[LOADOUT_COMPONENT].sparse[page][pageIdx];
-                LoadoutComponent *playerLoadout = (LoadoutComponent *)zEngine->ecs->components[LOADOUT_COMPONENT].dense[loadDenseIdx];
+                LoadoutComponent *playerLoadout =
+                (LoadoutComponent *)zEngine->ecs->components[LOADOUT_COMPONENT].dense[loadDenseIdx];
 
                 CDLLNode *currSecGun = playerLoadout->currSecondaryGun;
-                WeaponComponent *secGun = (WeaponComponent *)currSecGun->data;
+                Entity secGunID = currSecGun->data.u64;
+                Uint64 secGunPage = secGunID / PAGE_SIZE;
+                Uint64 secGunPageIdx = secGunID % PAGE_SIZE;
+                Uint64 secGunDenseIdx = zEngine->ecs->components[WEAPON_COMPONENT].sparse[secGunPage][secGunPageIdx];
+                WeaponComponent *secGun =
+                (WeaponComponent *)zEngine->ecs->components[WEAPON_COMPONENT].dense[secGunDenseIdx];
                 if (!secGun) {
                     #ifdef DEBUGPP
                         printf("No secondary weapons to switch to!\n");
@@ -255,7 +261,12 @@ Uint8 handlePlayStateEvents(SDL_Event *e, ZENg zEngine) {
 
                 playerLoadout->currSecondaryGun = currSecGun->prev;
                 #ifdef DEBUGPP
-                    WeaponComponent *newWeapon = (WeaponComponent *)(playerLoadout->currSecondaryGun->data);
+                    Entity nWeap = (playerLoadout->currSecondaryGun->data.u64);
+                    Uint64 nWeapPage = nWeap / PAGE_SIZE;
+                    Uint64 nWeapPageIdx = nWeap % PAGE_SIZE;
+                    Uint64 dIdx = zEngine->ecs->components[WEAPON_COMPONENT].sparse[nWeapPage][nWeapPageIdx];
+                    WeaponComponent *newWeapon =
+                    (WeaponComponent *)(zEngine->ecs->components[WEAPON_COMPONENT].dense[dIdx]);
                     printf("Switched weapon left: %s -> %s\n", secGun->name, newWeapon->name);
                 #endif
                 return 1;
@@ -266,7 +277,12 @@ Uint8 handlePlayStateEvents(SDL_Event *e, ZENg zEngine) {
                 LoadoutComponent *playerLoadout = (LoadoutComponent *)zEngine->ecs->components[LOADOUT_COMPONENT].dense[loadDenseIdx];
 
                 CDLLNode *currSecGun = playerLoadout->currSecondaryGun;
-                WeaponComponent *secGun = (WeaponComponent *)currSecGun->data;
+                Entity secGunID = currSecGun->data.u64;
+                Uint64 secGunPage = secGunID / PAGE_SIZE;
+                Uint64 secGunPageIdx = secGunID % PAGE_SIZE;
+                Uint64 secGunDenseIdx = zEngine->ecs->components[WEAPON_COMPONENT].sparse[secGunPage][secGunPageIdx];
+                WeaponComponent *secGun =
+                (WeaponComponent *)zEngine->ecs->components[WEAPON_COMPONENT].dense[secGunDenseIdx];
                 if (!secGun) {
                     #ifdef DEBUGPP
                         printf("No secondary weapons to switch to!\n");
@@ -276,7 +292,12 @@ Uint8 handlePlayStateEvents(SDL_Event *e, ZENg zEngine) {
 
                 playerLoadout->currSecondaryGun = currSecGun->next;
                 #ifdef DEBUGPP
-                    WeaponComponent *newWeapon = (WeaponComponent *)(playerLoadout->currSecondaryGun->data);
+                    Entity nWeap = (playerLoadout->currSecondaryGun->data.u64);
+                    Uint64 nWeapPage = nWeap / PAGE_SIZE;
+                    Uint64 nWeapPageIdx = nWeap % PAGE_SIZE;
+                    Uint64 dIdx = zEngine->ecs->components[WEAPON_COMPONENT].sparse[nWeapPage][nWeapPageIdx];
+                    WeaponComponent *newWeapon =
+                    (WeaponComponent *)(zEngine->ecs->components[WEAPON_COMPONENT].dense[dIdx]);
                     printf("Switched weapon right: %s -> %s\n", secGun->name, newWeapon->name);
                 #endif
                 return 1;
@@ -376,7 +397,13 @@ void handlePlayStateInput(ZENg zEngine) {
     if (isActionPressed(zEngine->inputMng, INPUT_SECONDARY)) {
         Uint64 loadoutDenseIdx = zEngine->ecs->components[LOADOUT_COMPONENT].sparse[page][pageIdx];
         LoadoutComponent *playerLoadout = (LoadoutComponent *)zEngine->ecs->components[LOADOUT_COMPONENT].dense[loadoutDenseIdx];
-        WeaponComponent *currSecGun = playerLoadout->currSecondaryGun->data;
+        CDLLNode *secGunNode = playerLoadout->currSecondaryGun;
+        Entity secGunID = secGunNode->data.u64;
+        Uint64 secGunPage = secGunID / PAGE_SIZE;
+        Uint64 secGunPageIdx = secGunID % PAGE_SIZE;
+        Uint64 secGunDenseIdx = zEngine->ecs->components[WEAPON_COMPONENT].sparse[secGunPage][secGunPageIdx];
+        WeaponComponent *currSecGun =
+        (WeaponComponent *)zEngine->ecs->components[WEAPON_COMPONENT].dense[secGunDenseIdx];
 
         #ifdef DEBUGPP
             printf(

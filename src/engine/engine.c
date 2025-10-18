@@ -1,4 +1,7 @@
 #include "engine.h"
+#include "collisionManager.h"
+#include "ecs.h"
+#include <SDL2/SDL_rect.h>
 
 void loadSettings(ZENg zEngine, const char *filePath) {
     // look for the file
@@ -187,6 +190,9 @@ void initLevel(ZENg zEngine, const char *levelFilePath) {
         if (!zEngine->map->tiles[i]) THROW_ERROR_AND_EXIT("Failed to allocate memory for arena tiles columns");
     }
 
+    // Don't forget about the spatial grid
+    zEngine->collisionMng = initCollisionManager();
+
     FILE *f = fopen(levelFilePath, "rb");
     if (!f) THROW_ERROR_AND_DO("Failed to open level file: ", fprintf(stderr, "'%s'\n", levelFilePath); return;);
 
@@ -309,6 +315,10 @@ void clearLevel(ZENg zEngine) {
     // Free the map structure
     free(zEngine->map);
     zEngine->map = NULL;
+
+    // Free the collision manager
+    if (zEngine->collisionMng) freeCollisionManager(zEngine->collisionMng);
+    zEngine->collisionMng = NULL;
 }
 
 /**
@@ -424,14 +434,13 @@ ZENg initGame() {
     );
 
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
-
+    
     // Initalize the display and input managers by reading settings file if existent
     loadSettings(zEngine, "settings.ini");
     // Set logical screen size
     if (SDL_RenderSetLogicalSize(zEngine->display->renderer, LOGICAL_WIDTH, LOGICAL_HEIGHT) < 0)
-        THROW_ERROR_AND_DO("SDL_RenderSetLogicalSize failed: ", fprintf(stderr, "%s\n", SDL_GetError());
-    );
-
+        THROW_ERROR_AND_DO("SDL_RenderSetLogicalSize failed: ", fprintf(stderr, "%s\n", SDL_GetError()););
+                
     // After setting the display resolution define the tile size
     // The tiles are guaranteed to be square integers
     TILE_SIZE = LOGICAL_HEIGHT / ARENA_HEIGHT;
@@ -487,41 +496,33 @@ void velocitySystem(ZENg zEngine, double_t deltaTime) {
         );
     #endif
 
+    Component velComps = zEngine->ecs->components[VELOCITY_COMPONENT];
     // for each entity with a VELOCITY_COMPONENT, update its position based on the current velocity
-    for (Uint64 i = 0; i < zEngine->ecs->components[VELOCITY_COMPONENT].denseSize; i++) {
-        VelocityComponent *velComp = (VelocityComponent *)(zEngine->ecs->components[VELOCITY_COMPONENT].dense[i]);
-        Entity entitty = zEngine->ecs->components[VELOCITY_COMPONENT].denseToEntity[i];  // get the owner entity
-        Uint64 page = entitty / PAGE_SIZE;
-        Uint64 idx = entitty % PAGE_SIZE;
+    for (Uint64 i = 0; i < velComps.denseSize; i++) {
+        VelocityComponent *velComp = (VelocityComponent *)(velComps.dense[i]);
+        Entity entitty = velComps.denseToEntity[i];
 
-        if ((zEngine->ecs->componentsFlags[entitty] & (1 << POSITION_COMPONENT)) == 0) {
-            continue;  // Skip entities without position
-        }
-
-        Uint64 posDenseIdx = zEngine->ecs->components[POSITION_COMPONENT].sparse[page][idx];
-        PositionComponent *posComp =
-        (PositionComponent *)zEngine->ecs->components[POSITION_COMPONENT].dense[posDenseIdx];
-        if (!posComp) {
-            continue;
-        }
+        PositionComponent *posComp = NULL;
+        if (!HAS_COMPONENT(zEngine->ecs, entitty, POSITION_COMPONENT))
+            THROW_ERROR_AND_RETURN_VOID("Entity with VELOCITY_COMPONENT has no POSITION_COMPONENT");
+        GET_COMPONENT(zEngine->ecs, entitty, POSITION_COMPONENT, posComp, PositionComponent);
 
         // Update the predicted position based on the velocity
         velComp->predictedPos.x = posComp->x + velComp->currVelocity.x * deltaTime;
         velComp->predictedPos.y = posComp->y + velComp->currVelocity.y * deltaTime;
 
         // Clamp the position to the window bounds
-        if (velComp->predictedPos.x < 0) velComp->predictedPos.x = 0;  // prevent going out of bounds
-        if (velComp->predictedPos.y < 0) velComp->predictedPos.y = 0;  // prevent going out of bounds
-
-        Uint64 denseRenderIndex = zEngine->ecs->components[RENDER_COMPONENT].sparse[page][idx];
-        SDL_Rect *entityRect =
-        ((RenderComponent *)(zEngine->ecs->components[RENDER_COMPONENT].dense[denseRenderIndex]))->destRect;
+        if (velComp->predictedPos.x < 0) velComp->predictedPos.x = 0;
+        if (velComp->predictedPos.y < 0) velComp->predictedPos.y = 0;
+        RenderComponent *rendComp = NULL;
+        GET_COMPONENT(zEngine->ecs, entitty, RENDER_COMPONENT, rendComp, RenderComponent);
+        SDL_Rect *entityRect = rendComp->destRect;
         if (entityRect) {
             if (velComp->predictedPos.x + entityRect->w >= LOGICAL_WIDTH) {
-                velComp->predictedPos.x = LOGICAL_WIDTH - entityRect->w;  // prevent going out of bounds
+                velComp->predictedPos.x = LOGICAL_WIDTH - entityRect->w;
             }
             if (velComp->predictedPos.y + entityRect->h >= LOGICAL_HEIGHT) {
-                velComp->predictedPos.y = LOGICAL_HEIGHT - entityRect->h;  // prevent going out of bounds
+                velComp->predictedPos.y = LOGICAL_HEIGHT - entityRect->h;
             }
         }
         // Hitboxes are updated in the collision system
@@ -541,41 +542,33 @@ void positionSystem(ZENg zEngine, double_t deltaTime) {
         #endif
         return;
     }
+    Component posComps = zEngine->ecs->components[POSITION_COMPONENT];
     #ifdef DEBUGSYSTEMS
         printf(
             "[POSITION SYSTEM] Running position system for %lu entities\n",
-            zEngine->ecs->components[POSITION_COMPONENT].denseSize
+            posComps.denseSize
         );
     #endif
 
-    for (Uint64 i = 0; i  < zEngine->ecs->components[POSITION_COMPONENT].denseSize; i++) {
-        PositionComponent *posComp = (PositionComponent *)(zEngine->ecs->components[POSITION_COMPONENT].dense[i]);
-        Entity owner = zEngine->ecs->components[POSITION_COMPONENT].denseToEntity[i];
-        Uint64 page = owner / PAGE_SIZE;
-        Uint64 idx = owner % PAGE_SIZE;
+    for (Uint64 i = 0; i  < posComps.denseSize; i++) {
+        PositionComponent *posComp = (PositionComponent *)(posComps.dense[i]);
+        Entity owner = posComps.denseToEntity[i];
 
-        if ((zEngine->ecs->componentsFlags[owner] & (1 << HEALTH_COMPONENT)) == 0) {
-            // Only actors can have health (at least for now)
-            // And only actors obey the snap rule
-            continue;
-        }
-        if ((zEngine->ecs->componentsFlags[owner] & (1 << VELOCITY_COMPONENT)) == 0) {
-            // Only entities with a velocity component can be snapped
-            continue;
-        }
+        // Only actors can have health (at least for now) and only actors obey the snap rule
+        if ((zEngine->ecs->componentsFlags[owner] & (1 << HEALTH_COMPONENT)) == 0) continue;
+        // Only entities with a velocity component can be snapped
+        if ((zEngine->ecs->componentsFlags[owner] & (1 << VELOCITY_COMPONENT)) == 0) continue;
 
-        Uint64 velDenseIdx = zEngine->ecs->components[VELOCITY_COMPONENT].sparse[page][idx];
-        VelocityComponent *velComp = zEngine->ecs->components[VELOCITY_COMPONENT].dense[velDenseIdx];
+        VelocityComponent *velComp = NULL;
+        GET_COMPONENT(zEngine->ecs, owner, VELOCITY_COMPONENT, velComp, VelocityComponent);
 
-        // Entities with velocity are guaranteed to have also direction
-        Uint64 dirDenseIdx = zEngine->ecs->components[DIRECTION_COMPONENT].sparse[page][idx];
-        DirectionComponent *dirComp =
-        (DirectionComponent *)(zEngine->ecs->components[DIRECTION_COMPONENT].dense[dirDenseIdx]);
+        DirectionComponent *dirComp = NULL;
+        GET_COMPONENT(zEngine->ecs, owner, DIRECTION_COMPONENT, dirComp, DirectionComponent);
 
         Uint8 movingX = fabs(dirComp->x) > EPSILON;
         Uint8 movingY = fabs(dirComp->y) > EPSILON;
         
-        Int32 currTileIdx = worldToTile(zEngine->map, *posComp);
+        Int32 currTileIdx = worldToTile(*posComp);
         Uint32 currTileX = currTileIdx % ARENA_WIDTH;
         Uint32 currTileY = currTileIdx / ARENA_WIDTH;
         
@@ -605,19 +598,19 @@ void lifetimeSystem(ZENg zEngine, double_t deltaTime) {
         #endif
         return;
     }
-    
+    Component *comps = zEngine->ecs->components;
     #ifdef DEBUGSYSTEMS
         printf(
             "[LIFETIME SYSTEM] Running lifetime system for %lu entities\n",
-            zEngine->ecs->components[LIFETIME_COMPONENT].denseSize
+            comps[LIFETIME_COMPONENT].denseSize
         );
     #endif
 
-    for (Uint64 i = 0; i < zEngine->ecs->components[LIFETIME_COMPONENT].denseSize; i++) {
-        LifetimeComponent *lftComp = (LifetimeComponent *)(zEngine->ecs->components[LIFETIME_COMPONENT].dense[i]);
+    for (Uint64 i = 0; i < comps[LIFETIME_COMPONENT].denseSize; i++) {
+        LifetimeComponent *lftComp = (LifetimeComponent *)(comps[LIFETIME_COMPONENT].dense[i]);
         lftComp->timeAlive += deltaTime;
         if (lftComp->timeAlive >= lftComp->lifeTime) {
-            Entity dirtyOwner = zEngine->ecs->components[LIFETIME_COMPONENT].denseToEntity[i];
+            Entity dirtyOwner = comps[LIFETIME_COMPONENT].denseToEntity[i];
             deleteEntity(zEngine->ecs, dirtyOwner);
         }
     }
@@ -632,14 +625,12 @@ void lifetimeSystem(ZENg zEngine, double_t deltaTime) {
 void handleEntitiesCollision(
     ZENg zEngine, CollisionComponent *AColComp, CollisionComponent *BColComp, Entity AOwner, Entity BOwner
 ) {
-    if (!AColComp->isSolid && !BColComp->isSolid) {
-        // two bullets collide - skip collision check
-        return;
-    }
+    Entity bulletID, targetID;
+    CollisionComponent *bulletColComp, *targetColComp;
+    ProjectileComponent *projComp;
 
     Uint64 APage = AOwner / PAGE_SIZE;
     Uint64 AIndex = AOwner % PAGE_SIZE;
-
     Uint64 BPage = BOwner / PAGE_SIZE;
     Uint64 BIndex = BOwner % PAGE_SIZE;
 
@@ -692,7 +683,10 @@ void handleEntitiesCollision(
  * =====================================================================================================================
  */
 
-Uint8 checkEntityCollision(ZENg zEngine, SDL_Rect *hitbox, SDL_Rect *result) {
+Uint8 checkAndHandleEntityCollisions(ZENg zEngine, Entity entity) {
+    CollisionComponent *colComp = NULL;
+    GET_COMPONENT(zEngine->ecs, entity, COLLISION_COMPONENT, colComp, CollisionComponent);
+    SDL_Rect *hitbox = colComp->hitbox;
 
     // For entities bigger than one tile. consider the base the top-left tile
     Uint32 tileX = (Uint32)(hitbox->x / TILE_SIZE);
@@ -702,28 +696,45 @@ Uint8 checkEntityCollision(ZENg zEngine, SDL_Rect *hitbox, SDL_Rect *result) {
     Int32 dxMax = eWidth + 1;
     Int32 dyMax = eHeight + 1;
 
+    Uint8 numCollided = 0;
+
     for (Int32 dx = -1; dx < dxMax; dx++) {
         for (Int32 dy = -1; dy < dyMax; dy++) {
             Uint32 neighX = (Int32)tileX + dx;
             Uint32 neighY = (Int32)tileY + dy;
 
-            if (neighX > 0 && neighX < ARENA_WIDTH && neighY > 0 && neighY < ARENA_HEIGHT) {
-                Tile *neighTile = &zEngine->map->tiles[neighX][neighY];
-                SDL_Rect neighTileRect = {
-                    .x = neighX * TILE_SIZE,
-                    .y = neighY * TILE_SIZE,
-                    .w = TILE_SIZE,
-                    .h = TILE_SIZE
-                };
+            if (dx == 0 && dy == 0) continue;  // Skip the tile the entity is currently on
 
-                if (neighTile->isSolid && SDL_HasIntersection(hitbox, &neighTileRect)) {
-                    *result = neighTileRect;
-                    return 1;  // Collision detected
+            if (neighX < 0 || neighX >= ARENA_WIDTH || neighY < 0 || neighY >= ARENA_HEIGHT) continue;
+
+            size_t neighIdx = COL_GRID_INDEX(zEngine->collisionMng, neighX, neighY);
+            GridCell *neighCell = &zEngine->collisionMng->spatialGrid[neighIdx];
+            SDL_Rect neighCellRect = {
+                .x = neighX * TILE_SIZE,
+                .y = neighY * TILE_SIZE,
+                .w = TILE_SIZE,
+                .h = TILE_SIZE
+            };
+
+            if (SDL_HasIntersection(hitbox, &neighCellRect)) {
+                // Search for colliding entities in the collided tile
+                for (int i = 0; i < neighCell->entityCount; i++) {
+                    Entity susColEntity = neighCell->entities[i];
+                    if (!HAS_COMPONENT(zEngine->ecs, susColEntity, COLLISION_COMPONENT)) continue;
+                    CollisionComponent *susEColComp = NULL;
+                    GET_COMPONENT(zEngine->ecs, susColEntity, COLLISION_COMPONENT, susEColComp, CollisionComponent);
+                    if (SDL_HasIntersection(hitbox, susEColComp->hitbox)) {
+                        // Call the appropriate handler function
+                        zEngine->collisionMng->eVsEHandlers[colComp->role][susEColComp->role](
+                            zEngine->ecs, entity, susColEntity
+                        );
+                        numCollided++;
+                    }
                 }
             }
         }
     }
-    return 0;  // No collision
+    return numCollided;
 }
 
 /**
@@ -737,57 +748,31 @@ void entityCollisionSystem(ZENg zEngine, double_t deltaTime) {
         #endif
         return;
     }
+    Component *colComps = &zEngine->ecs->components[COLLISION_COMPONENT];
 
     #ifdef DEBUGSYSTEMS
         printf(
             "[ENTITY COLLISION SYSTEM] Running entity collision system for %lu entities\n",
-            zEngine->ecs->components[COLLISION_COMPONENT].denseSize
+            colComps->denseSize
         );
     #endif
 
-    for (Uint64 i = 0; i < zEngine->ecs->components[COLLISION_COMPONENT].denseSize; i++) {
-        CollisionComponent *AColComp = (CollisionComponent *)(zEngine->ecs->components[COLLISION_COMPONENT].dense[i]);
-        Entity AOwner = zEngine->ecs->components[COLLISION_COMPONENT].denseToEntity[i];
-
-        if (!AColComp || !AColComp->hitbox) {
-            fprintf(stderr, "Warning: Entity %ld has an invalid collision component\n", AOwner);
-            continue;
-        }
+    for (Uint64 i = 0; i < colComps->denseSize; i++) {
+        CollisionComponent *colComp = (CollisionComponent *)(colComps->dense[i]);
+        Entity owner = colComps->denseToEntity[i];
 
         // if a bullet hits the arena edge - remove it
-        if (AColComp->role == COL_BULLET && (AColComp->hitbox->x <= 0
-            || AColComp->hitbox->y <= 0
-            || AColComp->hitbox->x + AColComp->hitbox->w >= LOGICAL_WIDTH
-            || AColComp->hitbox->y + AColComp->hitbox->h >= LOGICAL_HEIGHT)
+        if (colComp->role == COL_BULLET && (colComp->hitbox->x <= 0
+            || colComp->hitbox->y <= 0
+            || colComp->hitbox->x + colComp->hitbox->w >= LOGICAL_WIDTH
+            || colComp->hitbox->y + colComp->hitbox->h >= LOGICAL_HEIGHT)
         ) {
-            deleteEntity(zEngine->ecs, AOwner);
+            deleteEntity(zEngine->ecs, owner);
             continue;  // skip to the next entity
         }
 
-        // TODO: REDUCE O(N^2) COMPLEXITY BY CHECKING ONLY NEIGHBORING ENTITIES
-        // quadtrees or spatial partitioning
-
-
-        // Check collisions with other entities in the vicinity
-        for (Uint64 j = i + 1; j < zEngine->ecs->components[COLLISION_COMPONENT].denseSize; j++) {
-            CollisionComponent *BColComp =
-            (CollisionComponent *)(zEngine->ecs->components[COLLISION_COMPONENT].dense[j]);
-            Entity BOwner = zEngine->ecs->components[COLLISION_COMPONENT].denseToEntity[j];
-
-            if (!BColComp || !BColComp->hitbox) {
-                fprintf(stderr, "Warning: Entity %ld has an invalid collision component\n", BOwner);
-                continue;
-            }
-
-            // Check for intersections
-            if (SDL_HasIntersection(AColComp->hitbox, BColComp->hitbox)) {
-                #ifdef DEBUG
-                    printf("Collision detected between entities %ld and %ld\n", AOwner, BOwner);
-                #endif
-
-                handleEntitiesCollision(zEngine, AColComp, BColComp, AOwner, BOwner);
-            }
-        }
+        // Check and handle collisions with other entities in the vicinity (in the spatial grid)
+        Uint8 numCollided = checkAndHandleEntityCollisions(zEngine, owner);
     }
 
     propagateSystemDirtiness(zEngine->ecs->depGraph->nodes[SYS_ENTITY_COLLISIONS]);
@@ -798,9 +783,13 @@ void entityCollisionSystem(ZENg zEngine, double_t deltaTime) {
  * =====================================================================================================================
  */
 
-Uint8 checkWorldCollision(ZENg zEngine, SDL_Rect *hitbox, Tile *collidedTile) {
+Uint8 checkAndHandleWorldCollisions(ZENg zEngine, Entity entity) {
+    CollisionComponent *colComp = NULL;
+    GET_COMPONENT(zEngine->ecs, entity, COLLISION_COMPONENT, colComp, CollisionComponent);
+    SDL_Rect *hitbox = colComp->hitbox;
+
     // For entities bigger than one tile. consider the base the top-left tile
-    Uint32 tileIdx = worldToTile(zEngine->map, (PositionComponent){.x = hitbox->x, .y = hitbox->y});
+    Uint32 tileIdx = worldToTile((PositionComponent){.x = hitbox->x, .y = hitbox->y});
     Uint32 tileX = tileIdx % ARENA_WIDTH;
     Uint32 tileY = tileIdx / ARENA_WIDTH;
 
@@ -809,28 +798,31 @@ Uint8 checkWorldCollision(ZENg zEngine, SDL_Rect *hitbox, Tile *collidedTile) {
     Int32 dxMax = entityWidth + 1;
     Int32 dyMax = entityHeight + 1;
 
+    Uint8 numCollided = 0;
+
     for (Int32 dy = -1; dy <= dyMax; dy++) {
         Uint32 neighY = (Int32)tileY + dy;
         for (Int32 dx = -1; dx <= dxMax; dx++) {
+            if (dy == 0 && dx == 0) continue;  // Skip the tile the entity is currently on
+
             Uint32 neighX = (Int32)tileX + dx;
 
-            if ((neighX >= 0 && neighX < ARENA_WIDTH) && (neighY >= 0 && neighY < ARENA_HEIGHT)) {
-                Tile *neighTile = &zEngine->map->tiles[neighY][neighX];
-                SDL_Rect neighTileRect = {
-                    .x = neighX * TILE_SIZE,
-                    .y = neighY * TILE_SIZE,
-                    .w = TILE_SIZE,
-                    .h = TILE_SIZE
-                };
+            if (neighX < 0 || neighX >= ARENA_WIDTH || neighY < 0 || neighY >= ARENA_HEIGHT) continue;
+            Tile *neighTile = &zEngine->map->tiles[neighY][neighX];
+            SDL_Rect neighTileRect = {
+                .x = neighX * TILE_SIZE,
+                .y = neighY * TILE_SIZE,
+                .w = TILE_SIZE,
+                .h = TILE_SIZE
+            };
 
-                if (neighTile->isSolid && SDL_HasIntersection(hitbox, &neighTileRect)) {
-                    *collidedTile = *neighTile;
-                    return 1;  // Collision detected
-                }
+            if ((neighTile->isSolid || !neighTile->isWalkable) && SDL_HasIntersection(hitbox, &neighTileRect)) {
+                zEngine->collisionMng->eVsWHandlers[colComp->role](zEngine->ecs, entity, neighTile);
+                numCollided++;
             }
         }
     }
-    return 0;  // No collision
+    return numCollided;
 }
 
 /**
@@ -845,125 +837,109 @@ void worldCollisionSystem(ZENg zEngine, double_t deltaTime) {
         return;
     }
 
+    Component *colComps = &zEngine->ecs->components[COLLISION_COMPONENT];
+
     #ifdef DEBUGSYSTEMS
         printf(
             "[WORLD COLLISION SYSTEM] Running world collision system for %lu entities\n",
-            zEngine->ecs->components[COLLISION_COMPONENT].denseSize
+            colComps->denseSize
         );
     #endif
 
-    for (Uint64 i = 0; i < zEngine->ecs->components[COLLISION_COMPONENT].denseSize; i++) {
-        Entity e = zEngine->ecs->components[COLLISION_COMPONENT].denseToEntity[i];
-        Uint64 page = e / PAGE_SIZE;  // determine the page for the entity
-        Uint64 index = e % PAGE_SIZE;  // determine the index within the page
+    for (Uint64 i = 0; i < colComps->denseSize; i++) {
+        CollisionComponent *eColComp = colComps->dense[i];
+        Entity e = colComps->denseToEntity[i];
 
-        CollisionComponent *eColComp = (CollisionComponent *)(zEngine->ecs->components[COLLISION_COMPONENT].dense[i]);
-        if (!eColComp || !eColComp->hitbox) {
-            fprintf(stderr, "Warning: Entity %ld has an invalid collision component\n", e);
-            continue;
-        }
-        
-        if ((zEngine->ecs->componentsFlags[e] & (1 << VELOCITY_COMPONENT)) == 0) {
-            continue;  // Skip entities without velocity component
-        }
+        if (!HAS_COMPONENT(zEngine->ecs, e, VELOCITY_COMPONENT)) continue;  // Skip entities without velocity component
+        VelocityComponent *eVelComp = NULL;
+        GET_COMPONENT(zEngine->ecs, e, VELOCITY_COMPONENT, eVelComp, VelocityComponent);
 
-        Uint64 velIdx = zEngine->ecs->components[VELOCITY_COMPONENT].sparse[page][index];
-        VelocityComponent *eVelComp = (VelocityComponent *)(zEngine->ecs->components[VELOCITY_COMPONENT].dense[velIdx]);
-        if (!eVelComp) {
-            fprintf(stderr, "Warning: Entity %ld has an invalid velocity component\n", e);
-            continue;
-        }
+        // Every entity with a velocity component must have a position component
+        PositionComponent *posComp = NULL;
+        GET_COMPONENT(zEngine->ecs, e, POSITION_COMPONENT, posComp, PositionComponent);
 
-        if ((zEngine->ecs->componentsFlags[e] & (1 << POSITION_COMPONENT)) == 0) {
-            continue;  // Skip entities without position component
-        }
-        Uint64 posIdx = zEngine->ecs->components[POSITION_COMPONENT].sparse[page][index];
-        PositionComponent *posComp = (PositionComponent *)(zEngine->ecs->components[POSITION_COMPONENT].dense[posIdx]);
-        if (!posComp) {
-            fprintf(stderr, "Warning: Entity %ld has an invalid position component\n", e);
-            continue;
-        }
-
-        Tile collidedTile;  // passed to the function checking world collisions
-        
         // Resolve X-Axis collisions
         double_t moveX = eVelComp->currVelocity.x * deltaTime;
         eColComp->hitbox->x = eVelComp->predictedPos.x;
 
-        if (checkWorldCollision(zEngine, eColComp->hitbox, &collidedTile)) {
-            if (eColComp->role == COL_BULLET) {
-                Uint64 projDenseIdx = zEngine->ecs->components[PROJECTILE_COMPONENT].sparse[page][index];
-                ProjectileComponent *projComp =
-                (ProjectileComponent *)(zEngine->ecs->components[PROJECTILE_COMPONENT].dense[projDenseIdx]);
-                if (
-                    (collidedTile.type == TILE_BRICKS && projComp->dmg >= 15)
-                    || (collidedTile.type == TILE_ROCK && projComp->dmg >= 30)
-                ) {
-                    char *tileTypeToStr[] = {
-                        [TILE_EMPTY] = "TILE_EMPTY",
-                        [TILE_GRASS] = "TILE_GRASS",
-                        [TILE_WATER] = "TILE_WATER",
-                        [TILE_ROCK] = "TILE_ROCK",
-                        [TILE_BRICKS] = "TILE_BRICKS",
-                        [TILE_WOOD] = "TILE_WOOD",
-                        [TILE_SPAWN] = "TILE_SPAWN"
-                    };
-                    Uint32 tileY = collidedTile.idx / ARENA_WIDTH;
-                    Uint32 tileX = collidedTile.idx % ARENA_WIDTH;
-                    zEngine->map->tiles[tileY][tileX] = getTilePrefab(zEngine->prefabs, tileTypeToStr[TILE_EMPTY]);
-                }
-                deleteEntity(zEngine->ecs, e);
-                continue;
-            }
+        Uint8 numCollided = checkAndHandleWorldCollisions(zEngine, e);
 
-            Vec2 tileCoords = tileToWorld(zEngine->map, collidedTile.idx);
-            if (moveX > 0) {
-                eColComp->hitbox->x = tileCoords.x - eColComp->hitbox->w;
-            } else if (moveX < 0) {
-                eColComp->hitbox->x = tileCoords.x + TILE_SIZE;
-            }
-            eVelComp->currVelocity.x = 0.0;
-        }
+
+            // MOVE TO HANDLERS TABLE
+            // if (eColComp->role == COL_BULLET) {
+            //     Uint64 projDenseIdx = zEngine->ecs->components[PROJECTILE_COMPONENT].sparse[page][index];
+            //     ProjectileComponent *projComp =
+            //     (ProjectileComponent *)(zEngine->ecs->components[PROJECTILE_COMPONENT].dense[projDenseIdx]);
+            //     if (
+            //         (collidedTile.type == TILE_BRICKS && projComp->dmg >= 15)
+            //         || (collidedTile.type == TILE_ROCK && projComp->dmg >= 30)
+            //     ) {
+            //         char *tileTypeToStr[] = {
+            //             [TILE_EMPTY] = "TILE_EMPTY",
+            //             [TILE_GRASS] = "TILE_GRASS",
+            //             [TILE_WATER] = "TILE_WATER",
+            //             [TILE_ROCK] = "TILE_ROCK",
+            //             [TILE_BRICKS] = "TILE_BRICKS",
+            //             [TILE_WOOD] = "TILE_WOOD",
+            //             [TILE_SPAWN] = "TILE_SPAWN"
+            //         };
+            //         Uint32 tileY = collidedTile.idx / ARENA_WIDTH;
+            //         Uint32 tileX = collidedTile.idx % ARENA_WIDTH;
+            //         zEngine->map->tiles[tileY][tileX] = getTilePrefab(zEngine->prefabs, tileTypeToStr[TILE_EMPTY]);
+            //     }
+            //     deleteEntity(zEngine->ecs, e);
+            //     continue;
+            // }
+
+            // Vec2 tileCoords = tileToWorld(zEngine->map, collidedTile.idx);
+            // if (moveX > 0) {
+            //     eColComp->hitbox->x = tileCoords.x - eColComp->hitbox->w;
+            // } else if (moveX < 0) {
+            //     eColComp->hitbox->x = tileCoords.x + TILE_SIZE;
+            // }
+            // eVelComp->currVelocity.x = 0.0;
+        // }
         posComp->x = eColComp->hitbox->x;
 
         // Resolve Y-Axis collisions
         double_t moveY = eVelComp->currVelocity.y * deltaTime;
         eColComp->hitbox->y = eVelComp->predictedPos.y;
 
-        if (checkWorldCollision(zEngine, eColComp->hitbox, &collidedTile)) {
-            if (eColComp->role == COL_BULLET) {
-                Uint64 projDenseIdx = zEngine->ecs->components[PROJECTILE_COMPONENT].sparse[page][index];
-                ProjectileComponent *projComp =
-                (ProjectileComponent *)(zEngine->ecs->components[PROJECTILE_COMPONENT].dense[projDenseIdx]);
-                if (
-                    (collidedTile.type == TILE_BRICKS && projComp->dmg >= 15)
-                    || (collidedTile.type == TILE_ROCK && projComp->dmg >= 30)
-                ) {
-                    char *tileTypeToStr[] = {
-                        [TILE_EMPTY] = "TILE_EMPTY",
-                        [TILE_GRASS] = "TILE_GRASS",
-                        [TILE_WATER] = "TILE_WATER",
-                        [TILE_ROCK] = "TILE_ROCK",
-                        [TILE_BRICKS] = "TILE_BRICKS",
-                        [TILE_WOOD] = "TILE_WOOD",
-                        [TILE_SPAWN] = "TILE_SPAWN"
-                    };
-                    Uint32 tileY = collidedTile.idx / ARENA_WIDTH;
-                    Uint32 tileX = collidedTile.idx % ARENA_WIDTH;
-                    zEngine->map->tiles[tileY][tileX] = getTilePrefab(zEngine->prefabs, tileTypeToStr[TILE_EMPTY]);
-                }
-                deleteEntity(zEngine->ecs, e);
-                continue;
-            }
+        numCollided = checkAndHandleWorldCollisions(zEngine, e);
+            // MOVE TO HANDLERS TABLE
+            // if (eColComp->role == COL_BULLET) {
+            //     Uint64 projDenseIdx = zEngine->ecs->components[PROJECTILE_COMPONENT].sparse[page][index];
+            //     ProjectileComponent *projComp =
+            //     (ProjectileComponent *)(zEngine->ecs->components[PROJECTILE_COMPONENT].dense[projDenseIdx]);
+            //     if (
+            //         (collidedTile.type == TILE_BRICKS && projComp->dmg >= 15)
+            //         || (collidedTile.type == TILE_ROCK && projComp->dmg >= 30)
+            //     ) {
+            //         char *tileTypeToStr[] = {
+            //             [TILE_EMPTY] = "TILE_EMPTY",
+            //             [TILE_GRASS] = "TILE_GRASS",
+            //             [TILE_WATER] = "TILE_WATER",
+            //             [TILE_ROCK] = "TILE_ROCK",
+            //             [TILE_BRICKS] = "TILE_BRICKS",
+            //             [TILE_WOOD] = "TILE_WOOD",
+            //             [TILE_SPAWN] = "TILE_SPAWN"
+            //         };
+            //         Uint32 tileY = collidedTile.idx / ARENA_WIDTH;
+            //         Uint32 tileX = collidedTile.idx % ARENA_WIDTH;
+            //         zEngine->map->tiles[tileY][tileX] = getTilePrefab(zEngine->prefabs, tileTypeToStr[TILE_EMPTY]);
+            //     }
+            //     deleteEntity(zEngine->ecs, e);
+            //     continue;
+            // }
 
-            Vec2 tileCoords = tileToWorld(zEngine->map, collidedTile.idx);
-            if (moveY > 0) {
-                eColComp->hitbox->y = tileCoords.y - eColComp->hitbox->h;
-            } else if (moveY < 0) {
-                eColComp->hitbox->y = tileCoords.y + TILE_SIZE;
-            }
-            eVelComp->currVelocity.y = 0.0;
-        }
+            // Vec2 tileCoords = tileToWorld(zEngine->map, collidedTile.idx);
+            // if (moveY > 0) {
+            //     eColComp->hitbox->y = tileCoords.y - eColComp->hitbox->h;
+            // } else if (moveY < 0) {
+            //     eColComp->hitbox->y = tileCoords.y + TILE_SIZE;
+            // }
+            // eVelComp->currVelocity.y = 0.0;
+        // }
         posComp->y = eColComp->hitbox->y;
     }
 
@@ -977,28 +953,24 @@ void worldCollisionSystem(ZENg zEngine, double_t deltaTime) {
  */
 
 void healthSystem(ZENg zEngine, double_t deltaTime) {
+    Component *comps = zEngine->ecs->components;
     #ifdef DEBUGSYSTEMS
         printf(
             "[HEALTH SYSTEM] There are %lu dirty health components\n",
-            zEngine->ecs->components[HEALTH_COMPONENT].dirtyCount
+            comps[HEALTH_COMPONENT].dirtyCount
         );
     #endif
 
-    if (zEngine->ecs->components[HEALTH_COMPONENT].dirtyCount != 0) {
+    if (comps[HEALTH_COMPONENT].dirtyCount != 0) {
         propagateSystemDirtiness(zEngine->ecs->depGraph->nodes[SYS_HEALTH]);
     }
     
-    while (zEngine->ecs->components[HEALTH_COMPONENT].dirtyCount > 0) {
-        Entity ownerID = zEngine->ecs->components[HEALTH_COMPONENT].dirtyEntities[0];
-        Uint64 page = ownerID / PAGE_SIZE;
-        Uint64 index = ownerID % PAGE_SIZE;
+    while (comps[HEALTH_COMPONENT].dirtyCount > 0) {
+        Entity ownerID = comps[HEALTH_COMPONENT].dirtyEntities[0];
+        HealthComponent *helfComp = NULL;
+        GET_COMPONENT(zEngine->ecs, ownerID, HEALTH_COMPONENT, helfComp, HealthComponent);
 
-        Uint64 helfDenseIdx = zEngine->ecs->components[HEALTH_COMPONENT].sparse[page][index];
-        HealthComponent *helfComp = (HealthComponent *)(zEngine->ecs->components[HEALTH_COMPONENT].dense[helfDenseIdx]);
-
-        if (helfComp->currentHealth <= 0) {
-            deleteEntity(zEngine->ecs, ownerID);
-        }
+        if (helfComp->currentHealth <= 0) deleteEntity(zEngine->ecs, ownerID);
         unmarkComponentDirty(zEngine->ecs, HEALTH_COMPONENT);
     }
 }
@@ -1014,16 +986,16 @@ void weaponSystem(ZENg zEngine, double_t deltaTime) {
         #endif
         return;
     }
-
+    Component weapComps = zEngine->ecs->components[WEAPON_COMPONENT];
     #ifdef DEBUGSYSTEMS
         printf(
             "[WEAPON SYSTEM] Running weapon system for %lu entities\n",
-            zEngine->ecs->components[WEAPON_COMPONENT].denseSize
+            weapComps.denseSize
         );
     #endif
 
-    for (Uint64 i = 0; i < zEngine->ecs->components[WEAPON_COMPONENT].denseSize; i++) {
-        WeaponComponent *currWeapon = (WeaponComponent *)(zEngine->ecs->components[WEAPON_COMPONENT].dense[i]);
+    for (Uint64 i = 0; i < weapComps.denseSize; i++) {
+        WeaponComponent *currWeapon = (WeaponComponent *)(weapComps.dense[i]);
 
         // Prevent overflow
         if (currWeapon->timeSinceUse > (1 / currWeapon->fireRate + EPSILON)) {
@@ -1053,43 +1025,28 @@ void transformSystem(ZENg zEngine, double_t deltaTime) {
         #endif
         return;
     }
-
+    Component posComps = zEngine->ecs->components[POSITION_COMPONENT];
     #ifdef DEBUGSYSTEMS
         printf(
             "[TRANSFORM SYSTEM] Running transform system for %lu entities\n",
-            zEngine->ecs->components[POSITION_COMPONENT].denseSize
+            posComps.denseSize
         );
     #endif
 
     // iterate through all entities with POSITION_COMPONENT and update their rendered textures
-    for (Uint64 i = 0; i < zEngine->ecs->components[POSITION_COMPONENT].denseSize; i++) {
-        PositionComponent *posComp = (PositionComponent *)(zEngine->ecs->components[POSITION_COMPONENT].dense[i]);
-        Entity entitty = zEngine->ecs->components[POSITION_COMPONENT].denseToEntity[i];  // get the owner entity
+    for (Uint64 i = 0; i < posComps.denseSize; i++) {
+        PositionComponent *posComp = (PositionComponent *)(posComps.dense[i]);
+        Entity entitty = posComps.denseToEntity[i];
 
-        if ((zEngine->ecs->componentsFlags[entitty] & (1 << RENDER_COMPONENT)) == (1 << RENDER_COMPONENT)) {
-            // if the entity has also the render component
-            Uint64 page = entitty / PAGE_SIZE;  // determine the page for the entity
-            Uint64 index = entitty % PAGE_SIZE;  // determine the index within the page
+        if ((zEngine->ecs->componentsFlags[entitty] & (1 << RENDER_COMPONENT)) == 0) continue;
 
-            Uint64 denseIndex = zEngine->ecs->components[RENDER_COMPONENT].sparse[page][index];
-            if (denseIndex >= zEngine->ecs->components[RENDER_COMPONENT].denseSize) {
-                fprintf(
-                    stderr,
-                    "Warning: Entity %ld has a render component with invalid dense index %lu\n", entitty, denseIndex
-                );
-                continue;
-            }
-            // Update the render component's destination rectangle based on the position component
-            RenderComponent *renderComp =
-            (RenderComponent *)(zEngine->ecs->components[RENDER_COMPONENT].dense[denseIndex]);
+        RenderComponent *renderComp = NULL;
+        GET_COMPONENT(zEngine->ecs, entitty, RENDER_COMPONENT, renderComp, RenderComponent);
 
-            if (renderComp) {  // sanity check cause I've been pretty insane lately
-                renderComp->destRect->x = (int)posComp->x;
-                renderComp->destRect->y = (int)posComp->y;
-                
-                markComponentDirty(zEngine->ecs, entitty, RENDER_COMPONENT);
-            }
-        }
+        renderComp->destRect->x = (int)posComp->x;
+        renderComp->destRect->y = (int)posComp->y;
+        
+        markComponentDirty(zEngine->ecs, entitty, RENDER_COMPONENT);
     }
 
     propagateSystemDirtiness(zEngine->ecs->depGraph->nodes[SYS_TRANSFORM]);
@@ -1120,7 +1077,7 @@ void UIdebugRenderNode(SDL_Renderer *rdr, UIManager uiManager, UINode *node) {
     SDL_RenderFillRect(rdr, node->rect);
 
     // Outline in solid for clarity
-    SDL_SetRenderDrawColor(rdr, color.r, color.g, color.b, 255);
+    SDL_SetRenderDrawColor(rdr, color.r, color.g, color.b, OPACITY_FULL);
     SDL_RenderDrawRect(rdr, node->rect);
 
     // Highlight focused node
@@ -1146,9 +1103,9 @@ void renderSystem(ZENg zEngine, double_t deltaTime) {
             printf("[RENDER SYSTEM] Render system is not dirty. Not good.\n");
         #endif
     }
-
+    Component rdrComps = zEngine->ecs->components[RENDER_COMPONENT];
     #ifdef DEBUGSYSTEMS
-        Uint64 renderCount = zEngine->ecs->components[RENDER_COMPONENT].denseSize;
+        Uint64 renderCount = rdrComps.denseSize;
         printf("[RENDER SYSTEM] Running render system for %lu entities\n", renderCount);
     #endif
 
@@ -1161,37 +1118,22 @@ void renderSystem(ZENg zEngine, double_t deltaTime) {
         if (currState->type == STATE_PLAYING || currState->type == STATE_PAUSED) renderDebugGrid(zEngine);
     #endif
 
-    for (Uint64 i = 0; i < zEngine->ecs->components[RENDER_COMPONENT].denseSize; i++) {
-        RenderComponent *render = (RenderComponent *)(zEngine->ecs->components[RENDER_COMPONENT].dense[i]);
-        Entity owner = (zEngine->ecs->components[RENDER_COMPONENT].denseToEntity[i]);
-        Uint64 page = owner / PAGE_SIZE;
-        Uint64 index = owner % PAGE_SIZE;
+    for (Uint64 i = 0; i < rdrComps.denseSize; i++) {
+        RenderComponent *render = (RenderComponent *)(rdrComps.dense[i]);
+        Entity owner = rdrComps.denseToEntity[i];
 
-        if (render && render->destRect && render->active) {
-            double angle = 0.0;
-
-            // Check if the entity has a direction component
-            bitset hasDirection = 1 << DIRECTION_COMPONENT;
-            if (zEngine->ecs->componentsFlags[owner] & hasDirection) {
-                Uint64 dirDenseIdx = zEngine->ecs->components[DIRECTION_COMPONENT].sparse[page][index];
-                DirectionComponent *dirComp =
-                (DirectionComponent *)(zEngine->ecs->components[DIRECTION_COMPONENT].dense[dirDenseIdx]);
-
-                if (VEC2_EQUAL(*dirComp, DIR_UP)) {
-                    angle = 0.0;
-                } else if (VEC2_EQUAL(*dirComp, DIR_DOWN)) {
-                    angle = 180.0;
-                } else if (VEC2_EQUAL(*dirComp, DIR_LEFT)) {
-                    angle = 270.0;
-                } else if (VEC2_EQUAL(*dirComp, DIR_RIGHT)) {
-                    angle = 90.0;
-                }
-            }
-
-            SDL_RenderCopyEx(
-                zEngine->display->renderer, render->texture, NULL, render->destRect, angle, NULL, SDL_FLIP_NONE
-            );
+        if (!render || !render->destRect || !render->active) continue;
+        
+        double angle = 0.0;
+        if (HAS_COMPONENT(zEngine->ecs, owner, DIRECTION_COMPONENT)) {
+            DirectionComponent *dirComp = NULL;
+            GET_COMPONENT(zEngine->ecs, owner, DIRECTION_COMPONENT, dirComp, DirectionComponent);
+            angle = vec2_to_angle(*dirComp);
         }
+
+        SDL_RenderCopyEx(
+            zEngine->display->renderer, render->texture, NULL, render->destRect, angle, NULL, SDL_FLIP_NONE
+        );
     }
     
     #ifdef DEBUG
@@ -1323,8 +1265,9 @@ void renderDebugGrid(ZENg zEngine) {
 void renderDebugCollision(ZENg zEngine) {
     // Draw entity hitboxes in red
     SDL_SetRenderDrawColor(zEngine->display->renderer, 255, 0, 0, 255);
-    for (Uint64 i = 0; i < zEngine->ecs->components[COLLISION_COMPONENT].denseSize; i++) {
-        CollisionComponent *colComp = (CollisionComponent *)(zEngine->ecs->components[COLLISION_COMPONENT].dense[i]);
+    Component colComps = zEngine->ecs->components[COLLISION_COMPONENT];
+    for (Uint64 i = 0; i < colComps.denseSize; i++) {
+        CollisionComponent *colComp = (CollisionComponent *)(colComps.dense[i]);
         if (colComp && colComp->hitbox) {
             SDL_RenderDrawRect(zEngine->display->renderer, colComp->hitbox);
         }

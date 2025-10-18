@@ -1,29 +1,22 @@
-#include "DLinkList.h"
+#include <global.h>  // For the macros
 
-CDLLNode* initList(void *data) {
+CDLLNode* initList(GenericData data, GenericDataType dataType) {
     CDLLNode *head = calloc(1, sizeof(CDLLNode));
-    if (!head) {
-        fprintf(stderr, "Failed to allocate memory for list head node\n");
-        exit(EXIT_FAILURE);
-    }
+    if (!head) THROW_ERROR_AND_EXIT("Failed to allocate memory for list head");
     head->data = data;
+    head->dataType = dataType;
     head->next = head;
     head->prev = head;
     return head;
 }
 
-void CDLLInsertLast(CDLLNode *head, void *data) {
-    if (!head || !data) {
-        fprintf(stderr, "Cannot insert into list: head or data is NULL\n");
-        return;
-    }
+void CDLLInsertLast(CDLLNode *head, GenericData data, GenericDataType dataType) {
+    if (!head) THROW_ERROR_AND_RETURN_VOID("Cannot insert into list: head is NULL");
 
     CDLLNode *newNode = calloc(1, sizeof(CDLLNode));
-    if (!newNode) {
-        fprintf(stderr, "Failed to allocate memory for new list node\n");
-        exit(EXIT_FAILURE);
-    }
+    if (!newNode) THROW_ERROR_AND_EXIT("Failed to allocate memory for new list node");
     newNode->data = data;
+    newNode->dataType = dataType;
 
     // Insert newNode before the head (at the end of the list)
     newNode->prev = head->prev;
@@ -33,10 +26,7 @@ void CDLLInsertLast(CDLLNode *head, void *data) {
 }
 
 void CDLLRemoveLast(CDLLNode *head) {
-    if (!head) {
-        fprintf(stderr, "Cannot remove from list: head is NULL\n");
-        return;
-    }
+    if (!head) THROW_ERROR_AND_RETURN_VOID("Cannot remove from list: head is NULL");
 
     CDLLNode *lastNode = head->prev;
     if (lastNode == head) {
@@ -46,7 +36,6 @@ void CDLLRemoveLast(CDLLNode *head) {
     lastNode->prev->next = head;
     head->prev = lastNode->prev;
 
-    free(lastNode->data);
     free(lastNode);
 }
 
@@ -59,7 +48,6 @@ void freeList(CDLLNode **head) {
         free(current);
         current = next;
     }
-    // Could have freed the data but in my case it's better to do it outside
     free(*head);
     *head = NULL;  // The double pointer was to prevent this dangling pointer
 }

@@ -143,6 +143,7 @@ void preloadResources(HashMap resMng, SDL_Renderer *renderer) {
 
     // UI
     getOrLoadResource(resMng, renderer, "assets/ui/arrow.png", ENTRY_TEXTURE);
+    getOrLoadResource(resMng, renderer, "assets/ui/metalwall.png", ENTRY_TEXTURE);
 }
 
 /**

@@ -2,7 +2,7 @@
 #include "../states/stateManager.h"
 
 UIManager initUIManager() {
-    UIManager uiManager = calloc(1, sizeof(struct UIManager));
+    UIManager uiManager = calloc(1, sizeof(struct uiMng));
     if (!uiManager) {
         printf("Failed to allocate memory for the UI Manager\n");
         exit(EXIT_FAILURE);
@@ -100,7 +100,17 @@ UINode* UIparseNode(ZENg zEngine, HashMap parserMap, cJSON *json) {
 
             layout = UIcreateLayout(layoutTypeVal, pad, align, spacing);
         }
-        node = UIcreateContainer(rect, layout);
+
+        // Background
+        SDL_Color bgColor = {0};
+        SDL_Texture *bgTexture = NULL;
+        cJSON *bgColorJson = cJSON_GetObjectItem(json, "bgColor");
+        if (bgColorJson) bgColor = applyColorAlpha(parserMap, bgColorJson);
+
+        cJSON *bgTextureJson = cJSON_GetObjectItem(json, "bgTexture");
+        if (bgTextureJson) bgTexture = getTexture(zEngine->resources, bgTextureJson->valuestring);
+
+        node = UIcreateContainer(rect, layout, bgColor, bgTexture);
 
         // Children
         cJSON *children = cJSON_GetObjectItemCaseSensitive(json, "children");
@@ -281,7 +291,7 @@ UINode* UIparseNode(ZENg zEngine, HashMap parserMap, cJSON *json) {
         // Add those as children to apply layout
         UIinsertNode(zEngine->uiManager, node, selector);
         if (!options) THROW_ERROR_AND_RETURN("Option cycle NULL in UIparseNode\n", node);
-        UIinsertNode(zEngine->uiManager, node, (UINode *)options->data);
+        UIinsertNode(zEngine->uiManager, node, (UINode *)options->data.ptr);
     }
 
     if (node) {
@@ -432,12 +442,12 @@ void UIdeleteNode(UIManager uiManager, UINode *node) {
             CDLLNode *curr = head->next;
             while (curr != head) {
                 CDLLNode *next = curr->next;
-                UIdeleteNode(uiManager, (UINode *)curr->data);  // Delete the option node
+                UIdeleteNode(uiManager, (UINode *)curr->data.ptr);  // Delete the option node
                 free(curr);
                 curr = next;
             }
 
-            UIdeleteNode(uiManager, (UINode *)head->data);  // Delete the head option node
+            UIdeleteNode(uiManager, (UINode *)head->data.ptr);  // Delete the head option node
             free(head);
             optCycle->currOption = NULL;
             break;
@@ -655,6 +665,16 @@ void UIrenderNode(SDL_Renderer *rdr, UINode *node) {
     if (node->isVisible == 0 || (!node->rect)) return;
     switch(node->type) {
         case UI_CONTAINER: {
+            // Render background if any. Texture on top of color
+            UIContainer *container = (UIContainer *)(node->widget);
+            if (container->bgColor.a > 0) {
+                SDL_Color clr = container->bgColor;
+                SDL_SetRenderDrawColor(rdr, clr.r, clr.g, clr.b, clr.a);
+                SDL_RenderFillRect(rdr, node->rect);
+            }
+            if (container->bgTexture) {
+                SDL_RenderCopy(rdr, container->bgTexture, NULL, node->rect);
+            }
             break;
         }
         case UI_LABEL: {
@@ -680,12 +700,12 @@ void UIrenderNode(SDL_Renderer *rdr, UINode *node) {
         }
         case UI_OPTION_CYCLE: {
             UIOptionCycle *optionCycle = (UIOptionCycle *)(node->widget);
-            if (optionCycle->currOption && optionCycle->currOption->data && optionCycle->selector) {
+            if (optionCycle->currOption && optionCycle->currOption->data.ptr && optionCycle->selector) {
                 UINode *selectorNode = (UINode *)optionCycle->selector;
                 UIButton *selector = (UIButton *)(selectorNode->widget);
                 if (selector->texture) SDL_RenderCopy(rdr, selector->texture, NULL, selectorNode->rect);
 
-                UINode *currOptionNode = (UINode *)optionCycle->currOption->data;
+                UINode *currOptionNode = (UINode *)optionCycle->currOption->data.ptr;
                 switch(currOptionNode->type) {
                     case UI_BUTTON: {
                         UIButton *currOptionBtn = (UIButton *)(currOptionNode->widget);
@@ -840,32 +860,25 @@ UILayout* UIcreateLayout(UILayoutType type, UIPadding padding, UIAlignment align
  * =====================================================================================================================
  */
 
-UINode* UIcreateContainer(SDL_Rect rect, UILayout *layout) {
-    UINode *container = calloc(1, sizeof(UINode));
-    if (!container) {
-        printf("Failed to allocate memory for the root UI node\n");
-        exit(EXIT_FAILURE);
-    }
-    container->type = UI_CONTAINER;
-    container->isDirty = 1;  // Dirty by default
-    container->isVisible = 1;
-    container->layout = layout;
-    container->widget = calloc(1, sizeof(UIContainer));
-    if (!container->widget) {
-        printf("Failed to allocate memory for the container widget\n");
-        free(container);
-        exit(EXIT_FAILURE);
-    }
+UINode* UIcreateContainer(SDL_Rect rect, UILayout *layout, SDL_Color bgColor, SDL_Texture *bgTexture) {
+    UINode *node = calloc(1, sizeof(UINode));
+    if (!node) THROW_ERROR_AND_EXIT("Failed to allocate memory for container node\n");
+    node->type = UI_CONTAINER;
+    node->isDirty = 1;  // Dirty by default
+    node->isVisible = 1;
+    node->layout = layout;
+
+    UIContainer *container = calloc(1, sizeof(UIContainer));
+    if (!container) THROW_ERROR_AND_EXIT("Failed to allocate memory for container widget\n");
+    container->bgColor = bgColor;
+    container->bgTexture = bgTexture;
+    node->widget = container;
+
     SDL_Rect *contRect = calloc(1, sizeof(SDL_Rect));
-    if (!contRect) {
-        printf("Failed to allocate memory for the container rect\n");
-        free(container->widget);
-        free(container);
-        exit(EXIT_FAILURE);
-    }
+    if (!contRect) THROW_ERROR_AND_EXIT("Failed to allocate memory for container rectangle\n");
     *contRect = rect;
-    container->rect = contRect;
-    return container;
+    node->rect = contRect;
+    return node;
 }
 
 /**
@@ -1092,14 +1105,14 @@ void insertToList(UINode *node, void *context) {
     switch(node->type) {
         case UI_BUTTON: {
             ButtonNodeContext *btnCtx = (ButtonNodeContext *)context;
-            if (!btnCtx->options) btnCtx->options = initList((void *)node);
-            else CDLLInsertLast(btnCtx->options, (void *)node);
+            if (!btnCtx->options) btnCtx->options = initList((GenericData){.ptr = (void *)node}, DATA_PTR);
+            else CDLLInsertLast(btnCtx->options, (GenericData){.ptr = (void *)node}, DATA_PTR);
             break;
         }
         case UI_IMAGE: {
             ImageNodeContext *imgCtx = (ImageNodeContext *)context;
-            if (!imgCtx->options) imgCtx->options = initList((void *)node);
-            else CDLLInsertLast(imgCtx->options, (void *)node);
+            if (!imgCtx->options) imgCtx->options = initList((GenericData){.ptr = (void *)node}, DATA_PTR);
+            else CDLLInsertLast(imgCtx->options, (GenericData){.ptr = (void *)node}, DATA_PTR);
             break;
         }
         default: {
@@ -1220,6 +1233,7 @@ void loadParserEntries(HashMap parserMap, GameStateType state) {
     MapAddEntry(parserMap, "red", (MapEntryVal){.ptr = (void *)&COLOR_TABLE[IDX_RED]}, ENTRY_COLOR);
     MapAddEntry(parserMap, "green", (MapEntryVal){.ptr = (void *)&COLOR_TABLE[IDX_GREEN]}, ENTRY_COLOR);
     MapAddEntry(parserMap, "blue", (MapEntryVal){.ptr = (void *)&COLOR_TABLE[IDX_BLUE]}, ENTRY_COLOR);
+    MapAddEntry(parserMap, "bluedark", (MapEntryVal){.ptr = (void *)&COLOR_TABLE[IDX_BLUE_DARK]}, ENTRY_COLOR);
     MapAddEntry(parserMap, "yellow", (MapEntryVal){.ptr = (void *)&COLOR_TABLE[IDX_YELLOW]}, ENTRY_COLOR);
     MapAddEntry(parserMap, "cyan", (MapEntryVal){.ptr = (void *)&COLOR_TABLE[IDX_CYAN]}, ENTRY_COLOR);
     MapAddEntry(parserMap, "magenta", (MapEntryVal){.ptr = (void *)&COLOR_TABLE[IDX_MAGENTA]}, ENTRY_COLOR);
