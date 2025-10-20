@@ -55,13 +55,14 @@ void clearLevel(ZENg zEngine);
 ZENg initGame();
 
 /**
- * Ensures the entities are aligned to the grid
+ * Updates real positions and ensures the entities are aligned to the grid
  * @param zEngine pointer to the engine
+ * @param deltaTime time since the last frame in seconds
  */
 void positionSystem(ZENg zEngine, double_t deltaTime);
 
 /**
- * Updates the entities' positions based on their velocity
+ * Updates the entities' (predicted) positions based on their velocity
  * @param zEngine pointer to the engine
  * @param deltaTime time since the last frame in seconds
  */
@@ -85,6 +86,7 @@ Uint8 checkAndHandleEntityCollisions(ZENg zEngine, Entity entity);
 /**
  * Passes the collision components to the collision handler
  * @param zEngine pointer to the engine
+ * @note works with the predicted position of entities, not the real one
  */
 void entityCollisionSystem(ZENg zEngine, double_t deltaTime);
 
@@ -107,6 +109,7 @@ Uint8 checkAndHandleWorldCollisions(ZENg zEngine, Entity entity);
 /**
  * Passes the collision components to the collision handler
  * @param zEngine pointer to the engine
+ * @note works with the predicted position of entities, not the real one
  */
 void worldCollisionSystem(ZENg zEngine, double_t deltaTime);
 

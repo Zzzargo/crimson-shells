@@ -125,10 +125,16 @@ typedef enum {
     COL_ROLE_COUNT  // Automatically counts
 } CollisionRole;
 
+// Maximum number of spatial grid cells an entity can span on
+#define MAX_CELLS_PER_ENTITY 8
+
 typedef struct {
+    size_t cellIdxs[MAX_CELLS_PER_ENTITY];  // Index of the cells the entity spans on in the spatial grid array
+    size_t entityArrIdx[MAX_CELLS_PER_ENTITY];  // Index of the owner entity in the cells it spans on
     SDL_Rect *hitbox;  // The square where the entity can touch others
     CollisionRole role;  // The role of the entity in the collision
     Uint8 isSolid;  // Indicates if entities can pass through
+    Uint8 numCells;  // How many cells the entity spans on
 } CollisionComponent;
 
 typedef struct {

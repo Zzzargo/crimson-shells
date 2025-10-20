@@ -1,4 +1,5 @@
 #include "collisionManager.h"
+#include "arena.h"
 #include "ecs.h"
 #include "engine.h"
 
@@ -74,19 +75,18 @@ void normalizeRoles(Entity *A, Entity *B, CollisionComponent **colCompA, Collisi
 
 // =====================================================================================================================
 
-void actorVsWorldColHandler(ECS ecs, Entity actor, Tile *tile) {
-    if (!HAS_COMPONENT(ecs, actor, COLLISION_COMPONENT))
+void actorVsWorldColHandler(ZENg zEngine, Entity actor, Tile *tile) {
+#ifdef DEBUGPP
+    printf("[WORLD COLLISION SYSTEM] Actor VS World collision: Entity %lu | Tile %d", actor, tile->type);
+#endif
+    if (!HAS_COMPONENT(zEngine->ecs, actor, COLLISION_COMPONENT))
         THROW_ERROR_AND_RETURN_VOID("Actor with invalid colComp in actorVsWorldColHandler");
     CollisionComponent *aColComp = NULL;
-    GET_COMPONENT(ecs, actor, COLLISION_COMPONENT, aColComp, CollisionComponent);
+    GET_COMPONENT(zEngine->ecs, actor, COLLISION_COMPONENT, aColComp, CollisionComponent);
 
-    if (!HAS_COMPONENT(ecs, actor, VELOCITY_COMPONENT)) return;
+    if (!HAS_COMPONENT(zEngine->ecs, actor, VELOCITY_COMPONENT)) return;
     VelocityComponent *aVelComp = NULL;
-    GET_COMPONENT(ecs, actor, VELOCITY_COMPONENT, aVelComp, VelocityComponent);
-
-    // Entities with a velocity component must have a position component
-    PositionComponent *aPosComp = NULL;
-    GET_COMPONENT(ecs, actor, POSITION_COMPONENT, aPosComp, PositionComponent);
+    GET_COMPONENT(zEngine->ecs, actor, VELOCITY_COMPONENT, aVelComp, VelocityComponent);
 
     // Resolve X-Axis wall collisions
     double_t moveX = aVelComp->currVelocity.x;
@@ -98,7 +98,7 @@ void actorVsWorldColHandler(ECS ecs, Entity actor, Tile *tile) {
         aColComp->hitbox->x = tileCoords.x + TILE_SIZE;
     }
     aVelComp->currVelocity.x = 0.0;
-    aPosComp->x = aColComp->hitbox->x;
+    aVelComp->predictedPos.x = aColComp->hitbox->x;
 
 #ifdef DEBUGPP
     printf("Clamped entity %lu on X axis\n", actor);
@@ -115,7 +115,7 @@ void actorVsWorldColHandler(ECS ecs, Entity actor, Tile *tile) {
         aColComp->hitbox->y = tileCoords.y + TILE_SIZE;
     }
     aVelComp->currVelocity.y = 0.0;
-    aPosComp->y = aColComp->hitbox->y;
+    aVelComp->predictedPos.y = aColComp->hitbox->y;
 #ifdef DEBUGPP
     printf("Clamped entity %lu on Y axis\n", actor);
 #endif
@@ -123,6 +123,108 @@ void actorVsWorldColHandler(ECS ecs, Entity actor, Tile *tile) {
 
 // =====================================================================================================================
 
+void projectileVsWorldColHandler(ZENg zEngine, Entity projectile, Tile *tile) {
+    if (!HAS_COMPONENT(zEngine->ecs, projectile, PROJECTILE_COMPONENT))
+        THROW_ERROR_AND_RETURN_VOID("Projectile entity without projectile component in projectileVsWorldCollision");
+     ProjectileComponent *projComp = NULL;
+     GET_COMPONENT(zEngine->ecs, projectile, PROJECTILE_COMPONENT, projComp, ProjectileComponent);
+     if (
+         (tile->type == TILE_BRICKS && projComp->dmg >= 15)
+         || (tile->type == TILE_ROCK && projComp->dmg >= 30)
+     ) {
+         char *tileTypeToStr[] = {
+             [TILE_EMPTY] = "TILE_EMPTY",
+             [TILE_GRASS] = "TILE_GRASS",
+             [TILE_WATER] = "TILE_WATER",
+             [TILE_ROCK] = "TILE_ROCK",
+             [TILE_BRICKS] = "TILE_BRICKS",
+             [TILE_WOOD] = "TILE_WOOD",
+             [TILE_SPAWN] = "TILE_SPAWN"
+         };
+         Uint32 tileY = tile->idx / ARENA_WIDTH;
+         Uint32 tileX = tile->idx % ARENA_WIDTH;
+         zEngine->map->tiles[tileY][tileX] = getTilePrefab(zEngine->prefabs, tileTypeToStr[TILE_EMPTY]);
+     }
+     deleteEntity(zEngine->ecs, projectile);
+}
+
+// =====================================================================================================================
+
 void populateHandlersTables(CollisionManager cm) {
     registerEVsWHandler(cm, COL_ACTOR, &actorVsWorldColHandler);
+    registerEVsWHandler(cm, COL_BULLET, &projectileVsWorldColHandler);
+}
+
+// =====================================================================================================================
+
+void insertEntityToSG(CollisionManager cm, Entity e, CollisionComponent *colComp) {
+    if (!cm) THROW_ERROR_AND_RETURN_VOID("Collision manager NULL in insertEntityToSG");
+    if (!colComp) THROW_ERROR_AND_RETURN_VOID("Entity's colComp NULL in insertEntityToSG");
+    SDL_Rect *hb = colComp->hitbox;
+    if (!hb) THROW_ERROR_AND_RETURN_VOID("Entity's hitbox NULL in insertEntityToSG");
+
+    // Compute the tile range that the entity covers
+    Int32 startX = hb->x / TILE_SIZE;
+    Int32 startY = hb->y / TILE_SIZE;
+    Int32 endX = (hb->x + hb->w) / TILE_SIZE;
+    Int32 endY = (hb->y + hb->h) / TILE_SIZE;
+
+    // Clamp to grid boundaries
+    if (endX < 0 || endY < 0 || startX >= ARENA_WIDTH || startY >= ARENA_HEIGHT) return;
+    if (startX < 0) startX = 0;
+    if (startY < 0) startY = 0;
+    if (endX >= ARENA_WIDTH) endX = ARENA_WIDTH - 1;
+    if (endY >= ARENA_HEIGHT) endY = ARENA_HEIGHT - 1;
+
+    // Insert into all covered cells
+    for (Int32 x = startX; x <= endX; x++) {
+        for (Int32 y = startY; y <= endY; y++) {
+            size_t idx = y * ARENA_WIDTH + x;
+            GridCell *cell = &cm->spatialGrid[idx];
+
+            if (cell->entityCount >= cell->capacity) {
+                // Reallocate the entities array for this cell
+                Entity *tmp = realloc(cell->entities, cell->capacity * 2);
+                if (!tmp) THROW_ERROR_AND_EXIT("Failed to reallocate a grid cell's entity array at insertion");
+                cell->capacity *= 2;
+            }
+            cell->entities[cell->entityCount++] = e;
+        }
+    }
+}
+
+// =====================================================================================================================
+
+void removeEntityFromSG(CollisionManager cm, ECS ecs, Entity e, CollisionComponent *colComp) {
+    for (size_t i = 0; i < colComp->numCells; i++) {
+        size_t cellIdx = colComp->cellIdxs[i];
+        size_t slot = colComp->entityArrIdx[i];
+
+        GridCell *cell = &cm->spatialGrid[cellIdx];
+
+        // Swap-remove
+        Entity swapped = cell->entities[--cell->entityCount];
+        cell->entities[slot] = swapped;
+
+        if (slot < cell->entityCount && swapped != e) {
+            CollisionComponent *swappedCol = NULL;
+            GET_COMPONENT(ecs, swapped, COLLISION_COMPONENT, swappedCol, CollisionComponent);
+
+            for (size_t j = 0; j < swappedCol->numCells; j++) {
+                if (swappedCol->cellIdxs[j] == cellIdx) {
+                    swappedCol->entityArrIdx[j] = slot;
+                    break;
+                }
+            }
+        }
+    }
+    colComp->numCells = 0;
+}
+
+// =====================================================================================================================
+
+void updateGridMembership(
+    CollisionManager cm, Entity e, PositionComponent *posComp, VelocityComponent *velComp, CollisionComponent *colComp
+) {
+    // Get the changed grid coverage and delete/insert from corresponding cells
 }

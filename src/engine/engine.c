@@ -362,7 +362,7 @@ DependencyGraph* initDependencyGraph() {
 
     const DependencyPair dependencies[] = {
         {SYS_VELOCITY, SYS_WORLD_COLLISIONS},
-        {SYS_VELOCITY, SYS_ENTITY_COLLISIONS},
+        {SYS_WORLD_COLLISIONS, SYS_ENTITY_COLLISIONS},
         {SYS_WORLD_COLLISIONS, SYS_POSITION},
         {SYS_WORLD_COLLISIONS, SYS_HEALTH},
         {SYS_ENTITY_COLLISIONS, SYS_POSITION},
@@ -501,10 +501,10 @@ void velocitySystem(ZENg zEngine, double_t deltaTime) {
     for (Uint64 i = 0; i < velComps.denseSize; i++) {
         VelocityComponent *velComp = (VelocityComponent *)(velComps.dense[i]);
         Entity entitty = velComps.denseToEntity[i];
-
-        PositionComponent *posComp = NULL;
+        
         if (!HAS_COMPONENT(zEngine->ecs, entitty, POSITION_COMPONENT))
             THROW_ERROR_AND_RETURN_VOID("Entity with VELOCITY_COMPONENT has no POSITION_COMPONENT");
+        PositionComponent *posComp = NULL;
         GET_COMPONENT(zEngine->ecs, entitty, POSITION_COMPONENT, posComp, PositionComponent);
 
         // Update the predicted position based on the velocity
@@ -525,7 +525,13 @@ void velocitySystem(ZENg zEngine, double_t deltaTime) {
                 velComp->predictedPos.y = LOGICAL_HEIGHT - entityRect->h;
             }
         }
-        // Hitboxes are updated in the collision system
+
+        if (HAS_COMPONENT(zEngine->ecs, entitty, COLLISION_COMPONENT)) {
+            CollisionComponent *colComp = NULL;
+            GET_COMPONENT(zEngine->ecs, entitty, COLLISION_COMPONENT, colComp, CollisionComponent);
+            colComp->hitbox->x = velComp->predictedPos.x;
+            colComp->hitbox->y = velComp->predictedPos.y;
+        }
     }
     propagateSystemDirtiness(zEngine->ecs->depGraph->nodes[SYS_VELOCITY]);
     zEngine->ecs->depGraph->nodes[SYS_VELOCITY]->isDirty = 0;
@@ -554,31 +560,45 @@ void positionSystem(ZENg zEngine, double_t deltaTime) {
         PositionComponent *posComp = (PositionComponent *)(posComps.dense[i]);
         Entity owner = posComps.denseToEntity[i];
 
-        // Only actors can have health (at least for now) and only actors obey the snap rule
-        if ((zEngine->ecs->componentsFlags[owner] & (1 << HEALTH_COMPONENT)) == 0) continue;
-        // Only entities with a velocity component can be snapped
-        if ((zEngine->ecs->componentsFlags[owner] & (1 << VELOCITY_COMPONENT)) == 0) continue;
-
+        // Common part - to update the real positions
+        if (!HAS_COMPONENT(zEngine->ecs, owner, VELOCITY_COMPONENT)) continue;
         VelocityComponent *velComp = NULL;
         GET_COMPONENT(zEngine->ecs, owner, VELOCITY_COMPONENT, velComp, VelocityComponent);
+
+        posComp->x = velComp->predictedPos.x;
+        posComp->y = velComp->predictedPos.y;
+
+        // Snapping part
+
+        // Only actors can have health (at least for now) and only actors obey the snap rule
+        if (!HAS_COMPONENT(zEngine->ecs, owner, HEALTH_COMPONENT)) continue;
 
         DirectionComponent *dirComp = NULL;
         GET_COMPONENT(zEngine->ecs, owner, DIRECTION_COMPONENT, dirComp, DirectionComponent);
 
         Uint8 movingX = fabs(dirComp->x) > EPSILON;
         Uint8 movingY = fabs(dirComp->y) > EPSILON;
-        
-        Int32 currTileIdx = worldToTile(*posComp);
+        Uint32 currTileIdx = worldToTile(*posComp);
         Uint32 currTileX = currTileIdx % ARENA_WIDTH;
         Uint32 currTileY = currTileIdx / ARENA_WIDTH;
         
         if (movingX && (velComp->prevAxis != AXIS_X)) {
             // Axis change -> snap the position to a tile
             posComp->y = round((posComp->y) / TILE_SIZE) * TILE_SIZE;
+            if (HAS_COMPONENT(zEngine->ecs, owner, COLLISION_COMPONENT)) {
+                CollisionComponent *colComp = NULL;
+                GET_COMPONENT(zEngine->ecs, owner, COLLISION_COMPONENT, colComp, CollisionComponent);
+                colComp->hitbox->y = posComp->y;
+            }
             velComp->prevAxis = AXIS_X;
         } else if (movingY && (velComp->prevAxis != AXIS_Y)) {
             // Axis change -> snap the position to a tile
             posComp->x = round((posComp->x) / TILE_SIZE) * TILE_SIZE;
+            if (HAS_COMPONENT(zEngine->ecs, owner, COLLISION_COMPONENT)) {
+                CollisionComponent *colComp = NULL;
+                GET_COMPONENT(zEngine->ecs, owner, COLLISION_COMPONENT, colComp, CollisionComponent);
+                colComp->hitbox->x = posComp->x;
+            }
             velComp->prevAxis = AXIS_Y;
         }
     }
@@ -726,7 +746,7 @@ Uint8 checkAndHandleEntityCollisions(ZENg zEngine, Entity entity) {
                     if (SDL_HasIntersection(hitbox, susEColComp->hitbox)) {
                         // Call the appropriate handler function
                         zEngine->collisionMng->eVsEHandlers[colComp->role][susEColComp->role](
-                            zEngine->ecs, entity, susColEntity
+                            zEngine, entity, susColEntity
                         );
                         numCollided++;
                     }
@@ -761,7 +781,7 @@ void entityCollisionSystem(ZENg zEngine, double_t deltaTime) {
         CollisionComponent *colComp = (CollisionComponent *)(colComps->dense[i]);
         Entity owner = colComps->denseToEntity[i];
 
-        // if a bullet hits the arena edge - remove it
+        // If a bullet hits the arena edge - remove it
         if (colComp->role == COL_BULLET && (colComp->hitbox->x <= 0
             || colComp->hitbox->y <= 0
             || colComp->hitbox->x + colComp->hitbox->w >= LOGICAL_WIDTH
@@ -803,8 +823,6 @@ Uint8 checkAndHandleWorldCollisions(ZENg zEngine, Entity entity) {
     for (Int32 dy = -1; dy <= dyMax; dy++) {
         Uint32 neighY = (Int32)tileY + dy;
         for (Int32 dx = -1; dx <= dxMax; dx++) {
-            if (dy == 0 && dx == 0) continue;  // Skip the tile the entity is currently on
-
             Uint32 neighX = (Int32)tileX + dx;
 
             if (neighX < 0 || neighX >= ARENA_WIDTH || neighY < 0 || neighY >= ARENA_HEIGHT) continue;
@@ -817,7 +835,7 @@ Uint8 checkAndHandleWorldCollisions(ZENg zEngine, Entity entity) {
             };
 
             if ((neighTile->isSolid || !neighTile->isWalkable) && SDL_HasIntersection(hitbox, &neighTileRect)) {
-                zEngine->collisionMng->eVsWHandlers[colComp->role](zEngine->ecs, entity, neighTile);
+                zEngine->collisionMng->eVsWHandlers[colComp->role](zEngine, entity, neighTile);
                 numCollided++;
             }
         }
@@ -847,100 +865,18 @@ void worldCollisionSystem(ZENg zEngine, double_t deltaTime) {
     #endif
 
     for (Uint64 i = 0; i < colComps->denseSize; i++) {
-        CollisionComponent *eColComp = colComps->dense[i];
+        CollisionComponent *colComp = colComps->dense[i];
         Entity e = colComps->denseToEntity[i];
 
         if (!HAS_COMPONENT(zEngine->ecs, e, VELOCITY_COMPONENT)) continue;  // Skip entities without velocity component
-        VelocityComponent *eVelComp = NULL;
-        GET_COMPONENT(zEngine->ecs, e, VELOCITY_COMPONENT, eVelComp, VelocityComponent);
+        VelocityComponent *velComp = NULL;
+        GET_COMPONENT(zEngine->ecs, e, VELOCITY_COMPONENT, velComp, VelocityComponent);
 
-        // Every entity with a velocity component must have a position component
         PositionComponent *posComp = NULL;
         GET_COMPONENT(zEngine->ecs, e, POSITION_COMPONENT, posComp, PositionComponent);
 
-        // Resolve X-Axis collisions
-        double_t moveX = eVelComp->currVelocity.x * deltaTime;
-        eColComp->hitbox->x = eVelComp->predictedPos.x;
-
         Uint8 numCollided = checkAndHandleWorldCollisions(zEngine, e);
-
-
-            // MOVE TO HANDLERS TABLE
-            // if (eColComp->role == COL_BULLET) {
-            //     Uint64 projDenseIdx = zEngine->ecs->components[PROJECTILE_COMPONENT].sparse[page][index];
-            //     ProjectileComponent *projComp =
-            //     (ProjectileComponent *)(zEngine->ecs->components[PROJECTILE_COMPONENT].dense[projDenseIdx]);
-            //     if (
-            //         (collidedTile.type == TILE_BRICKS && projComp->dmg >= 15)
-            //         || (collidedTile.type == TILE_ROCK && projComp->dmg >= 30)
-            //     ) {
-            //         char *tileTypeToStr[] = {
-            //             [TILE_EMPTY] = "TILE_EMPTY",
-            //             [TILE_GRASS] = "TILE_GRASS",
-            //             [TILE_WATER] = "TILE_WATER",
-            //             [TILE_ROCK] = "TILE_ROCK",
-            //             [TILE_BRICKS] = "TILE_BRICKS",
-            //             [TILE_WOOD] = "TILE_WOOD",
-            //             [TILE_SPAWN] = "TILE_SPAWN"
-            //         };
-            //         Uint32 tileY = collidedTile.idx / ARENA_WIDTH;
-            //         Uint32 tileX = collidedTile.idx % ARENA_WIDTH;
-            //         zEngine->map->tiles[tileY][tileX] = getTilePrefab(zEngine->prefabs, tileTypeToStr[TILE_EMPTY]);
-            //     }
-            //     deleteEntity(zEngine->ecs, e);
-            //     continue;
-            // }
-
-            // Vec2 tileCoords = tileToWorld(zEngine->map, collidedTile.idx);
-            // if (moveX > 0) {
-            //     eColComp->hitbox->x = tileCoords.x - eColComp->hitbox->w;
-            // } else if (moveX < 0) {
-            //     eColComp->hitbox->x = tileCoords.x + TILE_SIZE;
-            // }
-            // eVelComp->currVelocity.x = 0.0;
-        // }
-        posComp->x = eColComp->hitbox->x;
-
-        // Resolve Y-Axis collisions
-        double_t moveY = eVelComp->currVelocity.y * deltaTime;
-        eColComp->hitbox->y = eVelComp->predictedPos.y;
-
-        numCollided = checkAndHandleWorldCollisions(zEngine, e);
-            // MOVE TO HANDLERS TABLE
-            // if (eColComp->role == COL_BULLET) {
-            //     Uint64 projDenseIdx = zEngine->ecs->components[PROJECTILE_COMPONENT].sparse[page][index];
-            //     ProjectileComponent *projComp =
-            //     (ProjectileComponent *)(zEngine->ecs->components[PROJECTILE_COMPONENT].dense[projDenseIdx]);
-            //     if (
-            //         (collidedTile.type == TILE_BRICKS && projComp->dmg >= 15)
-            //         || (collidedTile.type == TILE_ROCK && projComp->dmg >= 30)
-            //     ) {
-            //         char *tileTypeToStr[] = {
-            //             [TILE_EMPTY] = "TILE_EMPTY",
-            //             [TILE_GRASS] = "TILE_GRASS",
-            //             [TILE_WATER] = "TILE_WATER",
-            //             [TILE_ROCK] = "TILE_ROCK",
-            //             [TILE_BRICKS] = "TILE_BRICKS",
-            //             [TILE_WOOD] = "TILE_WOOD",
-            //             [TILE_SPAWN] = "TILE_SPAWN"
-            //         };
-            //         Uint32 tileY = collidedTile.idx / ARENA_WIDTH;
-            //         Uint32 tileX = collidedTile.idx % ARENA_WIDTH;
-            //         zEngine->map->tiles[tileY][tileX] = getTilePrefab(zEngine->prefabs, tileTypeToStr[TILE_EMPTY]);
-            //     }
-            //     deleteEntity(zEngine->ecs, e);
-            //     continue;
-            // }
-
-            // Vec2 tileCoords = tileToWorld(zEngine->map, collidedTile.idx);
-            // if (moveY > 0) {
-            //     eColComp->hitbox->y = tileCoords.y - eColComp->hitbox->h;
-            // } else if (moveY < 0) {
-            //     eColComp->hitbox->y = tileCoords.y + TILE_SIZE;
-            // }
-            // eVelComp->currVelocity.y = 0.0;
-        // }
-        posComp->y = eColComp->hitbox->y;
+        updateGridMembership(zEngine->collisionMng, e, posComp, velComp, colComp);
     }
 
     propagateSystemDirtiness(zEngine->ecs->depGraph->nodes[SYS_WORLD_COLLISIONS]);
