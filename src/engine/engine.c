@@ -2,6 +2,7 @@
 #include "collisionManager.h"
 #include "ecs.h"
 #include <SDL2/SDL_rect.h>
+#include <cstddef>
 
 void loadSettings(ZENg zEngine, const char *filePath) {
     // look for the file
@@ -289,6 +290,12 @@ void initLevel(ZENg zEngine, const char *levelFilePath) {
             Entity tank = instantiateTank(
                 zEngine, getTankPrefab(zEngine->prefabs, entityTypeStr), (Vec2){.x = x * TILE_SIZE, .y = y * TILE_SIZE}
             );
+            if (!HAS_COMPONENT(zEngine->ecs, tank, COLLISION_COMPONENT)) THROW_ERROR_AND_CONTINUE(
+                    "Failed to add collision component to spawned tank in initLevel()");
+            CollisionComponent *tankColComp = NULL;
+            GET_COMPONENT(zEngine->ecs, tank, COLLISION_COMPONENT, tankColComp, CollisionComponent);
+            registerEntityToSG(zEngine->collisionMng, tank, tankColComp);
+
             #ifdef DEBUG
                 printf("Instantiated tank of type %s at (%d, %d)\n", entityTypeStr, x, y);
             #endif
@@ -876,7 +883,9 @@ void worldCollisionSystem(ZENg zEngine, double_t deltaTime) {
         GET_COMPONENT(zEngine->ecs, e, POSITION_COMPONENT, posComp, PositionComponent);
 
         Uint8 numCollided = checkAndHandleWorldCollisions(zEngine, e);
-        updateGridMembership(zEngine->collisionMng, e, posComp, velComp, colComp);
+
+        // Between world collisions and entity collisions make sure the entities' spatial grid memberships are valid
+        updateGridMembership(zEngine->collisionMng, zEngine->ecs, e, posComp, velComp, colComp);
     }
 
     propagateSystemDirtiness(zEngine->ecs->depGraph->nodes[SYS_WORLD_COLLISIONS]);

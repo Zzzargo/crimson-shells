@@ -157,7 +157,7 @@ void populateHandlersTables(CollisionManager cm) {
 
 // =====================================================================================================================
 
-void insertEntityToSG(CollisionManager cm, Entity e, CollisionComponent *colComp) {
+void registerEntityToSG(CollisionManager cm, Entity e, CollisionComponent *colComp) {
     if (!cm) THROW_ERROR_AND_RETURN_VOID("Collision manager NULL in insertEntityToSG");
     if (!colComp) THROW_ERROR_AND_RETURN_VOID("Entity's colComp NULL in insertEntityToSG");
     SDL_Rect *hb = colComp->hitbox;
@@ -179,52 +179,93 @@ void insertEntityToSG(CollisionManager cm, Entity e, CollisionComponent *colComp
     // Insert into all covered cells
     for (Int32 x = startX; x <= endX; x++) {
         for (Int32 y = startY; y <= endY; y++) {
-            size_t idx = y * ARENA_WIDTH + x;
-            GridCell *cell = &cm->spatialGrid[idx];
-
-            if (cell->entityCount >= cell->capacity) {
-                // Reallocate the entities array for this cell
-                Entity *tmp = realloc(cell->entities, cell->capacity * 2);
-                if (!tmp) THROW_ERROR_AND_EXIT("Failed to reallocate a grid cell's entity array at insertion");
-                cell->capacity *= 2;
-            }
-            cell->entities[cell->entityCount++] = e;
+            size_t cellIdx = COL_GRID_INDEX(cm, x, y);
+            GridCell *cell = &cm->spatialGrid[cellIdx];
+            insertEntityToSGCell(e, cell);
         }
     }
 }
 
 // =====================================================================================================================
 
-void removeEntityFromSG(CollisionManager cm, ECS ecs, Entity e, CollisionComponent *colComp) {
-    for (size_t i = 0; i < colComp->numCells; i++) {
-        size_t cellIdx = colComp->cellIdxs[i];
-        size_t slot = colComp->entityArrIdx[i];
-
-        GridCell *cell = &cm->spatialGrid[cellIdx];
-
-        // Swap-remove
-        Entity swapped = cell->entities[--cell->entityCount];
-        cell->entities[slot] = swapped;
-
-        if (slot < cell->entityCount && swapped != e) {
-            CollisionComponent *swappedCol = NULL;
-            GET_COMPONENT(ecs, swapped, COLLISION_COMPONENT, swappedCol, CollisionComponent);
-
-            for (size_t j = 0; j < swappedCol->numCells; j++) {
-                if (swappedCol->cellIdxs[j] == cellIdx) {
-                    swappedCol->entityArrIdx[j] = slot;
-                    break;
-                }
-            }
-        }
+void insertEntityToSGCell(Entity e, GridCell *cell) {
+    // Check if another would fit
+    if (cell->entityCount >= cell->capacity) {
+        Entity *tmp = realloc(cell->entities, sizeof(Entity) * cell->capacity * 2);
+        if (!tmp) THROW_ERROR_AND_EXIT("Memory reallocation failed for the entities array of a spatial grid cell");
+        cell->entities = tmp;
+        cell->capacity *= 2;
     }
-    colComp->numCells = 0;
+
+    cell->entities[cell->entityCount++] = e;
+}
+
+// =====================================================================================================================
+
+void removeEntityFromSGCell(Entity e, GridCell *cell) {
+    // Swap delete
+    for (size_t entityIdx = 0; entityIdx < cell->entityCount; entityIdx++) {
+        if (cell->entities[entityIdx] != e) continue;
+
+        // Below is the case where the entity to remove is found
+        size_t last = --cell->entityCount;
+
+        if (last != entityIdx) {
+            Entity swapped = cell->entities[last];
+            cell->entities[entityIdx] = swapped;
+        }
+        return;
+    }
 }
 
 // =====================================================================================================================
 
 void updateGridMembership(
-    CollisionManager cm, Entity e, PositionComponent *posComp, VelocityComponent *velComp, CollisionComponent *colComp
-) {
+    CollisionManager cm, ECS ecs, Entity e,
+    PositionComponent *posComp, VelocityComponent *velComp, CollisionComponent *colComp) {
     // Get the changed grid coverage and delete/insert from corresponding cells
+    
+    SDL_Rect *hb = colComp->hitbox;
+    Vec2 pPos = velComp->predictedPos;
+    // Compute current and predicted coverage
+    Int32 curMinX = hb->x / TILE_SIZE;
+    Int32 curMinY = hb->y / TILE_SIZE;
+    Int32 curMaxX = (hb->x + hb->w - 1) / TILE_SIZE;
+    Int32 curMaxY = (hb->y + hb->h - 1) / TILE_SIZE;
+
+    Int32 nextMinX = pPos.x / TILE_SIZE;
+    Int32 nextMinY = pPos.y / TILE_SIZE;
+    Int32 nextMaxX = (pPos.x + hb->w - 1) / TILE_SIZE;
+    Int32 nextMaxY = (pPos.y + hb->h - 1) / TILE_SIZE;
+
+    // Clamp to grid boundaries
+    if (nextMaxX < 0 || nextMaxY < 0 || nextMinX >= ARENA_WIDTH || nextMinY >= ARENA_HEIGHT) return;
+    if (nextMinX < 0) nextMinX = 0;
+    if (nextMinY < 0) nextMinY = 0;
+    if (nextMaxX >= ARENA_WIDTH) nextMaxX = ARENA_WIDTH - 1;
+    if (nextMaxY >= ARENA_HEIGHT) nextMaxY = ARENA_HEIGHT - 1;
+
+    // Insert the entity in the new cells
+    for (Int32 y = nextMinY; y <= nextMaxY; y++) {
+        for (Int32 x = nextMinX; x <= nextMaxX; x++) {
+            // If this cell wasn’t part of the previous coverage - insert
+            if (x < curMinX || x > curMaxX || y < curMinY || y > curMaxY) {
+                size_t cellIdx = COL_GRID_INDEX(cm, x, y);
+                GridCell *cell = &cm->spatialGrid[cellIdx];
+                insertEntityToSGCell(e, cell);
+            }
+        }
+    }
+
+    // Delete the entity from the old cells
+    for (Int32 y = curMinY; y <= curMaxY; y++) {
+        for (Int32 x = curMinX; x <= curMaxX; x++) {
+            // If this cell won’t be part of the next coverage - remove
+            if (x < nextMinX || x > nextMaxX || y < nextMinY || y > nextMaxY) {
+                size_t cellIdx = COL_GRID_INDEX(cm, x, y);
+                GridCell *cell = &cm->spatialGrid[cellIdx];
+                removeEntityFromSGCell(e, cell);
+            }
+        }
+    }
 }

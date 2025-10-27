@@ -78,32 +78,39 @@ void projectileVsWorldColHandler(ZENg zEngine, Entity projectile, Tile *tile);
 void populateHandlersTables(CollisionManager cm);
 
 /**
- * Inserts an entity to the grid cells its hitbox spans on
+ * Inserts an entity to all the grid cells its hitbox spans on
  * @param cm the collision manager
  * @param e entity to be inserted
  * @param colComp the entity's collision component
+ * @note this function should be called whenever an entity with a collision component is spawned
  */
-void insertEntityToSG(CollisionManager cm, Entity e, CollisionComponent *colComp);
+void registerEntityToSG(CollisionManager cm, Entity e, CollisionComponent *colComp);
+
+/**
+ * Inserts an entity to the spatial grid cell
+ * @param e the entity to insert
+ * @param cell the spatial grid cell where to insert the entity
+ */
+void insertEntityToSGCell(Entity e, GridCell *cell);
 
 /*
- * Removes an entity from the grid cells it no longer stays on
- * @param cm the collision manager
- * @param ecs the ECS struct
+ * Removes an entity from the grid cell
  * @param e the entity to be removed
- * @param colComp the entity's collision component
+ * @param cell the spatial grid cell from which to remove the entity
  */
-void removeEntityFromSG(CollisionManager cm, ECS ecs, Entity e, CollisionComponent *colComp);
+void removeEntityFromSGCell(Entity e, GridCell *cell);
 
 /**
  * Updates the grid membership for an entity
  * @param cm the collision manager
+ * @param ecs the ECS
  * @param posComp the entity's position component to get previous frame position
  * @param velComp the entity's velocity component to get current frame position (after world collisions)
  * @param colComp the entity's collision component
  */
 void updateGridMembership(
-    CollisionManager cm, Entity e, PositionComponent *posComp, VelocityComponent *velComp, CollisionComponent *colComp
-);
+    CollisionManager cm, ECS ecs, Entity e,
+    PositionComponent *posComp, VelocityComponent *velComp, CollisionComponent *colComp);
 
 /**
  * Frees the memory allocated for the collision manager

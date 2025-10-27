@@ -129,8 +129,6 @@ typedef enum {
 #define MAX_CELLS_PER_ENTITY 8
 
 typedef struct {
-    size_t cellIdxs[MAX_CELLS_PER_ENTITY];  // Index of the cells the entity spans on in the spatial grid array
-    size_t entityArrIdx[MAX_CELLS_PER_ENTITY];  // Index of the owner entity in the cells it spans on
     SDL_Rect *hitbox;  // The square where the entity can touch others
     CollisionRole role;  // The role of the entity in the collision
     Uint8 isSolid;  // Indicates if entities can pass through
