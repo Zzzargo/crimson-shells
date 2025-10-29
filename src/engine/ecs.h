@@ -34,6 +34,27 @@ typedef Uint64 bitset;  // A bitset to indicate which components an entity has
 
 // ===============================================COMPONENTS============================================================
 
+/**
+ * Macro to get a component of a specific type for a given entity
+ * @param ecs pointer to the ECS
+ * @param entity the entity ID
+ * @param compType the type of the component to get (enum variable)
+ * @param outVar the variable to store the component pointer in (must be a pointer type)
+ * @param outVarType the type of the output variable (e.g., PositionComponent)
+ */
+
+#define HAS_COMPONENT(ecs, entity, compType) \
+    ((ecs)->componentsFlags[(entity)] & (1 << (compType)))
+
+#define GET_COMPONENT(ecs, entity, compType, outVar, outVarType) \
+    do { \
+        Uint64 page = (entity) / PAGE_SIZE; \
+        Uint64 idx  = (entity) % PAGE_SIZE; \
+        Uint64 denseIdx = (ecs)->components[(compType)].sparse[page][idx]; \
+        outVar = (outVarType *)((ecs)->components[(compType)].dense[denseIdx]); \
+    } while (0)
+
+
 // Available component types enum
 typedef enum {
     HEALTH_COMPONENT,
@@ -46,11 +67,12 @@ typedef enum {
     LIFETIME_COMPONENT,
     COLLISION_COMPONENT,
     STATE_TAG_COMPONENT,
+    ACTIVE_TAG_COMPONENT,
     RENDER_COMPONENT,
-    COMPONENT_COUNT  // Automatically counts
+    COMPONENT_COUNT  // Number of components the ECS currently supports
 } ComponentType;
 
-#define PAGE_SIZE 64  // Size of a page of a component's sparse array
+#define PAGE_SIZE 256  // Size of a page of a component's sparse array
 
 // General definition of a component with its sparse and dense arrays
 typedef struct {
@@ -65,6 +87,9 @@ typedef struct {
     Uint64 dirtyCount;  // Number of dirty entities
     Uint64 dirtyCapacity;  // Capacity of the dirty entities array
 } Component;
+
+// Boolean value to tell if an entity is active
+typedef Uint8 ActiveTagComponent;
 
 typedef struct {
     Int32 maxHealth; // Maximum health of the entity
@@ -99,14 +124,20 @@ typedef struct {
 typedef enum {
     COL_ACTOR,
     COL_BULLET,
-    COL_WALL,
     COL_ITEM,
+    COL_ROLE_COUNT  // Automatically counts
 } CollisionRole;
+
+// Maximum number of spatial grid cells an entity can span on
+#define MAX_CELLS_PER_ENTITY 8
 
 typedef struct {
     SDL_Rect *hitbox;  // The square where the entity can touch others
     CollisionRole role;  // The role of the entity in the collision
+    Uint16 coverageStart;  // Index in the spatial grid array of the upper left corner of the owner entity's coverage
+    Uint16 coverageEnd;  // Index in the spatial grid array of the bottom right corner of the owner entity's coverage
     Uint8 isSolid;  // Indicates if entities can pass through
+    Uint8 numCells;  // How many cells the entity spans on
 } CollisionComponent;
 
 typedef struct {

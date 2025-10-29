@@ -87,7 +87,7 @@
                         "focused": "gold",
                         "selected": "crimsondark"
                     },
-                    "onClick": "gameSettingsToSettings",
+                    "onClick": "controlsSettingsToSettings",
                     "focused": true
                 }
             ]

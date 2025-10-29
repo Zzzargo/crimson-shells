@@ -75,7 +75,8 @@ typedef struct UINode {
 } UINode;
 
 typedef struct UIContainer {
-    // Everything a container can describe is in the layout
+    SDL_Color bgColor;  // Background color
+    SDL_Texture *bgTexture;  // Background texture (image)
 } UIContainer;
 
 typedef struct UILabel {
@@ -112,7 +113,7 @@ typedef struct UIOptionCycle {
 } UIOptionCycle;
 
 // The UIManager is the root of the UI tree
-typedef struct UIManager {
+typedef struct uiMng {
     UINode *root;
     UINode *focusedNode;  // The node that is currently under focus (for navigation)
 
@@ -248,10 +249,12 @@ UILayout* UIcreateLayout(UILayoutType type, UIPadding padding, UIAlignment align
  * Creates a container UI node
  * @param rect the rectangle defining the container's position and size
  * @param layout the layout to be used for the container
+ * @param bgColor background color of the container
+ * @param bgTexture background texture of the container (image)
  * @return UINode* = pointer to the created container node
  * @note the returned container is created @ 0x0, so further positioning is needed
  */
-UINode* UIcreateContainer(SDL_Rect rect, UILayout *layout);
+UINode* UIcreateContainer(SDL_Rect rect, UILayout *layout, SDL_Color bgColor, SDL_Texture *bgTexture);
 
 /**
  * Creates a label UI node

@@ -2,14 +2,14 @@
 
 Uint32 TILE_SIZE = 0;
 
-Vec2 tileToWorld(Arena arena, Uint32 idx) {
+Vec2 tileToWorld(Uint32 idx) {
     return (Vec2){
         .x = (double_t)(idx % ARENA_WIDTH) * TILE_SIZE,
         .y = (double_t)(idx / ARENA_WIDTH) * TILE_SIZE
     };
 }
 
-Uint32 worldToTile(Arena arena, Vec2 pos) {
+Uint32 worldToTile(Vec2 pos) {
     Uint32 x = (Uint32)(round(pos.x / TILE_SIZE));
     Uint32 y = (Uint32)(round(pos.y / TILE_SIZE));
 

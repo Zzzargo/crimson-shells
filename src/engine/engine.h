@@ -7,6 +7,7 @@
 #include "displayManager.h"
 #include "arena.h"
 #include "uiManager.h"
+#include "collisionManager.h"
 
 struct statemng;  // forward declaration
 typedef struct statemng *StateManager;
@@ -19,11 +20,12 @@ typedef struct engine {
     HashMap prefabs;  // Pointer to the prefabs manager
     InputManager inputMng;  // Pointer to the input manager
     StateManager stateMng;  // Pointer to the state manager
+    CollisionManager collisionMng;  // Pointer to the collision manager
     ECS ecs;  // Pointer to the game ECS
     Arena map;  // Pointer to the arena structure
 } *ZENg;
 
-#include "../states/stateManager.h"  // stateManager needs the engine definition
+#include "../states/stateManager.h"
 
 /**
  * Loads the settings from a file
@@ -53,13 +55,14 @@ void clearLevel(ZENg zEngine);
 ZENg initGame();
 
 /**
- * Ensures the entities are aligned to the grid
+ * Updates real positions and ensures the entities are aligned to the grid
  * @param zEngine pointer to the engine
+ * @param deltaTime time since the last frame in seconds
  */
 void positionSystem(ZENg zEngine, double_t deltaTime);
 
 /**
- * Updates the entities' positions based on their velocity
+ * Updates the entities' (predicted) positions based on their velocity
  * @param zEngine pointer to the engine
  * @param deltaTime time since the last frame in seconds
  */
@@ -73,22 +76,21 @@ void velocitySystem(ZENg zEngine, double_t deltaTime);
 void lifetimeSystem(ZENg zEngine, double_t deltaTime);
 
 /**
- * Handles collisions between entities
+ * Checks and handles collisions between entities
  * @param zEngine pointer to the engine
- * @param AColComp pointer to the first collision component
- * @param BColComp pointer to the second collision component
- * @param AOwner the owner entity of the first collision component
- * @param BOwner the owner entity of the second collision component
+ * @param entity entity for which the collisions are checked
+ * @return the number of entities the current one has collided with (maybe will change to track them later)
  */
-void handleEntitiesCollision(ZENg zEngine, CollisionComponent *AColComp, CollisionComponent *BColComp, Entity AOwner, Entity BOwner);
+Uint8 checkAndHandleEntityCollisions(ZENg zEngine, Entity entity);
 
 /**
  * Passes the collision components to the collision handler
  * @param zEngine pointer to the engine
+ * @note works with the predicted position of entities, not the real one
  */
 void entityCollisionSystem(ZENg zEngine, double_t deltaTime);
 
-#ifdef DEBUG
+#ifdef DEBUGCOLLISIONS
 /**
  * Renders lines on margins of entities' hitboxes to visualize the collisions
  * @param zEngine pointer to the engine
@@ -97,17 +99,17 @@ void renderDebugCollision(ZENg zEngine);
 #endif
 
 /**
- * Checks whether a SDL_Rect (usually a hitbox) collides with the world (walls)
+ * Checks whether an entity collides with the world (walls mostly) and passes the colliders to a handling function
  * @param zEngine pointer to the engine
- * @param hitbox pointer to a SDL_Rect
- * @param collidedTile a pointer to a tile with which the entity collided
- * @return 1 if a collision was detected, 0 otherwise
+ * @param entity entity for which the collision is checker
+ * @return number of tiles the entity has collided with
  */
-Uint8 checkWorldCollision(ZENg zEngine, SDL_Rect *hitbox, Tile *collidedTile);
+Uint8 checkAndHandleWorldCollisions(ZENg zEngine, Entity entity);
 
 /**
  * Passes the collision components to the collision handler
  * @param zEngine pointer to the engine
+ * @note works with the predicted position of entities, not the real one
  */
 void worldCollisionSystem(ZENg zEngine, double_t deltaTime);
 
@@ -131,7 +133,7 @@ void weaponSystem(ZENg zEngine, double_t deltaTime);
  */
 void transformSystem(ZENg zEngine, double_t deltaTime);
 
-#ifdef DEBUG
+#ifdef DEBUGUI
 /**
  * Renders the UI node and its children with debug outlines
  * @param rdr pointer to the SDL_Renderer

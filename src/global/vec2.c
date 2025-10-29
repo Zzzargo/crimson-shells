@@ -19,3 +19,22 @@ Vec2 vec2_normalize(Vec2 v) {
     }
     return v;
 }
+
+/**
+ * =====================================================================================================================
+ */
+
+double vec2_to_angle(Vec2 v) {
+    // Flip Y axis because of SDL coordinate system
+    double angle = atan2(-v.y, v.x) * (180.0 / M_PI);
+
+    // Convert from "right is 0deg" to "up is 0deg"
+    angle -= 90.0;
+
+    // SDL_RenderCopyEx uses clockwise rotation => negate angle
+    angle = -angle;
+    
+    // Normalize to [0, 360)
+    if (angle < 0) angle += 360.0;
+    return angle;
+}

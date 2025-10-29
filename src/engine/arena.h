@@ -34,18 +34,16 @@ typedef struct arena {
 
 /**
  * Converts a tile's index to vector coordinates
- * @param arena pointer to the arena structure
  * @param idx the index of the tile
  * @return a Vec2 representing the tile's position in the arena
  */
-Vec2 tileToWorld(Arena arena, Uint32 idx);
+Vec2 tileToWorld(Uint32 idx);
 
 /**
  * Converts world coordinates to a tile index
- * @param arena pointer to the arena structure
  * @param pos the position in world coordinates
  * @return the index of the tile in the arena grid
  */
-Uint32 worldToTile(Arena arena, Vec2 pos);
+Uint32 worldToTile(Vec2 pos);
 
 #endif // ARENA_H

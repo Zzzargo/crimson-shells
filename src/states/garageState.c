@@ -4,12 +4,21 @@ void onEnterGarage(ZENg zEngine) {
     // Here the engine should fetch the player data from a savegame but it's not implemented yet so hardcode
 
     Entity playa = instantiateTank(
-        zEngine, getTankPrefab(zEngine->prefabs, "player"), (Vec2){
-            .x = (LOGICAL_WIDTH - TILE_SIZE * 2) / 2, .y = (LOGICAL_HEIGHT - TILE_SIZE * 2) / 2
-        }
+        zEngine, getTankPrefab(zEngine->prefabs, "player"), (Vec2){.x = 0, .y =0}
     );
 
     ECS ecs = zEngine->ecs;
+
+    Uint64 plPage = playa / PAGE_SIZE;
+    Uint64 plOffset = playa % PAGE_SIZE;
+    
+    // Make the player bigger in the garage
+    Uint64 plRendDenseIdx = ecs->components[RENDER_COMPONENT].sparse[plPage][plOffset];
+    RenderComponent *plRendComp = (RenderComponent *)ecs->components[RENDER_COMPONENT].dense[plRendDenseIdx];
+    plRendComp->destRect->w = TILE_SIZE * 5;
+    plRendComp->destRect->h = TILE_SIZE * 5;
+    plRendComp->destRect->x = (LOGICAL_WIDTH - plRendComp->destRect->w) / 2;
+    plRendComp->destRect->y = (LOGICAL_HEIGHT - plRendComp->destRect->h) / 2;
 
     Entity mainGunID = createEntity(ecs, STATE_GARAGE);
     WeaponPrefab *mainGunPrefab = getWeaponPrefab(zEngine->prefabs, "Bigfella");
@@ -29,7 +38,7 @@ void onEnterGarage(ZENg zEngine) {
     );
     addComponent(ecs, secGun1ID, RENDER_COMPONENT, (void *)secGun1Render);
     // The list contains pointers to the weapon entities
-    CDLLNode *weapList = initList((void *)(&ecs->activeEntities[ecs->entityCount - 1]));
+    CDLLNode *weapList = initList((GenericData){.u64 = secGun1ID}, DATA_U64);
 
     Entity secGun2ID = createEntity(ecs, STATE_GARAGE);
     WeaponPrefab *secGun2Prefab = getWeaponPrefab(zEngine->prefabs, "M240C");
@@ -39,7 +48,7 @@ void onEnterGarage(ZENg zEngine) {
         getTexture(zEngine->resources, secGun2Prefab->iconPath), 10, 10, 128, 64, 0
     );
     addComponent(ecs, secGun2ID, RENDER_COMPONENT, (void *)secGun2Render);
-    CDLLInsertLast(weapList, (void *)(&ecs->activeEntities[ecs->entityCount - 1]));
+    CDLLInsertLast(weapList, (GenericData){.u64 = secGun2ID}, DATA_U64);
 
     Entity hullID = createEntity(ecs, STATE_GARAGE);
     Entity moduleID = createEntity(ecs, STATE_GARAGE);
@@ -77,8 +86,8 @@ ProviderResult* getMainGuns(ZENg zEngine) {
     Uint64 loadoutDenseIdx = zEngine->ecs->components[LOADOUT_COMPONENT].sparse[page][offset];
     LoadoutComponent *loadout = (LoadoutComponent *)zEngine->ecs->components[LOADOUT_COMPONENT].dense[loadoutDenseIdx];
 
-    Entity secGun1ID = *(Entity *)(loadout->currSecondaryGun->data);
-    Entity secGun2ID = *(Entity *)(loadout->currSecondaryGun->next->data);
+    Entity secGun1ID = (loadout->currSecondaryGun->data.u64);
+    Entity secGun2ID = (loadout->currSecondaryGun->next->data.u64);
 
     guns[0] = loadout->primaryGun;
     guns[1] = secGun1ID;
