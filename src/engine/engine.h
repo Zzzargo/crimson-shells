@@ -90,7 +90,7 @@ Uint8 checkAndHandleEntityCollisions(ZENg zEngine, Entity entity);
  */
 void entityCollisionSystem(ZENg zEngine, double_t deltaTime);
 
-#ifdef DEBUG
+#ifdef DEBUGCOLLISIONS
 /**
  * Renders lines on margins of entities' hitboxes to visualize the collisions
  * @param zEngine pointer to the engine
@@ -133,7 +133,7 @@ void weaponSystem(ZENg zEngine, double_t deltaTime);
  */
 void transformSystem(ZENg zEngine, double_t deltaTime);
 
-#ifdef DEBUG
+#ifdef DEBUGUI
 /**
  * Renders the UI node and its children with debug outlines
  * @param rdr pointer to the SDL_Renderer

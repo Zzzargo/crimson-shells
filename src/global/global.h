@@ -1,10 +1,10 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
-// #define DEBUG
- #define DEBUGPP
+ #define DEBUG
+// #define DEBUGPP
 // #define DEBUGSYSTEMS
-#define DEBUGCOLLISIONS
+ #define DEBUGCOLLISIONS
 // #define DEBUGUI
 
 #include <SDL2/SDL.h>

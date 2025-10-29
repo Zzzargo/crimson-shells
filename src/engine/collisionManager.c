@@ -182,6 +182,7 @@ void projectileVsActorColHandler(ZENg zEngine, Entity actor, Entity projectile) 
     HealthComponent *healthComp = NULL;
     GET_COMPONENT(zEngine->ecs, actor, HEALTH_COMPONENT, healthComp, HealthComponent);
 
+    if (projComp->friendly && actor == PLAYER_ID) return;
     healthComp->currentHealth -= projComp->dmg;
     markComponentDirty(zEngine->ecs, actor, HEALTH_COMPONENT);
 

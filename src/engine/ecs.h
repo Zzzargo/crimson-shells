@@ -67,8 +67,9 @@ typedef enum {
     LIFETIME_COMPONENT,
     COLLISION_COMPONENT,
     STATE_TAG_COMPONENT,
+    ACTIVE_TAG_COMPONENT,
     RENDER_COMPONENT,
-    COMPONENT_COUNT  // Automatically counts
+    COMPONENT_COUNT  // Number of components the ECS currently supports
 } ComponentType;
 
 #define PAGE_SIZE 256  // Size of a page of a component's sparse array
@@ -86,6 +87,9 @@ typedef struct {
     Uint64 dirtyCount;  // Number of dirty entities
     Uint64 dirtyCapacity;  // Capacity of the dirty entities array
 } Component;
+
+// Boolean value to tell if an entity is active
+typedef Uint8 ActiveTagComponent;
 
 typedef struct {
     Int32 maxHealth; // Maximum health of the entity

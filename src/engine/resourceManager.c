@@ -178,6 +178,7 @@ void freeResourceManager(HashMap *resMng) {
             entry = next;
         }
     }
+    free((*resMng)->entries);
     free(*resMng);
     *resMng = NULL;
 }

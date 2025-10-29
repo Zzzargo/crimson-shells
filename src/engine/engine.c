@@ -700,6 +700,9 @@ Uint8 checkAndHandleEntityCollisions(ZENg zEngine, Entity entity) {
                             );
                         }
                         numCollided++;
+
+                        // Prevent further iterations if the entity was deleted as an outcome of the collision handling
+                        if (!HAS_COMPONENT(zEngine->ecs, entity, ACTIVE_TAG_COMPONENT)) return numCollided;
                     }
                 }
             }
@@ -794,6 +797,9 @@ Uint8 checkAndHandleWorldCollisions(ZENg zEngine, Entity entity) {
                 if (zEngine->collisionMng->eVsWHandlers[colComp->role])
                     zEngine->collisionMng->eVsWHandlers[colComp->role](zEngine, entity, neighTile);
                 numCollided++;
+
+                // Prevent further iterations if the entity was deleted as an outcome of collision handling
+                if (!HAS_COMPONENT(zEngine->ecs, entity, ACTIVE_TAG_COMPONENT)) return numCollided;
             }
         }
     }
@@ -832,6 +838,7 @@ void worldCollisionSystem(ZENg zEngine, double_t deltaTime) {
         Uint8 numCollided = checkAndHandleWorldCollisions(zEngine, e);
 
         // Between world collisions and entity collisions make sure the entities' spatial grid memberships are valid
+        if (!HAS_COMPONENT(zEngine->ecs, e, ACTIVE_TAG_COMPONENT)) continue;
         updateGridMembership(zEngine->collisionMng, e, velComp, colComp);
     }
 
@@ -1021,7 +1028,7 @@ void renderSystem(ZENg zEngine, double_t deltaTime) {
         );
     }
     
-    #ifdef DEBUG
+    #ifdef DEBUGCOLLISIONS
         if (currState->type == STATE_PLAYING || currState->type == STATE_PAUSED) renderDebugCollision(zEngine);
     #endif
 
@@ -1036,7 +1043,7 @@ void renderSystem(ZENg zEngine, double_t deltaTime) {
         SDL_SetRenderDrawBlendMode(zEngine->display->renderer, SDL_BLENDMODE_NONE); // Reset if needed
     }
 
-    #ifdef DEBUG
+    #ifdef DEBUGUI
         // Render UI nodes with debug outlines
         if (zEngine->uiManager->root) {
             UIdebugRenderNode(zEngine->display->renderer, zEngine->uiManager, zEngine->uiManager->root);
@@ -1146,7 +1153,9 @@ void renderDebugGrid(ZENg zEngine) {
         );
     }
 }
+#endif
 
+#ifdef DEBUGCOLLISIONS
 void renderDebugCollision(ZENg zEngine) {
     // Draw entity hitboxes in red and grid coverage in yellow
     Component colComps = zEngine->ecs->components[COLLISION_COMPONENT];

@@ -252,6 +252,9 @@ void freePrefabsManager(HashMap *prefabmng) {
                     if (wp->name) {
                         free(wp->name);
                     }
+                    if (wp->iconPath) {
+                        free(wp->iconPath);
+                    }
                     free(wp);
                     break;
                 }
@@ -262,6 +265,9 @@ void freePrefabsManager(HashMap *prefabmng) {
                     }
                     if (tp->name) {
                         free(tp->name);
+                    }
+                    if (tp->iconPath) {
+                        free(tp->iconPath);
                     }
                     free(tp);
                     break;
@@ -285,6 +291,7 @@ void freePrefabsManager(HashMap *prefabmng) {
         }
     }
 
+    free((*prefabmng)->entries);
     free(*prefabmng);
     *prefabmng = NULL;
 }

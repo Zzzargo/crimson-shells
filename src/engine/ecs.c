@@ -137,6 +137,11 @@ Entity createEntity(ECS ecs, StateTagComponent state) {
     *stateTag = state; 
     addComponent(ecs, entitty, STATE_TAG_COMPONENT, (void*)stateTag);
 
+    ActiveTagComponent *activeTag = calloc(1, sizeof(ActiveTagComponent));
+    if (!activeTag) THROW_ERROR_AND_EXIT("Failed allocating memory for the active tag of an entity");
+    *activeTag = 1;
+    addComponent(ecs, entitty, ACTIVE_TAG_COMPONENT, activeTag);
+
     #ifdef DEBUG
         printf("Created entity %lu belonging to state %d\n", entitty, *stateTag);
     #endif
