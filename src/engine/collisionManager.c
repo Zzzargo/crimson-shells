@@ -49,7 +49,14 @@ void freeCollisionManager(CollisionManager cm) {
 
 void registerEVsEHandler(CollisionManager cm, CollisionRole roleA, CollisionRole roleB, entityVsEntityHandler handler) {
     if (roleA >= COL_ROLE_COUNT || roleB >= COL_ROLE_COUNT) return;
+
+    // This matrix should be symmetric
     cm->eVsEHandlers[roleA][roleB] = handler;
+    cm->eVsEHandlers[roleB][roleA] = handler;
+
+#if defined(DEBUGCOLLISION) && defined(DEBUGPP)
+    printf("Registered Entity VS Entity collision handler for roles %d | %d : %p\n", roleA, roleB, handler);
+#endif
 }
 
 // =====================================================================================================================
@@ -57,15 +64,19 @@ void registerEVsEHandler(CollisionManager cm, CollisionRole roleA, CollisionRole
 void registerEVsWHandler(CollisionManager cm, CollisionRole role, entityVsWorldHandler handler) {
     if (role >= COL_ROLE_COUNT) return;
     cm->eVsWHandlers[role] = handler;
+
+#if defined(DEBUGCOLLISION) && defined(DEBUGPP)
+    printf("Registered Entity VS World collision handler for role %d : %p\n", role, handler);
+#endif
 }
 
 // =====================================================================================================================
 
 void normalizeRoles(Entity *A, Entity *B, CollisionComponent **colCompA, CollisionComponent **colCompB) {
     if ((*colCompA)->role > (*colCompB)->role) {
-        Entity *tmp = A;
+        Entity tmp = *A;
         *A = *B;
-        *B = *tmp;
+        *B = tmp;
 
         CollisionComponent *tmpComp = *colCompA;
         *colCompA = *colCompB;
@@ -76,9 +87,11 @@ void normalizeRoles(Entity *A, Entity *B, CollisionComponent **colCompA, Collisi
 // =====================================================================================================================
 
 void actorVsWorldColHandler(ZENg zEngine, Entity actor, Tile *tile) {
-#ifdef DEBUGPP
-    printf("[WORLD COLLISION SYSTEM] Actor VS World collision: Entity %lu | Tile %d", actor, tile->type);
+#ifdef DEBUGCOLLISIONS
+    printf("[WORLD COLLISION SYSTEM] Actor VS World collision: Entity %lu | Tile type %d\n", actor, tile->type);
 #endif
+    if (tile->isWalkable) return;  // Move freely
+
     if (!HAS_COMPONENT(zEngine->ecs, actor, COLLISION_COMPONENT))
         THROW_ERROR_AND_RETURN_VOID("Actor with invalid colComp in actorVsWorldColHandler");
     CollisionComponent *aColComp = NULL;
@@ -100,8 +113,8 @@ void actorVsWorldColHandler(ZENg zEngine, Entity actor, Tile *tile) {
     aVelComp->currVelocity.x = 0.0;
     aVelComp->predictedPos.x = aColComp->hitbox->x;
 
-#ifdef DEBUGPP
-    printf("Clamped entity %lu on X axis\n", actor);
+#ifdef DEBUGCOLLISIONS
+    printf("[WORLD COLLISION SYSTEM] Clamped entity %lu on X axis\n", actor);
 #endif
 
     // Resolve Y-Axis wall collisions
@@ -116,14 +129,18 @@ void actorVsWorldColHandler(ZENg zEngine, Entity actor, Tile *tile) {
     }
     aVelComp->currVelocity.y = 0.0;
     aVelComp->predictedPos.y = aColComp->hitbox->y;
-#ifdef DEBUGPP
-    printf("Clamped entity %lu on Y axis\n", actor);
+#if defined(DEBUGCOLLISIONS) && defined(DEBUGPP)
+    printf("[WORLD COLLIISON SYSTEM] Clamped entity %lu on Y axis\n", actor);
 #endif
 }
 
 // =====================================================================================================================
 
 void projectileVsWorldColHandler(ZENg zEngine, Entity projectile, Tile *tile) {
+#ifdef DEBUGCOLLISIONS
+    printf("[WORLD COLLISION SYSTEM] Projectile VS World collision: Entity %lu | Tile %d\n", projectile, tile->type);
+#endif
+    if (!tile->isSolid) return;  // Bullet passes through this wall
     if (!HAS_COMPONENT(zEngine->ecs, projectile, PROJECTILE_COMPONENT))
         THROW_ERROR_AND_RETURN_VOID("Projectile entity without projectile component in projectileVsWorldCollision");
      ProjectileComponent *projComp = NULL;
@@ -150,9 +167,33 @@ void projectileVsWorldColHandler(ZENg zEngine, Entity projectile, Tile *tile) {
 
 // =====================================================================================================================
 
+void projectileVsActorColHandler(ZENg zEngine, Entity actor, Entity projectile) {
+#ifdef DEBUGCOLLISIONS
+    printf("[ENTITY COLLISION SYSTEM] Projectile(%lu) VS Actor(%lu) collision\n", actor, projectile);
+#endif
+    if (!HAS_COMPONENT(zEngine->ecs, projectile, PROJECTILE_COMPONENT)) THROW_ERROR_AND_RETURN_VOID(
+            "Projectile without projectile component in projectileVsActorColHandler\n"
+        );
+    if (!HAS_COMPONENT(zEngine->ecs, actor, HEALTH_COMPONENT)) THROW_ERROR_AND_RETURN_VOID(
+            "Actor without health component in projectileVsActorColHandler\n"
+        );
+    ProjectileComponent *projComp = NULL;
+    GET_COMPONENT(zEngine->ecs, projectile, PROJECTILE_COMPONENT, projComp, ProjectileComponent);
+    HealthComponent *healthComp = NULL;
+    GET_COMPONENT(zEngine->ecs, actor, HEALTH_COMPONENT, healthComp, HealthComponent);
+
+    healthComp->currentHealth -= projComp->dmg;
+    markComponentDirty(zEngine->ecs, actor, HEALTH_COMPONENT);
+
+    deleteEntity(zEngine->ecs, projectile);
+}
+
+// =====================================================================================================================
+
 void populateHandlersTables(CollisionManager cm) {
     registerEVsWHandler(cm, COL_ACTOR, &actorVsWorldColHandler);
     registerEVsWHandler(cm, COL_BULLET, &projectileVsWorldColHandler);
+    registerEVsEHandler(cm, COL_BULLET, COL_ACTOR, &projectileVsActorColHandler);
 }
 
 // =====================================================================================================================
@@ -163,7 +204,7 @@ void registerEntityToSG(CollisionManager cm, Entity e, CollisionComponent *colCo
     SDL_Rect *hb = colComp->hitbox;
     if (!hb) THROW_ERROR_AND_RETURN_VOID("Entity's hitbox NULL in insertEntityToSG");
 
-    // Compute the tile range that the entity covers
+    // Compute the tile range that the entity covers. At instantiation the hitbox corresponds to the position component
     Int32 startX = hb->x / TILE_SIZE;
     Int32 startY = hb->y / TILE_SIZE;
     Int32 endX = (hb->x + hb->w) / TILE_SIZE;
@@ -175,6 +216,14 @@ void registerEntityToSG(CollisionManager cm, Entity e, CollisionComponent *colCo
     if (startY < 0) startY = 0;
     if (endX >= ARENA_WIDTH) endX = ARENA_WIDTH - 1;
     if (endY >= ARENA_HEIGHT) endY = ARENA_HEIGHT - 1;
+
+    colComp->coverageStart = (Uint16)COL_GRID_INDEX(cm, startX, startY);
+    colComp->coverageEnd = (Uint16)COL_GRID_INDEX(cm, endX, endY);
+
+#ifdef DEBUGCOLLISIONS
+    fprintf(stderr, "[ENTITY COLLISION SYSTEM] Registering entity %lu to spatial grid: y:%d-%d, x:%d-%d\n",
+            e, startY, endY, startX, endX);
+#endif
 
     // Insert into all covered cells
     for (Int32 x = startX; x <= endX; x++) {
@@ -220,50 +269,60 @@ void removeEntityFromSGCell(Entity e, GridCell *cell) {
 
 // =====================================================================================================================
 
-void updateGridMembership(
-    CollisionManager cm, ECS ecs, Entity e,
-    PositionComponent *posComp, VelocityComponent *velComp, CollisionComponent *colComp) {
+void updateGridMembership(CollisionManager cm, Entity e, VelocityComponent *velComp, CollisionComponent *colComp) {
     // Get the changed grid coverage and delete/insert from corresponding cells
     
     SDL_Rect *hb = colComp->hitbox;
-    Vec2 pPos = velComp->predictedPos;
-    // Compute current and predicted coverage
-    Int32 curMinX = hb->x / TILE_SIZE;
-    Int32 curMinY = hb->y / TILE_SIZE;
-    Int32 curMaxX = (hb->x + hb->w - 1) / TILE_SIZE;
-    Int32 curMaxY = (hb->y + hb->h - 1) / TILE_SIZE;
+    Vec2 currPos = velComp->predictedPos;
+    
+    Uint16 prevMinX = colComp->coverageStart % ARENA_WIDTH;
+    Uint16 prevMinY = colComp->coverageStart / ARENA_WIDTH;
+    Uint16 prevMaxX = colComp->coverageEnd % ARENA_WIDTH;
+    Uint16 prevMaxY = colComp->coverageEnd / ARENA_WIDTH;
 
-    Int32 nextMinX = pPos.x / TILE_SIZE;
-    Int32 nextMinY = pPos.y / TILE_SIZE;
-    Int32 nextMaxX = (pPos.x + hb->w - 1) / TILE_SIZE;
-    Int32 nextMaxY = (pPos.y + hb->h - 1) / TILE_SIZE;
+    Int32 currMinX = currPos.x / TILE_SIZE;
+    Int32 currMinY = currPos.y / TILE_SIZE;
+    Int32 currMaxX = (currPos.x + hb->w + TILE_SIZE - 1) / TILE_SIZE;
+    Int32 currMaxY = (currPos.y + hb->h + TILE_SIZE - 1) / TILE_SIZE;
 
     // Clamp to grid boundaries
-    if (nextMaxX < 0 || nextMaxY < 0 || nextMinX >= ARENA_WIDTH || nextMinY >= ARENA_HEIGHT) return;
-    if (nextMinX < 0) nextMinX = 0;
-    if (nextMinY < 0) nextMinY = 0;
-    if (nextMaxX >= ARENA_WIDTH) nextMaxX = ARENA_WIDTH - 1;
-    if (nextMaxY >= ARENA_HEIGHT) nextMaxY = ARENA_HEIGHT - 1;
+    if (currMaxX < 0 || currMaxY < 0 || currMinX >= ARENA_WIDTH || currMinY >= ARENA_HEIGHT) return;
+    if (currMinX < 0) currMinX = 0;
+    if (currMinY < 0) currMinY = 0;
+    if (currMaxX >= ARENA_WIDTH) currMaxX = ARENA_WIDTH - 1;
+    if (currMaxY >= ARENA_HEIGHT) currMaxY = ARENA_HEIGHT - 1;
+
+    // Update current coverage
+    colComp->coverageStart = COL_GRID_INDEX(cm, currMinX, currMinY);
+    colComp->coverageEnd = COL_GRID_INDEX(cm, currMaxX, currMaxY);
 
     // Insert the entity in the new cells
-    for (Int32 y = nextMinY; y <= nextMaxY; y++) {
-        for (Int32 x = nextMinX; x <= nextMaxX; x++) {
+    for (Int32 y = currMinY; y <= currMaxY; y++) {
+        for (Int32 x = currMinX; x <= currMaxX; x++) {
             // If this cell wasn’t part of the previous coverage - insert
-            if (x < curMinX || x > curMaxX || y < curMinY || y > curMaxY) {
+            if (x < prevMinX || x > prevMaxX || y < prevMinY || y > prevMaxY) {
                 size_t cellIdx = COL_GRID_INDEX(cm, x, y);
                 GridCell *cell = &cm->spatialGrid[cellIdx];
+
+#ifdef DEBUGCOLLISIONS
+                printf("[ENTITY COLLISION SYSTEM] Inserting entity %lu to cell (y=%d, x=%d)\n", e, y, x);
+#endif
+
                 insertEntityToSGCell(e, cell);
             }
         }
     }
 
     // Delete the entity from the old cells
-    for (Int32 y = curMinY; y <= curMaxY; y++) {
-        for (Int32 x = curMinX; x <= curMaxX; x++) {
-            // If this cell won’t be part of the next coverage - remove
-            if (x < nextMinX || x > nextMaxX || y < nextMinY || y > nextMaxY) {
+    for (Int32 y = prevMinY; y <= prevMaxY; y++) {
+        for (Int32 x = prevMinX; x <= prevMaxX; x++) {
+            // If this cell won’t be part of the current coverage - remove
+            if (x < currMinX || x > currMaxX || y < currMinY || y > currMaxY) {
                 size_t cellIdx = COL_GRID_INDEX(cm, x, y);
                 GridCell *cell = &cm->spatialGrid[cellIdx];
+#ifdef DEBUGCOLLISIONS
+                printf("[ENTITY COLLISION SYSTEM] Removing entity %lu from cell (y=%d, x=%d)\n", e, y, x);
+#endif
                 removeEntityFromSGCell(e, cell);
             }
         }

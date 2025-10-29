@@ -132,6 +132,8 @@ Entity instantiateTank(ZENg zEngine, TankPrefab *prefab, Vec2 position) {
         posComp->x, posComp->y, colComp->hitbox->w, colComp->hitbox->h, 1
     );
     addComponent(zEngine->ecs, id, RENDER_COMPONENT, (void *)renderComp);
+
+    return id;
 }
 
 /**
@@ -200,6 +202,7 @@ void spawnBulletProjectile( ZENg zEngine, Entity shooter, int bulletW, int bulle
         0, COL_BULLET
     );
     addComponent(zEngine->ecs, bulletID, COLLISION_COMPONENT, (void *)bulletColl);
+    registerEntityToSG(zEngine->collisionMng, bulletID, bulletColl);
 
     RenderComponent *bulletRender = createRenderComponent(
         texture, (int)bulletPos->x, (int)bulletPos->y,

@@ -72,6 +72,14 @@ void actorVsWorldColHandler(ZENg zEngine, Entity actor, Tile *tile);
 void projectileVsWorldColHandler(ZENg zEngine, Entity projectile, Tile *tile);
 
 /**
+ * Handles the collision of a projectile with an actor
+ * @param zEngine the engine struct
+ * @param projectile the projectile entity ID
+ * @param actor the actor entity ID
+ */
+void projectileVsActorColHandler(ZENg zEngine, Entity projectile, Entity actor);
+
+/**
  * Populates the collision handlers tables for the collision manager
  * @param cm pointer to the collision manager
  */
@@ -101,16 +109,13 @@ void insertEntityToSGCell(Entity e, GridCell *cell);
 void removeEntityFromSGCell(Entity e, GridCell *cell);
 
 /**
- * Updates the grid membership for an entity
+ * Inserts the entity in the newly occupied cells and deletes it from the no longer occupied ones
  * @param cm the collision manager
- * @param ecs the ECS
- * @param posComp the entity's position component to get previous frame position
  * @param velComp the entity's velocity component to get current frame position (after world collisions)
  * @param colComp the entity's collision component
  */
 void updateGridMembership(
-    CollisionManager cm, ECS ecs, Entity e,
-    PositionComponent *posComp, VelocityComponent *velComp, CollisionComponent *colComp);
+    CollisionManager cm, Entity e, VelocityComponent *velComp, CollisionComponent *colComp);
 
 /**
  * Frees the memory allocated for the collision manager

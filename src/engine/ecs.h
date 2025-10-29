@@ -120,7 +120,6 @@ typedef struct {
 typedef enum {
     COL_ACTOR,
     COL_BULLET,
-    COL_WALL,
     COL_ITEM,
     COL_ROLE_COUNT  // Automatically counts
 } CollisionRole;
@@ -131,6 +130,8 @@ typedef enum {
 typedef struct {
     SDL_Rect *hitbox;  // The square where the entity can touch others
     CollisionRole role;  // The role of the entity in the collision
+    Uint16 coverageStart;  // Index in the spatial grid array of the upper left corner of the owner entity's coverage
+    Uint16 coverageEnd;  // Index in the spatial grid array of the bottom right corner of the owner entity's coverage
     Uint8 isSolid;  // Indicates if entities can pass through
     Uint8 numCells;  // How many cells the entity spans on
 } CollisionComponent;

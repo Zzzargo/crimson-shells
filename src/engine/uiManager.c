@@ -328,7 +328,7 @@ void UIinsertNode(UIManager uiManager, UINode *parent, UINode *newNode) {
     } else {
         UIaddChild(parent, newNode);
     }
-    #ifdef DEBUG
+    #ifdef DEBUGUI
         printf("Added new UI node of type %d to parent node %d\n", newNode->type, parent ? parent->type : -1);
     #endif
 }
@@ -653,7 +653,7 @@ void UIunmarkNodeDirty(UIManager uiManager) {
 void UIrenderNode(SDL_Renderer *rdr, UINode *node) {
     if (!node) return;
 
-    #ifdef DEBUGPP
+    #ifdef DEBUGUI
         // Guard against the empty UI tree
         if (node->rect) printf(
             "Rendering UI node of type %d (x=%d, y=%d, w=%d, h=%d)\n",

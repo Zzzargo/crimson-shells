@@ -1,8 +1,10 @@
 #include "engine.h"
+#include "arena.h"
 #include "collisionManager.h"
 #include "ecs.h"
+#include <SDL2/SDL_blendmode.h>
 #include <SDL2/SDL_rect.h>
-#include <cstddef>
+#include <SDL2/SDL_render.h>
 
 void loadSettings(ZENg zEngine, const char *filePath) {
     // look for the file
@@ -297,7 +299,7 @@ void initLevel(ZENg zEngine, const char *levelFilePath) {
             registerEntityToSG(zEngine->collisionMng, tank, tankColComp);
 
             #ifdef DEBUG
-                printf("Instantiated tank of type %s at (%d, %d)\n", entityTypeStr, x, y);
+                printf("Instantiated tank of type %s at (%d, %d)\n", entityTypeStr, y, x);
             #endif
         }
     }
@@ -649,96 +651,29 @@ void lifetimeSystem(ZENg zEngine, double_t deltaTime) {
  * =====================================================================================================================
  */
 
-void handleEntitiesCollision(
-    ZENg zEngine, CollisionComponent *AColComp, CollisionComponent *BColComp, Entity AOwner, Entity BOwner
-) {
-    Entity bulletID, targetID;
-    CollisionComponent *bulletColComp, *targetColComp;
-    ProjectileComponent *projComp;
-
-    Uint64 APage = AOwner / PAGE_SIZE;
-    Uint64 AIndex = AOwner % PAGE_SIZE;
-    Uint64 BPage = BOwner / PAGE_SIZE;
-    Uint64 BIndex = BOwner % PAGE_SIZE;
-
-    if (AColComp->role == COL_ACTOR && BColComp->role == COL_ACTOR) {
-        Uint64 AVelDenseIdx = zEngine->ecs->components[VELOCITY_COMPONENT].sparse[APage][AIndex];
-        return;
-    }
-
-    Uint64 ADenseIndex = zEngine->ecs->components[PROJECTILE_COMPONENT].sparse[APage][AIndex];
-    ProjectileComponent *AProjComp =
-    (ProjectileComponent *)(zEngine->ecs->components[PROJECTILE_COMPONENT].dense[ADenseIndex]);
-
-    Uint64 BDenseIndex = zEngine->ecs->components[PROJECTILE_COMPONENT].sparse[BPage][BIndex];
-    ProjectileComponent *BProjComp =
-    (ProjectileComponent *)(zEngine->ecs->components[PROJECTILE_COMPONENT].dense[BDenseIndex]);
-
-    // if a bullet hits a solid entity, delete the bullet and do damage
-    if (AColComp->role == COL_BULLET && BColComp->isSolid && BOwner != PLAYER_ID && AProjComp) {
-        Uint64 HPage = BOwner / PAGE_SIZE;
-        Uint64 HIdx = BOwner % PAGE_SIZE;
-        Uint64 HDenseIdx = zEngine->ecs->components[HEALTH_COMPONENT].sparse[HPage][HIdx];
-        HealthComponent *actorHealth = (HealthComponent *)(zEngine->ecs->components[HEALTH_COMPONENT].dense[HDenseIdx]);
-        if (actorHealth && actorHealth->active) {
-            actorHealth->currentHealth -= AProjComp->dmg;
-            markComponentDirty(zEngine->ecs, BOwner, HEALTH_COMPONENT);
-
-            #ifdef DEBUG
-                printf("Bullet (%lu) takes %u health from entity %lu\n", AOwner, AProjComp->dmg, BOwner);
-            #endif
-        }
-        deleteEntity(zEngine->ecs, AOwner);  // delete the bullet
-    } else if (BColComp->role == COL_BULLET && AColComp->isSolid && AOwner != PLAYER_ID && BProjComp) {
-        Uint64 HPage = AOwner / PAGE_SIZE;
-        Uint64 HIdx = AOwner % PAGE_SIZE;
-        Uint64 HDenseIdx = zEngine->ecs->components[HEALTH_COMPONENT].sparse[HPage][HIdx];
-        
-        HealthComponent *actorHealth = (HealthComponent *)(zEngine->ecs->components[HEALTH_COMPONENT].dense[HDenseIdx]);
-        if (actorHealth && actorHealth->active) {
-            actorHealth->currentHealth -= BProjComp->dmg;
-            markComponentDirty(zEngine->ecs, AOwner, HEALTH_COMPONENT);
-            #ifdef DEBUG
-                printf("Bullet (%lu) takes %u health from entity %lu\n", BOwner, BProjComp->dmg, AOwner);
-            #endif
-        }
-        deleteEntity(zEngine->ecs, BOwner);  // delete the bullet
-    }
-}
-
-/**
- * =====================================================================================================================
- */
-
 Uint8 checkAndHandleEntityCollisions(ZENg zEngine, Entity entity) {
     CollisionComponent *colComp = NULL;
     GET_COMPONENT(zEngine->ecs, entity, COLLISION_COMPONENT, colComp, CollisionComponent);
     SDL_Rect *hitbox = colComp->hitbox;
 
-    // For entities bigger than one tile. consider the base the top-left tile
-    Uint32 tileX = (Uint32)(hitbox->x / TILE_SIZE);
-    Uint32 tileY = (Uint32)(hitbox->y / TILE_SIZE);
-    int eWidth = hitbox->w / TILE_SIZE;
-    int eHeight = hitbox->h / TILE_SIZE;
-    Int32 dxMax = eWidth + 1;
-    Int32 dyMax = eHeight + 1;
+    Uint16 minX = colComp->coverageStart % ARENA_WIDTH;
+    Uint16 minY = colComp->coverageStart / ARENA_WIDTH;
+    Uint16 maxX = colComp->coverageEnd % ARENA_WIDTH;
+    Uint16 maxY = colComp->coverageEnd / ARENA_WIDTH;
+
+#ifdef DEBUGCOLLISIONS
+    printf("[ENTITY COLLISION SYSTEM] Entity %lu spans over (y:%d-%d, x:%d-%d)\n", entity, minY, maxY, minX, maxX);
+#endif
 
     Uint8 numCollided = 0;
 
-    for (Int32 dx = -1; dx < dxMax; dx++) {
-        for (Int32 dy = -1; dy < dyMax; dy++) {
-            Uint32 neighX = (Int32)tileX + dx;
-            Uint32 neighY = (Int32)tileY + dy;
-
-            if (dx == 0 && dy == 0) continue;  // Skip the tile the entity is currently on
-
-            if (neighX < 0 || neighX >= ARENA_WIDTH || neighY < 0 || neighY >= ARENA_HEIGHT) continue;
-
-            size_t neighIdx = COL_GRID_INDEX(zEngine->collisionMng, neighX, neighY);
+    for (Int32 y = minY; y <= maxY; y++) {
+        for (Int32 x = minX; x <= maxX; x++) {
+            size_t neighIdx = COL_GRID_INDEX(zEngine->collisionMng, x, y);
             GridCell *neighCell = &zEngine->collisionMng->spatialGrid[neighIdx];
             SDL_Rect neighCellRect = {
-                .x = neighX * TILE_SIZE,
-                .y = neighY * TILE_SIZE,
+                .x = x * TILE_SIZE,
+                .y = y * TILE_SIZE,
                 .w = TILE_SIZE,
                 .h = TILE_SIZE
             };
@@ -747,14 +682,23 @@ Uint8 checkAndHandleEntityCollisions(ZENg zEngine, Entity entity) {
                 // Search for colliding entities in the collided tile
                 for (int i = 0; i < neighCell->entityCount; i++) {
                     Entity susColEntity = neighCell->entities[i];
+                    if (susColEntity == entity) continue;
+
                     if (!HAS_COMPONENT(zEngine->ecs, susColEntity, COLLISION_COMPONENT)) continue;
                     CollisionComponent *susEColComp = NULL;
                     GET_COMPONENT(zEngine->ecs, susColEntity, COLLISION_COMPONENT, susEColComp, CollisionComponent);
                     if (SDL_HasIntersection(hitbox, susEColComp->hitbox)) {
                         // Call the appropriate handler function
-                        zEngine->collisionMng->eVsEHandlers[colComp->role][susEColComp->role](
-                            zEngine, entity, susColEntity
-                        );
+#ifdef DEBUGCOLLISIONS
+                        printf("[ENTITY COLLISION SYSTEM] Attempting to call a collision handler for entities");
+                        printf(" %lu(role %d) vs %lu(role %d)...\n", entity, colComp->role, susColEntity, susEColComp->role);
+#endif
+                        if (zEngine->collisionMng->eVsEHandlers[colComp->role][susEColComp->role]) {
+                            normalizeRoles(&entity, &susColEntity, &colComp, &susEColComp);
+                            zEngine->collisionMng->eVsEHandlers[colComp->role][susEColComp->role](
+                                zEngine, entity, susColEntity
+                            );
+                        }
                         numCollided++;
                     }
                 }
@@ -834,6 +778,7 @@ Uint8 checkAndHandleWorldCollisions(ZENg zEngine, Entity entity) {
 
             if (neighX < 0 || neighX >= ARENA_WIDTH || neighY < 0 || neighY >= ARENA_HEIGHT) continue;
             Tile *neighTile = &zEngine->map->tiles[neighY][neighX];
+            if (neighTile->type == TILE_EMPTY) continue;
             SDL_Rect neighTileRect = {
                 .x = neighX * TILE_SIZE,
                 .y = neighY * TILE_SIZE,
@@ -841,8 +786,13 @@ Uint8 checkAndHandleWorldCollisions(ZENg zEngine, Entity entity) {
                 .h = TILE_SIZE
             };
 
-            if ((neighTile->isSolid || !neighTile->isWalkable) && SDL_HasIntersection(hitbox, &neighTileRect)) {
-                zEngine->collisionMng->eVsWHandlers[colComp->role](zEngine, entity, neighTile);
+            if (SDL_HasIntersection(hitbox, &neighTileRect)) {
+#ifdef DEBUGCOLLISIONS
+                printf("[WORLD COLLISION SYSTEM] Attempting to call handler function for entity");
+                printf(" %lu vs tile type %d\n", entity, neighTile->type);
+#endif
+                if (zEngine->collisionMng->eVsWHandlers[colComp->role])
+                    zEngine->collisionMng->eVsWHandlers[colComp->role](zEngine, entity, neighTile);
                 numCollided++;
             }
         }
@@ -879,13 +829,10 @@ void worldCollisionSystem(ZENg zEngine, double_t deltaTime) {
         VelocityComponent *velComp = NULL;
         GET_COMPONENT(zEngine->ecs, e, VELOCITY_COMPONENT, velComp, VelocityComponent);
 
-        PositionComponent *posComp = NULL;
-        GET_COMPONENT(zEngine->ecs, e, POSITION_COMPONENT, posComp, PositionComponent);
-
         Uint8 numCollided = checkAndHandleWorldCollisions(zEngine, e);
 
         // Between world collisions and entity collisions make sure the entities' spatial grid memberships are valid
-        updateGridMembership(zEngine->collisionMng, zEngine->ecs, e, posComp, velComp, colComp);
+        updateGridMembership(zEngine->collisionMng, e, velComp, colComp);
     }
 
     propagateSystemDirtiness(zEngine->ecs->depGraph->nodes[SYS_WORLD_COLLISIONS]);
@@ -946,14 +893,7 @@ void weaponSystem(ZENg zEngine, double_t deltaTime) {
         if (currWeapon->timeSinceUse > (1 / currWeapon->fireRate + EPSILON)) {
             continue;
         }
-        #ifdef DEBUGPP
-            printf("Updating timeSinceUse... %.4f -> ", currWeapon->timeSinceUse);
-        #endif
         currWeapon->timeSinceUse += deltaTime;
-
-        #ifdef DEBUGPP
-            printf("%.4f\n", currWeapon->timeSinceUse);
-        #endif
     }
     propagateSystemDirtiness(zEngine->ecs->depGraph->nodes[SYS_TRANSFORM]);
     // zEngine->ecs->depGraph->nodes[SYS_TRANSFORM]->isDirty = 0;
@@ -1208,18 +1148,48 @@ void renderDebugGrid(ZENg zEngine) {
 }
 
 void renderDebugCollision(ZENg zEngine) {
-    // Draw entity hitboxes in red
-    SDL_SetRenderDrawColor(zEngine->display->renderer, 255, 0, 0, 255);
+    // Draw entity hitboxes in red and grid coverage in yellow
     Component colComps = zEngine->ecs->components[COLLISION_COMPONENT];
+    SDL_SetRenderDrawBlendMode(zEngine->display->renderer, SDL_BLENDMODE_BLEND);
+
     for (Uint64 i = 0; i < colComps.denseSize; i++) {
         CollisionComponent *colComp = (CollisionComponent *)(colComps.dense[i]);
-        if (colComp && colComp->hitbox) {
-            SDL_RenderDrawRect(zEngine->display->renderer, colComp->hitbox);
-        }
+        if (!colComp || !colComp->hitbox) THROW_ERROR_AND_CONTINUE("Invalid colComp in renderDebugCollision\n");
+
+        // Red
+        SDL_SetRenderDrawColor(zEngine->display->renderer, 255, 0, 0, 255);
+        SDL_RenderDrawRect(zEngine->display->renderer, colComp->hitbox);
+
+        // Get the grid coverage and render it transparent yellow
+        Uint16 covS = colComp->coverageStart;
+        Uint16 covE = colComp->coverageEnd;
+        Uint8 covSX = covS % ARENA_WIDTH;
+        Uint8 covSY = covS / ARENA_WIDTH;
+        Uint8 covEX = covE % ARENA_WIDTH;
+        Uint8 covEY = covE / ARENA_WIDTH;
+
+        SDL_Rect *hb = colComp->hitbox;
+
+        // An arbitrary value to make the coverage more obvious by making it larger
+        Uint32 oflw = 0;
+        Uint32 coverageX = covSX * TILE_SIZE - oflw;
+        Uint32 coverageW = (covEX - covSX) * TILE_SIZE + oflw * 2;
+        Uint32 coverageY = covSY * TILE_SIZE - oflw;
+        Uint32 coverageH = (covEY - covSY) * TILE_SIZE + oflw * 2;
+
+        SDL_Rect rect = (SDL_Rect) {
+            .x = coverageX,
+            .y = coverageY,
+            .w = coverageW,
+            .h = coverageH
+        };
+        // Yellow
+        SDL_SetRenderDrawColor(zEngine->display->renderer, 255, 255, 0, 100);
+        SDL_RenderFillRect(zEngine->display->renderer, &rect);
     }
+    SDL_SetRenderDrawBlendMode(zEngine->display->renderer, SDL_BLENDMODE_NONE);
     
-    // Draw solid tile boundaries in green
-    
+    // Draw solid tile boundaries in green 
     SDL_SetRenderDrawColor(zEngine->display->renderer, 0, 255, 0, 255);
     for (Uint32 y = 0; y < ARENA_HEIGHT; y++) {
         for (Uint32 x = 0; x < ARENA_WIDTH; x++) {
