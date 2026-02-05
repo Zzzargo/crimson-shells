@@ -1,4 +1,5 @@
 #include "ecs.h"
+#include "global/global.h"
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -19,6 +20,12 @@ void initECS(ECS *ecs) {
         exit(EXIT_FAILURE);
     }
 
+	(*ecs)->entityToActiveIndex = calloc(INIT_CAPACITY, sizeof(Uint64));
+	if (!(*ecs)->entityToActiveIndex) {
+		THROW_ERROR_AND_EXIT("Failed to allocate memory for the ECS entity->active index array map");
+	}
+	
+
     (*ecs)->freeEntities = calloc(INIT_CAPACITY, sizeof(Entity));
     if (!(*ecs)->freeEntities) {
         fprintf(stderr, "Failed to allocate memory for ECS free entities\n");
@@ -35,7 +42,7 @@ void initECS(ECS *ecs) {
         free(*ecs);
         exit(EXIT_FAILURE);
     }
-    (*ecs)->components = calloc(COMPONENT_COUNT, sizeof(Component));
+    (*ecs)->components = calloc(COMPONENT_TYPE_COUNT, sizeof(ComponentTypeSet));
     if (!(*ecs)->components) {
         fprintf(stderr, "Failed to allocate memory for ECS components\n");
         free((*ecs)->componentsFlags);
@@ -43,19 +50,8 @@ void initECS(ECS *ecs) {
         exit(EXIT_FAILURE);
     }
 
-    for (Uint64 i = 0; i < COMPONENT_COUNT; i++) {
-        // initialise these with NULL, they will be allocated later at addition
-        // (*ecs)->components[i].dense = NULL;
-        // (*ecs)->components[i].denseSize = 0;
-        // (*ecs)->components[i].sparse = NULL;
-        // (*ecs)->components[i].pageCount = 0;
-
+    for (Uint64 i = 0; i < COMPONENT_TYPE_COUNT; i++)
         (*ecs)->components[i].type = i;
-
-        // (*ecs)->components[i].dirtyEntities = NULL;
-        // (*ecs)->components[i].dirtyCount = 0;
-        // (*ecs)->components[i].dirtyCapacity = 0;
-    }
 
     (*ecs)->depGraph = initDependencyGraph();
     kahnTopSort((*ecs)->depGraph);
@@ -102,13 +98,40 @@ Entity createEntity(ECS ecs, StateTagComponent state) {
             }
             ecs->componentsFlags = tmpFlags;
 
+            Uint64 *tmpEntityToActive = realloc(ecs->entityToActiveIndex, ecs->capacity * sizeof(Uint64));
+            if (!tmpEntityToActive) {
+                fprintf(stderr, "Failed to reallocate memory for ECS entity->active array map\n");
+                free(ecs->activeEntities);
+                free(ecs->componentsFlags);
+                free(ecs->components);
+                free(ecs->entityToActiveIndex);
+                free(ecs);
+                exit(EXIT_FAILURE);
+            }
+            ecs->entityToActiveIndex = tmpEntityToActive;
+
+            // Resize the freeEntities array to match the new capacity
+            Entity *tmpFreeEntities = realloc(ecs->freeEntities, ecs->capacity * sizeof(Entity));
+            if (!tmpFreeEntities) {
+                fprintf(stderr, "Failed to reallocate memory for ECS free entities\n");
+                free(ecs->activeEntities);
+                free(ecs->componentsFlags);
+                free(ecs->components);
+                free(ecs->entityToActiveIndex);
+                free(ecs->freeEntities);
+                free(ecs);
+                exit(EXIT_FAILURE);
+            }
+            ecs->freeEntities = tmpFreeEntities;
+            ecs->freeEntityCapacity = ecs->capacity;
+
             // initalize the new flags to 0
             for (Uint64 i = oldCapacity; i < ecs->capacity; i++) {
                 ecs->componentsFlags[i] = 00000000;
             }
 
             // resize the components arrays - only dense part
-            for (Uint64 i = 0; i < COMPONENT_COUNT; i++) {
+            for (Uint64 i = 0; i < COMPONENT_TYPE_COUNT; i++) {
                 if (ecs->components[i].dense) {
                     void **tmpDense = realloc(ecs->components[i].dense, ecs->capacity * sizeof(void *));
                     Entity *tmpDenseToEntity = realloc(ecs->components[i].denseToEntity, ecs->capacity * sizeof(Entity));
@@ -126,6 +149,8 @@ Entity createEntity(ECS ecs, StateTagComponent state) {
 
     ecs->componentsFlags[entitty] = 0;  // the new entity has no components
     ecs->activeEntities[ecs->entityCount++] = entitty;  // add it to the active entities array
+    // Create the mapping for later removal
+    ecs->entityToActiveIndex[entitty] = ecs->entityCount - 1;
 
     // Add the state tag component
     StateTagComponent *stateTag = calloc(1, sizeof(StateTagComponent));
@@ -307,7 +332,7 @@ void addComponent(ECS ecs, Entity id, ComponentType compType, void *component) {
     Uint64 page = id / PAGE_SIZE;  // determine the page for the entity
     Uint64 index = id % PAGE_SIZE;  // determine the index within the page
 
-    if (compType >= COMPONENT_COUNT) {
+    if (compType >= COMPONENT_TYPE_COUNT) {
         fprintf(stderr, "Invalid component type %d\n", compType);
         return;
     }
@@ -462,13 +487,13 @@ void unmarkComponentDirty(ECS ecs, ComponentType compType) {
         return;
     }
 
-    if (compType >= COMPONENT_COUNT) {
+    if (compType >= COMPONENT_TYPE_COUNT) {
         fprintf(stderr, "Invalid component type %d\n", compType);
         return;
     }
 
     // The first entity becomes clean
-    Component *comp = &ecs->components[compType];
+    ComponentTypeSet *comp = &ecs->components[compType];
     comp->dirtyEntities[0] = comp->dirtyEntities[--comp->dirtyCount];
 }
 
@@ -667,7 +692,7 @@ void deleteEntity(ECS ecs, Entity id) {
         return;
     }
 
-    if (ecs->componentsFlags[id] == 00000000) {
+    if (ecs->componentsFlags[id] == 0) {
         // entity has no components, just free the ID
         ecs->freeEntities[ecs->freeEntityCount++] = id;
         ecs->entityCount--;
@@ -675,23 +700,23 @@ void deleteEntity(ECS ecs, Entity id) {
     }
     
     // Free all components associated with this entity
-    for (Uint64 i = 0; i < COMPONENT_COUNT; i++) {
+    for (Uint64 i = 0; i < COMPONENT_TYPE_COUNT; i++) {
         bitset componentFlag = 1 << i;
         
         // Check if entity has this component
-        if ((ecs->componentsFlags[id] & componentFlag) == componentFlag) {
+        if (ecs->componentsFlags[id] & componentFlag) {
             // Find the component in the sparse set
             Uint64 page = id / PAGE_SIZE;
             Uint64 index = id % PAGE_SIZE;
-            Component *comp = &ecs->components[i];
+            ComponentTypeSet *compSet = &ecs->components[i];
             
             if (
-                comp->sparse && 
-                page < comp->pageCount &&
-                comp->dense
+                compSet->sparse && 
+                page < compSet->pageCount &&
+                compSet->dense
             ) {
-                Uint64 denseIndex = comp->sparse[page][index];
-                void *component = comp->dense[denseIndex];
+                Uint64 denseIndex = compSet->sparse[page][index];
+                void *component = compSet->dense[denseIndex];
                 
                 // Free the component data based on its type
                 if (component) {
@@ -722,26 +747,26 @@ void deleteEntity(ECS ecs, Entity id) {
                     free(component);
                     
                     // Remove from dense array by swapping with the last element
-                    Uint64 lastDenseIndex = comp->denseSize - 1;
+                    Uint64 lastDenseIndex = compSet->denseSize - 1;
                     if (denseIndex != lastDenseIndex) {
                         // Move the last element to the position of the removed element
-                        comp->dense[denseIndex] = comp->dense[lastDenseIndex];
+                        compSet->dense[denseIndex] = compSet->dense[lastDenseIndex];
                         
                         // Use the reverse mapping
-                        Entity lastEntity = comp->denseToEntity[lastDenseIndex];
+                        Entity lastEntity = compSet->denseToEntity[lastDenseIndex];
                         
                         // Update the sparse pointer for the moved entity
                         Uint64 lastPage = lastEntity / PAGE_SIZE;
                         Uint64 lastIndex = lastEntity % PAGE_SIZE;
-                        comp->sparse[lastPage][lastIndex] = denseIndex;
+                        compSet->sparse[lastPage][lastIndex] = denseIndex;
 
                         // update the denseToEntity mapping
-                        comp->denseToEntity[denseIndex] = lastEntity;
+                        compSet->denseToEntity[denseIndex] = lastEntity;
                     }
                     
                     // Decrease the size of the dense array
-                    comp->denseSize--;
-                    comp->dense[lastDenseIndex] = NULL;  // avoid dangling pointer
+                    compSet->denseSize--;
+                    compSet->dense[lastDenseIndex] = NULL;  // avoid dangling pointer
                 }
             }
         }
@@ -766,13 +791,11 @@ void deleteEntity(ECS ecs, Entity id) {
     }
 
     // Remove the entity from the active entities array
-    for (Uint64 i = 0; i < ecs->entityCount; i++) {
-        if (ecs->activeEntities[i] == id) {
-            ecs->activeEntities[i] = ecs->activeEntities[ecs->entityCount - 1];
-            break;
-        }
-    }
-     
+    Uint64 indexInActiveEntities = ecs->entityToActiveIndex[id];
+	Entity lastEntity = ecs->activeEntities[ecs->entityCount - 1];
+    // Swap the removed entity with the last one. Count decremental will make it inactive
+    ecs->activeEntities[indexInActiveEntities] = lastEntity;
+	ecs->entityToActiveIndex[lastEntity] = indexInActiveEntities;
     // Add this entity to the free list
     ecs->freeEntities[ecs->freeEntityCount++] = id;
     ecs->entityCount--;
@@ -815,8 +838,11 @@ void freeECS(ECS ecs) {
         if (ecs->activeEntities) {
             free(ecs->activeEntities);
         }
+		if (ecs->entityToActiveIndex) {
+			free(ecs->entityToActiveIndex);
+		}
         if (ecs->components) {
-            for (Uint64 i = 0; i < COMPONENT_COUNT; i++) {
+            for (Uint64 i = 0; i < COMPONENT_TYPE_COUNT; i++) {
                 if (ecs->components[i].dirtyEntities) {
                     free(ecs->components[i].dirtyEntities);
                     ecs->components[i].dirtyEntities = NULL;

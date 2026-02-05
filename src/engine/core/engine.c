@@ -505,7 +505,7 @@ void velocitySystem(ZENg zEngine, double_t deltaTime) {
         );
     #endif
 
-    Component velComps = zEngine->ecs->components[VELOCITY_COMPONENT];
+    ComponentTypeSet velComps = zEngine->ecs->components[VELOCITY_COMPONENT];
     // for each entity with a VELOCITY_COMPONENT, update its position based on the current velocity
     for (Uint64 i = 0; i < velComps.denseSize; i++) {
         VelocityComponent *velComp = (VelocityComponent *)(velComps.dense[i]);
@@ -557,7 +557,7 @@ void positionSystem(ZENg zEngine, double_t deltaTime) {
         #endif
         return;
     }
-    Component posComps = zEngine->ecs->components[POSITION_COMPONENT];
+    ComponentTypeSet posComps = zEngine->ecs->components[POSITION_COMPONENT];
     #ifdef DEBUGSYSTEMS
         printf(
             "[POSITION SYSTEM] Running position system for %lu entities\n",
@@ -627,7 +627,7 @@ void lifetimeSystem(ZENg zEngine, double_t deltaTime) {
         #endif
         return;
     }
-    Component *comps = zEngine->ecs->components;
+    ComponentTypeSet *comps = zEngine->ecs->components;
     #ifdef DEBUGSYSTEMS
         printf(
             "[LIFETIME SYSTEM] Running lifetime system for %lu entities\n",
@@ -722,7 +722,7 @@ void entityCollisionSystem(ZENg zEngine, double_t deltaTime) {
         #endif
         return;
     }
-    Component *colComps = &zEngine->ecs->components[COLLISION_COMPONENT];
+    ComponentTypeSet *colComps = &zEngine->ecs->components[COLLISION_COMPONENT];
 
     #ifdef DEBUGSYSTEMS
         printf(
@@ -818,7 +818,7 @@ void worldCollisionSystem(ZENg zEngine, double_t deltaTime) {
         return;
     }
 
-    Component *colComps = &zEngine->ecs->components[COLLISION_COMPONENT];
+    ComponentTypeSet *colComps = &zEngine->ecs->components[COLLISION_COMPONENT];
 
     #ifdef DEBUGSYSTEMS
         printf(
@@ -852,7 +852,7 @@ void worldCollisionSystem(ZENg zEngine, double_t deltaTime) {
  */
 
 void healthSystem(ZENg zEngine, double_t deltaTime) {
-    Component *comps = zEngine->ecs->components;
+    ComponentTypeSet *comps = zEngine->ecs->components;
     #ifdef DEBUGSYSTEMS
         printf(
             "[HEALTH SYSTEM] There are %lu dirty health components\n",
@@ -885,7 +885,7 @@ void weaponSystem(ZENg zEngine, double_t deltaTime) {
         #endif
         return;
     }
-    Component weapComps = zEngine->ecs->components[WEAPON_COMPONENT];
+    ComponentTypeSet weapComps = zEngine->ecs->components[WEAPON_COMPONENT];
     #ifdef DEBUGSYSTEMS
         printf(
             "[WEAPON SYSTEM] Running weapon system for %lu entities\n",
@@ -917,7 +917,7 @@ void transformSystem(ZENg zEngine, double_t deltaTime) {
         #endif
         return;
     }
-    Component posComps = zEngine->ecs->components[POSITION_COMPONENT];
+    ComponentTypeSet posComps = zEngine->ecs->components[POSITION_COMPONENT];
     #ifdef DEBUGSYSTEMS
         printf(
             "[TRANSFORM SYSTEM] Running transform system for %lu entities\n",
@@ -995,7 +995,7 @@ void renderSystem(ZENg zEngine, double_t deltaTime) {
             printf("[RENDER SYSTEM] Render system is not dirty. Not good.\n");
         #endif
     }
-    Component rdrComps = zEngine->ecs->components[RENDER_COMPONENT];
+    ComponentTypeSet rdrComps = zEngine->ecs->components[RENDER_COMPONENT];
     #ifdef DEBUGSYSTEMS
         Uint64 renderCount = rdrComps.denseSize;
         printf("[RENDER SYSTEM] Running render system for %lu entities\n", renderCount);
@@ -1158,7 +1158,7 @@ void renderDebugGrid(ZENg zEngine) {
 #ifdef DEBUGCOLLISIONS
 void renderDebugCollision(ZENg zEngine) {
     // Draw entity hitboxes in red and grid coverage in yellow
-    Component colComps = zEngine->ecs->components[COLLISION_COMPONENT];
+    ComponentTypeSet colComps = zEngine->ecs->components[COLLISION_COMPONENT];
     SDL_SetRenderDrawBlendMode(zEngine->display->renderer, SDL_BLENDMODE_BLEND);
 
     for (Uint64 i = 0; i < colComps.denseSize; i++) {

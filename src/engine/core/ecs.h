@@ -69,13 +69,13 @@ typedef enum {
     STATE_TAG_COMPONENT,
     ACTIVE_TAG_COMPONENT,
     RENDER_COMPONENT,
-    COMPONENT_COUNT  // Number of components the ECS currently supports
+    COMPONENT_TYPE_COUNT  // Number of components the ECS currently supports
 } ComponentType;
 
-#define PAGE_SIZE 256  // Size of a page of a component's sparse array
+#define PAGE_SIZE 1024  // Size of a page of a component's sparse array
 
-// General definition of a component with its sparse and dense arrays
-typedef struct {
+// General definition of a component type's sparse set
+typedef struct ComponentTypeSet {
     Uint64 **sparse;  // Array of index arrays -- sparse[page][offset] = denseIndex
     void **dense;  // Array of components -- dense[index] = (void *)component
     Entity *denseToEntity;  // Maps component in dense array to its owner entity's ID
@@ -86,7 +86,7 @@ typedef struct {
     Entity *dirtyEntities;  // Array of entities that need to be updated
     Uint64 dirtyCount;  // Number of dirty entities
     Uint64 dirtyCapacity;  // Capacity of the dirty entities array
-} Component;
+} ComponentTypeSet;
 
 // Boolean value to tell if an entity is active
 typedef Uint8 ActiveTagComponent;
@@ -217,25 +217,28 @@ typedef struct depGraph {
 
 // ECS structure definition
 typedef struct EeSiEs {
-    Entity nextEntityID;  // Next available entity ID
-    Entity *activeEntities;  // Array of active entities
     Uint64 entityCount;  // Number of entities currently in the ECS
     Uint64 capacity;  // Current capacity of the ECS
+
+	Uint64 *entityToActiveIndex;  // Mapping entity ID -> index in the active entities array, for O(1) removal
+    Entity *activeEntities;  // Array of active entities
+    bitset *componentsFlags;  // An array of bitsets, one for each active
+    Entity nextEntityID;  // Next available entity ID
+
     Entity *freeEntities;  // Array of free entities, used for recycling IDs
     Uint64 freeEntityCount;  // Number of free entities available for reuse
     Uint64 freeEntityCapacity;  // Capacity of the free entities array
 
-    bitset *componentsFlags;  // An array of bitsets, one for each entity
-    Component *components;  // Array of components, each component is a sparse set
+    ComponentTypeSet *components;  // Array of component sparse sets, one for each type
 
     DependencyGraph *depGraph;  // Dependency graph for systems
 } *ECS;
 
 /**
  * Initialises the game ECS
- * @param Ecs pointer to the ECS = struct ecs**
+ * @param ecs pointer to the ECS = struct ecs**
  */
-void initECS(ECS *Ecs);
+void initECS(ECS *ecs);
 
 /**
  * Frees the memory allocated for and inside an ECS
