@@ -1,7 +1,7 @@
 #ifndef ARENA_H
 #define ARENA_H
 
-#include "../global/global.h"
+#include "global/global.h"
 
 #define ARENA_WIDTH 64  // Arena width, in tiles
 #define ARENA_HEIGHT 36  // Arena height, in tiles

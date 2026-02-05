@@ -1,5 +1,5 @@
 #include "uiManager.h"
-#include "../states/stateManager.h"
+#include "states/stateManager.h"
 
 UIManager initUIManager() {
     UIManager uiManager = calloc(1, sizeof(struct uiMng));

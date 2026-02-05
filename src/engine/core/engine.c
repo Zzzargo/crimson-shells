@@ -1,7 +1,7 @@
 #include "engine.h"
-#include "arena.h"
-#include "collisionManager.h"
-#include "ecs.h"
+#include "engine/arena.h"
+#include "engine/collisionManager.h"
+#include "engine/core/ecs.h"
 #include <SDL2/SDL_blendmode.h>
 #include <SDL2/SDL_rect.h>
 #include <SDL2/SDL_render.h>

@@ -1,4 +1,4 @@
-#include "stateManager.h"
+#include "states/stateManager.h"
 
 void onEnterVideoSettings(ZENg zEngine) {
     getCurrState(zEngine->stateMng)->stateData = MapInit(13, MAP_STATE_DATA);

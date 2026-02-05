@@ -1,5 +1,5 @@
 #include "builder.h"
-#include "engine.h"  // This is some dark magic here
+#include "engine/core/engine.h"  // This is some dark magic here
 
 WeaponPrefab* getWeaponPrefab(HashMap prefabMng, const char *key) {
     if (!prefabMng || !key) THROW_ERROR_AND_RETURN("Resource manager or key is NULL", NULL);

@@ -7,33 +7,29 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_BUILD_TYPE Debug)
 
-# Source and include directories
+# Sources are all located in src/
 file(GLOB_RECURSE SOURCES "src/*.c")
-include_directories(
-    ./src
-    ./src/engine
-    ./src/global
-    ./src/states
-)
 
-# Add SDL2
+# SDL2 with extensions
 find_package(SDL2 REQUIRED)
-include_directories(${SDL2_INCLUDE_DIRS})
-
-# And SDL2 fonts
 find_package(SDL2_ttf REQUIRED)
-include_directories(${SDL2_TTF_INCLUDE_DIRS})
-
-# Image
 find_package(SDL2_image REQUIRED)
-include_directories(${SDL2_IMAGE_INCLUDE_DIRS})
-
-# And sounds
 find_package(SDL2_mixer REQUIRED)
-include_directories(${SDL2_MIXER_INCLUDE_DIRS})
 
 # Executable
 add_executable(crimshells ${SOURCES})
+
+# Set paths
+set(SOURCE_DIR ${CMAKE_SOURCE_DIR}/src)
+
+target_include_directories(crimshells PRIVATE
+	${SOURCE_DIR}
+	${SDL2_INCLUDE_DIRS}
+	${SDL2_TTF_INCLUDE_DIRS}
+	${SDL2_IMAGE_INCLUDE_DIRS}
+	${SDL2_MIXER_INCLUDE_DIRS}
+)
+
 target_link_libraries(crimshells PRIVATE
     ${SDL2_LIBRARIES}
     ${SDL2_TTF_LIBRARIES}

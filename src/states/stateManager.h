@@ -1,8 +1,8 @@
 #ifndef STATE_MANAGER_H
 #define STATE_MANAGER_H
 
-#include "../global/global.h"
-#include "../engine/engine.h"
+#include "global/global.h"
+#include "engine/core/engine.h"
 
 // A game state is described by a set of functions that handle its lifecycle
 typedef struct state {

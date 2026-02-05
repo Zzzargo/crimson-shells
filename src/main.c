@@ -1,4 +1,4 @@
-#include "engine/engine.h"
+#include "engine/core/engine.h"
 
 Entity PLAYER_ID = 0;  // will be set when the player is created
 

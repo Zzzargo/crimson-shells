@@ -1,7 +1,7 @@
 #ifndef COLLISION_MANAGER_H
 #define COLLISION_MANAGER_H
 
-#include "ecs.h"
+#include "engine/core/ecs.h"
 
 // Collisions are a bit special so treat them in their own context
 

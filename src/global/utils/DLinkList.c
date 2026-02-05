@@ -1,4 +1,4 @@
-#include <global.h>  // For the macros
+#include "global/global.h" // For the macros
 
 CDLLNode* initList(GenericData data, GenericDataType dataType) {
     CDLLNode *head = calloc(1, sizeof(CDLLNode));

@@ -5,8 +5,8 @@
 // Little game - big ideas
 // Using sparse sets with pagination for efficiency
 
-#include "../global/global.h"
-#include "builder.h"
+#include "global/global.h"
+#include "engine/builder.h"
 
 // Available game states enum - declared in advance for the StateTagComponent
 typedef enum {

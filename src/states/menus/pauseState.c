@@ -1,4 +1,4 @@
-#include "stateManager.h"
+#include "states/stateManager.h"
 
 void onEnterPauseState(ZENg zEngine) {
     zEngine->uiManager->root = UIparseFromFile(zEngine, "data/states/UIpauseState.json");

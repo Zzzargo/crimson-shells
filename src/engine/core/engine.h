@@ -1,13 +1,13 @@
 #ifndef ZENG_H
 #define ZENG_H
 
-#include "ecs.h"
-#include "inputManager.h"
-#include "resourceManager.h"
-#include "displayManager.h"
-#include "arena.h"
-#include "uiManager.h"
-#include "collisionManager.h"
+#include "engine/core/ecs.h"
+#include "engine/io/inputManager.h"
+#include "engine/resourceManager.h"
+#include "engine/io/displayManager.h"
+#include "engine/arena.h"
+#include "engine/ui/uiManager.h"
+#include "engine/collisionManager.h"
 
 struct statemng;  // forward declaration
 typedef struct statemng *StateManager;
@@ -25,7 +25,7 @@ typedef struct engine {
     Arena map;  // Pointer to the arena structure
 } *ZENg;
 
-#include "../states/stateManager.h"
+#include "states/stateManager.h"
 
 /**
  * Loads the settings from a file

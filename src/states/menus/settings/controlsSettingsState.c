@@ -1,7 +1,7 @@
-#include "stateManager.h"
+#include "states/stateManager.h"
 
-void onEnterGameSettings(ZENg zEngine) {
-    zEngine->uiManager->root = UIparseFromFile(zEngine, "data/states/UIgameSettingsState.json");
+void onEnterControlsSettings(ZENg zEngine) {
+    zEngine->uiManager->root = UIparseFromFile(zEngine, "data/states/UIcontrolsSettingsState.json");
     UIapplyLayout(zEngine->uiManager->root);
 }
 
@@ -9,7 +9,7 @@ void onEnterGameSettings(ZENg zEngine) {
  * =====================================================================================================================
  */
 
-void onExitGameSettings(ZENg zEngine) {
+void onExitControlsSettings(ZENg zEngine) {
     UIclear(zEngine->uiManager);
 }
 
@@ -17,7 +17,7 @@ void onExitGameSettings(ZENg zEngine) {
  * =====================================================================================================================
  */
 
-Uint8 handleGameSettingsEvents(SDL_Event *event, ZENg zEngine) {
+Uint8 handleControlsSettingsEvents(SDL_Event *event, ZENg zEngine) {
     return handleMenuNavigation(event, zEngine);
 }
 
@@ -25,6 +25,6 @@ Uint8 handleGameSettingsEvents(SDL_Event *event, ZENg zEngine) {
  * =====================================================================================================================
  */
 
-void gameSettingsToSettings(ZENg zEngine, void *data) {
+void controlsSettingsToSettings(ZENg zEngine, void *data) {
     popState(zEngine);
 }

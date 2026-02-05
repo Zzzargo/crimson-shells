@@ -1,7 +1,7 @@
 #include "collisionManager.h"
-#include "arena.h"
-#include "ecs.h"
-#include "engine.h"
+#include "engine/arena.h"
+#include "engine/core/ecs.h"
+#include "engine/core/engine.h"
 
 CollisionManager initCollisionManager() {
     CollisionManager cm = calloc(1, sizeof(struct colmng));

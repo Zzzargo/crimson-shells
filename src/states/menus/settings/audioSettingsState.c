@@ -1,7 +1,7 @@
-#include "stateManager.h"
+#include "states/stateManager.h"
 
-void onEnterControlsSettings(ZENg zEngine) {
-    zEngine->uiManager->root = UIparseFromFile(zEngine, "data/states/UIcontrolsSettingsState.json");
+void onEnterAudioSettings(ZENg zEngine) {
+    zEngine->uiManager->root = UIparseFromFile(zEngine, "data/states/UIaudioSettingsState.json");
     UIapplyLayout(zEngine->uiManager->root);
 }
 
@@ -9,7 +9,7 @@ void onEnterControlsSettings(ZENg zEngine) {
  * =====================================================================================================================
  */
 
-void onExitControlsSettings(ZENg zEngine) {
+void onExitAudioSettings(ZENg zEngine) {
     UIclear(zEngine->uiManager);
 }
 
@@ -17,7 +17,7 @@ void onExitControlsSettings(ZENg zEngine) {
  * =====================================================================================================================
  */
 
-Uint8 handleControlsSettingsEvents(SDL_Event *event, ZENg zEngine) {
+Uint8 handleAudioSettingsEvents(SDL_Event *event, ZENg zEngine) {
     return handleMenuNavigation(event, zEngine);
 }
 
@@ -25,6 +25,6 @@ Uint8 handleControlsSettingsEvents(SDL_Event *event, ZENg zEngine) {
  * =====================================================================================================================
  */
 
-void controlsSettingsToSettings(ZENg zEngine, void *data) {
+void audioSettingsToSettings(ZENg zEngine, void *data) {
     popState(zEngine);
 }

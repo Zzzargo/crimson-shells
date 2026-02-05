@@ -1,4 +1,4 @@
-#include "global.h"  // For the macros
+#include "global/global.h"  // For the macros
 
 HashMap MapInit(size_t size, MapType type) {
     HashMap map = malloc(sizeof(struct map));

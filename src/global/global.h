@@ -1,24 +1,26 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
- #define DEBUG
+#define DEBUG
 // #define DEBUGPP
-// #define DEBUGSYSTEMS
- #define DEBUGCOLLISIONS
-// #define DEBUGUI
+#define DEBUGSYSTEMS
+#define DEBUGCOLLISIONS
+#define DEBUGUI
+
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_mixer.h>
-#include "../thirdparty/cJSON.h"
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include "vec2.h"
-#include "DLinkList.h"
-#include "hashMap.h"
+#include "thirdparty/cJSON/cJSON.h"
+
+#include "global/utils/vec2.h"
+#include "global/utils/DLinkList.h"
+#include "global/utils/hashMap.h"
 
 typedef struct engine *ZENg;  // Forward declaration of the engine struct
 

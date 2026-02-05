@@ -1,7 +1,7 @@
-#include "stateManager.h"
+#include "states/stateManager.h"
 
-void onEnterAudioSettings(ZENg zEngine) {
-    zEngine->uiManager->root = UIparseFromFile(zEngine, "data/states/UIaudioSettingsState.json");
+void onEnterGameSettings(ZENg zEngine) {
+    zEngine->uiManager->root = UIparseFromFile(zEngine, "data/states/UIgameSettingsState.json");
     UIapplyLayout(zEngine->uiManager->root);
 }
 
@@ -9,7 +9,7 @@ void onEnterAudioSettings(ZENg zEngine) {
  * =====================================================================================================================
  */
 
-void onExitAudioSettings(ZENg zEngine) {
+void onExitGameSettings(ZENg zEngine) {
     UIclear(zEngine->uiManager);
 }
 
@@ -17,7 +17,7 @@ void onExitAudioSettings(ZENg zEngine) {
  * =====================================================================================================================
  */
 
-Uint8 handleAudioSettingsEvents(SDL_Event *event, ZENg zEngine) {
+Uint8 handleGameSettingsEvents(SDL_Event *event, ZENg zEngine) {
     return handleMenuNavigation(event, zEngine);
 }
 
@@ -25,6 +25,6 @@ Uint8 handleAudioSettingsEvents(SDL_Event *event, ZENg zEngine) {
  * =====================================================================================================================
  */
 
-void audioSettingsToSettings(ZENg zEngine, void *data) {
+void gameSettingsToSettings(ZENg zEngine, void *data) {
     popState(zEngine);
 }

@@ -1,8 +1,8 @@
 #ifndef BUILDER_H
 #define BUILDER_H
 
-#include "../global/global.h"
-#include "../engine/arena.h"
+#include "global/global.h"
+#include "engine/arena.h"
 
 typedef struct {
     char *name;
