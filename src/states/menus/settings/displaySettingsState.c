@@ -1,3 +1,4 @@
+#include "global/debug.h"
 #include "states/stateManager.h"
 
 void onEnterVideoSettings(ZENg zEngine) {
@@ -21,7 +22,7 @@ void onExitVideoSettings(ZENg zEngine) {
  */
 
 ProviderResult* getResolutions(ZENg zEngine) {
-    if (!zEngine) THROW_ERROR_AND_RETURN("Engine is NULL in getResolutions", NULL);
+    ASSERT(zEngine != NULL, "");
 
     int count = 0;
     Uint8 insertCount = 0;
@@ -29,7 +30,8 @@ ProviderResult* getResolutions(ZENg zEngine) {
     if (count < 256) insertCount = (Uint8)count;
 
     ProviderResult *result = calloc(1, sizeof(ProviderResult));
-    if (!result) THROW_ERROR_AND_EXIT("Failed to allocate memory for ProviderResult in getResolutions");
+    ASSERT(result != NULL, "Failed to allocate memory for ProviderResult");
+
     result->data = modes;
     result->size = insertCount;
     result->type = RESULT_DISPLAYMODE_ARRAY;
@@ -37,9 +39,7 @@ ProviderResult* getResolutions(ZENg zEngine) {
     HashMap dataMap = getCurrState(zEngine->stateMng)->stateData;
     MapAddEntry(dataMap, "result:resolutions", (MapEntryVal){ .ptr = result }, ENTRY_PROVIDER_RESULT);
 
-    #ifdef DEBUG
-        printf("Added %d resolutions to state data map\n", insertCount);
-    #endif
+    LOG(DEBUG, "Added %d resolutions to state data map\n", insertCount);
     return result;
 }
 
@@ -49,7 +49,7 @@ ProviderResult* getResolutions(ZENg zEngine) {
 
 void changeRes(ZENg zEngine, void *data) {
     if (!data) {
-        printf("No display mode data provided to changeRes\n");
+        LOG(ERROR, "No display mode data provided to changeRes\n");
         return;
     }
     SDL_DisplayMode *mode = (SDL_DisplayMode *)data;
@@ -61,17 +61,19 @@ void changeRes(ZENg zEngine, void *data) {
  */
 
 ProviderResult* getWindowModes(ZENg zEngine) {
-    if (!zEngine) THROW_ERROR_AND_RETURN("Engine is NULL in getWindowModes", NULL);
+    ASSERT(zEngine != NULL, "");
 
     Uint8 *windowModes = calloc(2, sizeof(Uint8));
-    if (!windowModes) THROW_ERROR_AND_EXIT("Failed to allocate memory for the window modes");
+    ASSERT(windowModes != NULL, "Failed to allocate memory for the window modes");
+
     windowModes[0] = 0;  // 0 = windowed
     windowModes[1] = 1;  // 1 = fullscreen
 
     Uint8 windowModeCount = 2;
     
     ProviderResult *result = calloc(1, sizeof(ProviderResult));
-    if (!result) THROW_ERROR_AND_EXIT("Failed to allocate memory for ProviderResult in getWindowModes");
+    ASSERT(result != NULL, "Failed to allocate memory for ProviderResult");
+
     result->data = windowModes;
     result->size = windowModeCount;
     result->type = RESULT_WINDOWMODE_ARRAY;
@@ -79,9 +81,7 @@ ProviderResult* getWindowModes(ZENg zEngine) {
     HashMap map = getCurrState(zEngine->stateMng)->stateData;
     MapAddEntry(map, "result:windowModes", (MapEntryVal){ .ptr = result }, ENTRY_PROVIDER_RESULT);
 
-    #ifdef DEBUG
-        printf("Added %d window modes to parser map\n", windowModeCount);
-    #endif
+    LOG(DEBUG, "Added %d window modes to parser map\n", windowModeCount);
     return result;
 }
 
@@ -96,7 +96,7 @@ void changeWindowMode(ZENg zEngine, void *data) {
     }
     Uint8 currMode = zEngine->display->fullscreen;
     Uint8 newMode = *((Uint8 *)data);
-    printf("Current window mode: %d, requested mode: %d\n", currMode, newMode);
+    LOG(DEBUG, "Current window mode: %d, requested mode: %d\n", currMode, newMode);
     if (currMode != newMode) {
         toggleFullscreen(zEngine->display);
     }

@@ -1,10 +1,13 @@
-#include "global/global.h"  // For the macros
+#include "global/debug.h"
+#include "global/global.h"
 
 HashMap MapInit(size_t size, MapType type) {
     HashMap map = malloc(sizeof(struct map));
-    if (!map) THROW_ERROR_AND_EXIT("Failed to allocate memory for HashMap");
+    ASSERT(map != NULL, "Failed to allocate memory for HashMap");
+
     map->entries = calloc(size, sizeof(MapEntry*));
-    if (!map->entries) THROW_ERROR_AND_EXIT("Failed to allocate memory for HashMap entries");
+    ASSERT(map->entries != NULL, "Failed to allocate memory for HashMap entries");
+
     map->size = size;
     map->type = type;
     return map;
@@ -24,7 +27,8 @@ size_t hashFunc(const char *key, size_t mapSize) {
 */
 
 MapEntry* MapGetEntry(HashMap map, const char *key) {
-    if (!map || !key) THROW_ERROR_AND_RETURN("Map or key is NULL. Can't fetch entry", NULL);
+    ASSERT(map && key, "map = %p, key = %p\n", map, key);
+
     size_t index = hashFunc(key, map->size);
     MapEntry *entry = map->entries[index];
     while (entry) {
@@ -33,10 +37,9 @@ MapEntry* MapGetEntry(HashMap map, const char *key) {
         }
         entry = entry->next;
     }
-    THROW_ERROR_AND_DO(
-        "Entry with key ",
-        fprintf(stderr, "'%s' not found in map of type %d\n", key, map->type); return NULL;
-    );
+
+    LOG(ERROR, "Entry with key '%s' not found in map of type %d\n", key, map->type);
+    return NULL;
 }
 
 /**
@@ -44,12 +47,14 @@ MapEntry* MapGetEntry(HashMap map, const char *key) {
 */
 
 void MapAddEntry(HashMap map, const char *key, MapEntryVal data, MapEntryType type) {
+    ASSERT(map && key, "map = %p, key = %p\n", map, key);
+
     size_t idx = hashFunc(key, map->size);
     MapEntry *new = calloc(1, sizeof(MapEntry));
-    if (!new) THROW_ERROR_AND_EXIT("Failed to allocate memory for new map entry");
+    ASSERT(new != NULL, "Failed to allocate memory for new map entry");
 
     new->key = strdup(key);  // Safely copy the key
-    if (!new->key) THROW_ERROR_AND_EXIT("Failed to allocate memory for map entry key");
+    ASSERT(new->key != NULL, "Failed to allocate memory for new map entry key");
 
     new->data = data;
     new->type = type;
@@ -83,11 +88,8 @@ void MapRemoveEntry(HashMap map, const char *key) {
         prev = entry;
         entry = entry->next;  // Go to the next entry in the chain
     }
-    // If we reach here, the entry was not found
-    THROW_ERROR_AND_DO(
-        "Entry with key ",
-        fprintf(stderr, "'%s' not found for removal in map of type %d\n", key, map->type);
-    );
+
+    LOG(ERROR, "Entry with key '%s' not found for removal in map of type %d\n", key, map->type);
 }
 
 /**
@@ -95,7 +97,7 @@ void MapRemoveEntry(HashMap map, const char *key) {
 */
 
 void MapFree(HashMap map) {
-    if (!map) THROW_ERROR_AND_RETURN_VOID("Map is NULL. Can't free");
+    ASSERT(map != NULL, "Map is NULL. Can't free");
 
     for (size_t i = 0; i < map->size; i++) {
         MapEntry *entry = map->entries[i];

@@ -1,12 +1,11 @@
 #include "uiManager.h"
+
+#include "global/debug.h"
 #include "states/stateManager.h"
 
 UIManager initUIManager() {
     UIManager uiManager = calloc(1, sizeof(struct uiMng));
-    if (!uiManager) {
-        printf("Failed to allocate memory for the UI Manager\n");
-        exit(EXIT_FAILURE);
-    }
+    ASSERT(uiManager != NULL, "Failed to allocate memory for the UI Manager\n");
     return uiManager;
 }
 
@@ -16,12 +15,8 @@ UIManager initUIManager() {
 
 UINode* UIparseFromFile(ZENg zEngine, const char *filename) {
     FILE *f = fopen(filename, "rb");
-    if (!f) {
-        printf("Failed to open UI file: %s\n", filename);
-        return NULL;
-    }
+    ASSERT(f != NULL, "Failed to open UI file: %s\n", filename);
 
-    // Magic commences
     fseek(f, 0, SEEK_END);
     long size = ftell(f);
     fseek(f, 0, SEEK_SET);
@@ -32,12 +27,11 @@ UINode* UIparseFromFile(ZENg zEngine, const char *filename) {
     fclose(f);
 
     cJSON *root = cJSON_Parse(data);
+    ASSERT(root != NULL, "JSON parsing failed\n");
     free(data);
 
-    if (!root) return NULL;
-
     // Prepare the hashmap
-    HashMap parserMap = MapInit(64, MAP_PARSER);
+    HashMap parserMap = MapInit(67, MAP_PARSER);
     loadParserEntries(parserMap, getCurrState(zEngine->stateMng)->type);
 
     // Parse recursively from the root
@@ -174,7 +168,7 @@ UINode* UIparseNode(ZENg zEngine, HashMap parserMap, cJSON *json) {
         // defaults
         UIPadding pad = {0,0,0,0};
         UIAlignment align = { UI_ALIGNMENT_ABSOLUTE, UI_ALIGNMENT_ABSOLUTE };
-        float spacing = 0.0;
+        float spacing = 0.0f;
 
         cJSON *padJson = cJSON_GetObjectItem(layoutJson, "padding");
         if (padJson) {
@@ -206,12 +200,12 @@ UINode* UIparseNode(ZENg zEngine, HashMap parserMap, cJSON *json) {
         cJSON *selectorJson = cJSON_GetObjectItem(json, "selector");
         UINode *selector = NULL;
         if (!selectorJson) {
-            printf("Option cycle node missing selector definition\n");
+            LOG(ERROR, "Option cycle node missing selector definition\n");
             return NULL;
         }
         selector = UIparseNode(zEngine, parserMap, selectorJson);
         if (!selector) {
-            printf("Failed to parse option cycle selector node\n");
+            LOG(ERROR, "Failed to parse option cycle selector node\n");
             return NULL;
         }
 
@@ -219,19 +213,19 @@ UINode* UIparseNode(ZENg zEngine, HashMap parserMap, cJSON *json) {
         CDLLNode *options = NULL;
         cJSON *optionsJson = cJSON_GetObjectItem(json, "options");
         if (!optionsJson) {
-            printf("Option cycle node missing options definition\n");
+            LOG(ERROR, "Option cycle node missing options definition\n");
             return NULL;
         }
         char *listTypeStr = cJSON_GetObjectItem(optionsJson, "type")->valuestring;
         cJSON *dataJson = cJSON_GetObjectItem(optionsJson, "data");
         if (!dataJson) {
-            printf("Option cycle options missing data definition\n");
+            LOG(ERROR, "Option cycle options missing data definition\n");
             return NULL;
         }
 
         cJSON *providerJson = cJSON_GetObjectItem(dataJson, "provider");
         if (!providerJson) {
-            printf("Option cycle options missing data provider definition\n");
+            LOG(ERROR, "Option cycle options missing data provider definition\n");
             return NULL;
         }
         char *providerStr = providerJson->valuestring;
@@ -245,7 +239,7 @@ UINode* UIparseNode(ZENg zEngine, HashMap parserMap, cJSON *json) {
         if (strcmp(listTypeStr, "buttonList") == 0) {
             cJSON *fontJson = cJSON_GetObjectItem(optionsJson, "font");
             if (!fontJson) {
-                printf("Option cycle options missing font definition\n");
+                LOG(ERROR, "Option cycle options missing font definition\n");
                 return NULL;
             }
             font = getFont(zEngine->resources, fontJson->valuestring);
@@ -260,20 +254,22 @@ UINode* UIparseNode(ZENg zEngine, HashMap parserMap, cJSON *json) {
                 }
             }
             ButtonNodeContext *btnCtx = malloc(sizeof(ButtonNodeContext));
-            if (!btnCtx) THROW_ERROR_AND_EXIT("Failed to allocate memory for button list context\n");
+            ASSERT(btnCtx != NULL, "Failed to allocate memory for button list context\n");
+
             btnCtx->renderer = zEngine->display->renderer;
             btnCtx->font = font;
             memcpy(btnCtx->colors, colors, sizeof(SDL_Color) * UI_STATE_COUNT);
             btnCtx->options = options;
-            handleProviderResult(result, &insertToList, (void *)btnCtx);
+            handleProviderResult(result, &UIinsertToCycleList, (void *)btnCtx);
             options = btnCtx->options;  // Update options with the list returned from the handler
             free(btnCtx);
         } else if (strcmp(listTypeStr, "imageList") == 0) {
             ImageNodeContext *imgCtx = malloc(sizeof(ImageNodeContext));
-            if (!imgCtx) THROW_ERROR_AND_EXIT("Failed to allocate memory for image list context\n");
+            ASSERT(imgCtx != NULL, "Failed to allocate memory for image list context\n");
+
             imgCtx->ecs = zEngine->ecs;
             imgCtx->options = options;
-            handleProviderResult(result, &insertToList, (void *)imgCtx);
+            handleProviderResult(result, &UIinsertToCycleList, (void *)imgCtx);
             options = imgCtx->options;  // Update options with the list returned from the handler
             free(imgCtx);
         }
@@ -281,7 +277,7 @@ UINode* UIparseNode(ZENg zEngine, HashMap parserMap, cJSON *json) {
         // Nav arrows
         cJSON *navArrowsJson = cJSON_GetObjectItem(json, "Arrows");
         if (!navArrowsJson) {
-            printf("Option cycle node missing arrows definition\n");
+            LOG(ERROR, "Option cycle node missing arrows definition\n");
             return NULL;
         }
         char *arrowPath = navArrowsJson->valuestring;
@@ -290,7 +286,11 @@ UINode* UIparseNode(ZENg zEngine, HashMap parserMap, cJSON *json) {
 
         // Add those as children to apply layout
         UIinsertNode(zEngine->uiManager, node, selector);
-        if (!options) THROW_ERROR_AND_RETURN("Option cycle NULL in UIparseNode\n", node);
+        if (!options) {
+            LOG(ERROR, "Option cycle NULL");
+            return NULL;
+        }
+
         UIinsertNode(zEngine->uiManager, node, (UINode *)options->data.ptr);
     }
 
@@ -312,25 +312,19 @@ UINode* UIparseNode(ZENg zEngine, HashMap parserMap, cJSON *json) {
  */
 
 void UIinsertNode(UIManager uiManager, UINode *parent, UINode *newNode) {
-    if (!uiManager || !newNode) {
-        printf("UIManager or newNode is NULL in addUINode\n");
-        return;
-    }
+    ASSERT(uiManager && newNode, "uiManager = %p, newNode = %p\n", uiManager, newNode);
 
     if (!parent) {
         // If no parent is provided, add as root
         if (!uiManager->root) {
             uiManager->root = newNode;
         } else {
-            printf("UIManager already has a root, cannot add another root node\n");
-            return;
+            LOG(WARNING, "UIManager already has a root, cannot add another root node\n");
         }
     } else {
         UIaddChild(parent, newNode);
     }
-    #ifdef DEBUGUI
-        printf("Added new UI node of type %d to parent node %d\n", newNode->type, parent ? parent->type : -1);
-    #endif
+    LOG(DEBUG, "Added new UI node of type %d to parent node %d\n", newNode->type, parent ? parent->type : -1);
 }
 
 /**
@@ -338,22 +332,13 @@ void UIinsertNode(UIManager uiManager, UINode *parent, UINode *newNode) {
  */
 
 void UIaddChild(UINode *parent, UINode *child) {
-    if (!parent || !child) {
-        printf("Parent or child is NULL in UIaddChild\n");
-        return;
-    }
+    ASSERT(parent && child, "parent = %p, child = %p\n", parent, child);
 
     if (parent->childrenCount >= parent->childrenCapacity) {
         // Make space for one more child
         parent->childrenCapacity++;
-        UINode **newChildren = realloc(
-            parent->children,
-            parent->childrenCapacity * sizeof(UINode*)
-        );
-        if (!newChildren) {
-            fprintf(stderr, "Failed to resize UI Node's children array\n");
-            return;
-        }
+        UINode **newChildren = realloc(parent->children,parent->childrenCapacity * sizeof(UINode*));
+        ASSERT(newChildren != NULL, "Failed to resize UI Node's children array\n");
         parent->children = newChildren;
     }
     parent->children[parent->childrenCount] = child;
@@ -366,15 +351,8 @@ void UIaddChild(UINode *parent, UINode *child) {
  */
 
 void UIremoveChild(UINode *parent, UINode *child) {
-    if (!parent || !child) {
-        printf("Parent or child is NULL in UIremoveChild\n");
-        return;
-    }
-
-    if (child->parent != parent) {
-        printf("The specified child does not belong to the specified parent in UIremoveChild\n");
-        return;
-    }
+    ASSERT(parent && child && child->parent == parent,
+        "parent = %p, child = %p, child->parent = %p\n", parent, child, child->parent);
 
     // Shift the other children to maintain order
     for (size_t i = child->siblingIndex; i < parent->childrenCount - 1; i++) {
@@ -391,10 +369,7 @@ void UIremoveChild(UINode *parent, UINode *child) {
  */
 
 void UIdeleteNode(UIManager uiManager, UINode *node) {
-    if (!uiManager || !node) {
-        printf("UIManager or node is NULL in removeUINode\n");
-        return;
-    }
+    ASSERT(uiManager && node, "uiManager = %p, node = %p\n", uiManager, node);
 
     if (node->children) {
         // Recursively delete all children
@@ -406,10 +381,10 @@ void UIdeleteNode(UIManager uiManager, UINode *node) {
         node->childrenCount = 0;
         node->childrenCapacity = 0;
     }
-    if (node->parent) {
+    if (node->parent)
         // If the current node has a parent, remove it from the parent's children
         UIremoveChild(node->parent, node);
-    }
+
     switch (node->type) {
         case UI_LABEL: {
             UILabel *label = (UILabel *)(node->widget);
@@ -452,6 +427,7 @@ void UIdeleteNode(UIManager uiManager, UINode *node) {
             optCycle->currOption = NULL;
             break;
         }
+        default: ;
     }
     if (node->layout) free(node->layout);
     if (node->rect) free(node->rect);
@@ -464,10 +440,7 @@ void UIdeleteNode(UIManager uiManager, UINode *node) {
  */
 
 void UIclear(UIManager uiManager) {
-    if (!uiManager) {
-        printf("UIManager is NULL in UIclear\n");
-        return;
-    }
+    ASSERT(uiManager != NULL, "UIManager is NULL");
 
     // Recursively delete all nodes
     if (uiManager->root) {
@@ -484,18 +457,11 @@ void UIclear(UIManager uiManager) {
  */
 
 void UIclose(UIManager uiManager) {
-    if (!uiManager) {
-        printf("UIManager is NULL in UIclose\n");
-        return;
-    }
+    ASSERT(uiManager != NULL, "UIManager is NULL");
 
     // Free the tree root and all its children
     UIdeleteNode(uiManager, uiManager->root);
-
-    // Free the dirty nodes array
     free(uiManager->dirtyNodes);
-
-    // Free the UIManager itself
     free(uiManager);
 }
 
@@ -504,23 +470,13 @@ void UIclose(UIManager uiManager) {
  */
 
 void UImarkNodeDirty(UIManager uiManager, UINode *node) {
-    if (!uiManager || !node) {
-        fprintf(stderr, "UIManager or node is NULL, cannot mark node dirty\n");
-        return;
-    }
-
+    ASSERT(uiManager && node, "uiManager = %p, node = %p\n", uiManager, node);
 
     if (uiManager->dirtyCount >= uiManager->dirtyCapacity) {
         // Double the capacity if it is full, begin with 4
         uiManager->dirtyCapacity = uiManager->dirtyCapacity == 0 ? 4 : uiManager->dirtyCapacity * 2;
-        UINode **newDirtyNodes = realloc(
-            uiManager->dirtyNodes,
-            uiManager->dirtyCapacity * sizeof(UINode*)
-        );
-        if (!newDirtyNodes) {
-            fprintf(stderr, "Failed to resize dirty UI nodes array\n");
-            return;
-        }
+        UINode **newDirtyNodes = realloc(uiManager->dirtyNodes, uiManager->dirtyCapacity * sizeof(UINode*));
+        ASSERT(newDirtyNodes != NULL, "Failed to resize dirty UI nodes array\n");
         uiManager->dirtyNodes = newDirtyNodes;
     }
 
@@ -533,14 +489,11 @@ void UImarkNodeDirty(UIManager uiManager, UINode *node) {
  */
 
 void UIunmarkNodeDirty(UIManager uiManager) {
-    if (!uiManager) {
-        fprintf(stderr, "UIManager is NULL, cannot unmark node dirty\n");
-        return;
-    }
+    ASSERT(uiManager != NULL, "UIManager is NULL, cannot unmark node dirty\n");
 
     UINode *node = uiManager->dirtyNodes[0];
     if (!node) {
-        fprintf(stderr, "No dirty nodes to unmark\n");
+        LOG(WARNING, "No dirty nodes to unmark\n");
         return;
     }
     node->isDirty = 0;
@@ -651,15 +604,11 @@ void UIunmarkNodeDirty(UIManager uiManager) {
  */
 
 void UIrenderNode(SDL_Renderer *rdr, UINode *node) {
-    if (!node) return;
+    ASSERT(rdr && node, "rdr = %p, node = %p\n", rdr, node);
 
-    #ifdef DEBUGUI
-        // Guard against the empty UI tree
-        if (node->rect) printf(
-            "Rendering UI node of type %d (x=%d, y=%d, w=%d, h=%d)\n",
-            node->type, node->rect->x, node->rect->y, node->rect->w, node->rect->h
-        );
-    #endif
+    // Guard against the empty UI tree
+    if (node->rect) SYS_DEBUG(DEBUG_UI, "Rendering UI node of type %d (x=%d, y=%d, w=%d, h=%d)\n",
+        node->type, node->rect->x, node->rect->y, node->rect->w, node->rect->h);
 
     // Render this node based on its type
     if (node->isVisible == 0 || (!node->rect)) return;
@@ -720,7 +669,7 @@ void UIrenderNode(SDL_Renderer *rdr, UINode *node) {
                         break;
                     }
                     default: {
-                        THROW_ERROR_AND_DO("Check yo back on uiManager.c:706 cuh\n", break;);
+                        LOG(WARNING, "Check yo back cuh\n");
                     }
                 }
 
@@ -748,6 +697,9 @@ void UIrenderNode(SDL_Renderer *rdr, UINode *node) {
             }
             break;
         }
+        default: {
+            LOG(WARNING, "Unknown UI node type %d", node->type);
+        }
     }
 
     // Render children recursively
@@ -761,14 +713,12 @@ void UIrenderNode(SDL_Renderer *rdr, UINode *node) {
  */
 
 void UIrender(UIManager uiManager, SDL_Renderer *rdr) {
-    if (!uiManager || !rdr) {
-        printf("UIManager or renderer is NULL in UIrender\n");
+    ASSERT(uiManager && rdr, "uiManager = %p, rdr = %p\n", uiManager, rdr);
+    if (!uiManager->root) {
+        // A log here would mean a log for every normally NULL node that marks a leaf
         return;
     }
-    if (uiManager->root) {
-        // Start rendering from the root node
-        UIrenderNode(rdr, uiManager->root);
-    }
+    UIrenderNode(rdr, uiManager->root);
 }
 
 /**
@@ -795,6 +745,9 @@ void UIrefocus(UIManager uiManager, UINode *newFocus) {
                 }
                 break;
             }
+            default: {
+                LOG(WARNING, "Unknown UI node type: %d\n", uiManager->focusedNode->type);
+            }
         }
     }
 
@@ -803,6 +756,7 @@ void UIrefocus(UIManager uiManager, UINode *newFocus) {
         uiManager->focusedNode = NULL;
         return;
     }
+
     uiManager->focusedNode = newFocus;
     uiManager->focusedNode->state = UI_STATE_FOCUSED;
     switch (uiManager->focusedNode->type) {
@@ -821,6 +775,9 @@ void UIrefocus(UIManager uiManager, UINode *newFocus) {
             }
             break;
         }
+        default: {
+            LOG(WARNING, "Unknown UI node type: %d\n", uiManager->focusedNode->type);
+        }
     }
 }
 
@@ -829,7 +786,7 @@ void UIrefocus(UIManager uiManager, UINode *newFocus) {
  */
 
 Uint8 UIisNodeFocusable(UINode *node) {
-    if (!node) return 0;
+    ASSERT(node != NULL, "NULL UI node\n");
     switch (node->type) {
         case UI_BUTTON:
         case UI_OPTION_CYCLE:
@@ -845,10 +802,8 @@ Uint8 UIisNodeFocusable(UINode *node) {
 
 UILayout* UIcreateLayout(UILayoutType type, UIPadding padding, UIAlignment alignment, float spacing) {
     UILayout *layout = calloc(1, sizeof(UILayout));
-    if (!layout) {
-        printf("Failed to allocate memory for the UI layout\n");
-        exit(EXIT_FAILURE);
-    }
+    ASSERT(layout != NULL, "Failed to allocate memory for UILayout\n");
+
     layout->type = type;
     layout->alignment = alignment;
     layout->padding = padding;
@@ -862,20 +817,23 @@ UILayout* UIcreateLayout(UILayoutType type, UIPadding padding, UIAlignment align
 
 UINode* UIcreateContainer(SDL_Rect rect, UILayout *layout, SDL_Color bgColor, SDL_Texture *bgTexture) {
     UINode *node = calloc(1, sizeof(UINode));
-    if (!node) THROW_ERROR_AND_EXIT("Failed to allocate memory for container node\n");
+    ASSERT(node != NULL, "Failed to allocate memory for container node\n");
+
     node->type = UI_CONTAINER;
     node->isDirty = 1;  // Dirty by default
     node->isVisible = 1;
     node->layout = layout;
 
     UIContainer *container = calloc(1, sizeof(UIContainer));
-    if (!container) THROW_ERROR_AND_EXIT("Failed to allocate memory for container widget\n");
+    ASSERT(container != NULL, "Failed to allocate memory for container widget\n");
+
     container->bgColor = bgColor;
     container->bgTexture = bgTexture;
     node->widget = container;
 
     SDL_Rect *contRect = calloc(1, sizeof(SDL_Rect));
-    if (!contRect) THROW_ERROR_AND_EXIT("Failed to allocate memory for container rectangle\n");
+    ASSERT(contRect != NULL, "Failed to allocate memory for container rectangle\n");
+
     *contRect = rect;
     node->rect = contRect;
     return node;
@@ -887,39 +845,28 @@ UINode* UIcreateContainer(SDL_Rect rect, UILayout *layout, SDL_Color bgColor, SD
 
 UINode* UIcreateLabel(SDL_Renderer *rdr, TTF_Font *font, char *text, SDL_Color color) {
     UINode *node = calloc(1, sizeof(UINode));
-    if (!node) {
-        printf("Failed to allocate memory for label node\n");
-        exit(EXIT_FAILURE);
-    }
+    ASSERT(node != NULL, "Failed to allocate memory for label node\n");
+
     node->isDirty = 1;  // Dirty by default
     node->type = UI_LABEL;
     node->isVisible = 1;
+
     node->rect = calloc(1, sizeof(SDL_Rect));
-    if (!node->rect) {
-        printf("Failed to allocate memory for label rectangle\n");
-        exit(EXIT_FAILURE);
-    }
+    ASSERT(node->rect != NULL, "Failed to allocate memory for label rectangle\n");
 
     UILabel *label = calloc(1, sizeof(UILabel));
-    if (!label) {
-        printf("Failed to allocate memory for label\n");
-        exit(EXIT_FAILURE);
-    }
+    ASSERT(label != NULL, "Failed to allocate memory for UI label\n");
 
     label->font = font;
     label->text = text;
     label->currColor = color;
 
     SDL_Surface *surface = TTF_RenderText_Solid(label->font, label->text, label->currColor);
-    if (!surface) {
-        printf("Failed to create text surface: %s\n", TTF_GetError());
-        exit(EXIT_FAILURE);
-    }
+    ASSERT(surface != NULL, "Failed to create text surface: %s\n", TTF_GetError());
+
     label->texture = SDL_CreateTextureFromSurface(rdr, surface);
-    if (!label->texture) {
-        printf("Failed to create text texture: %s\n", SDL_GetError());
-        exit(EXIT_FAILURE);
-    }
+    ASSERT(label->texture != NULL, "Failed to create text texture: %s\n", SDL_GetError());
+
     *node->rect = (SDL_Rect) {
         .x = 0,
         .y = 0,
@@ -941,25 +888,17 @@ UINode* UIcreateButton(
     ActionFunc onClick, void *data
 ) {
     UINode *node = calloc(1, sizeof(UINode));
-    if (!node) {
-        printf("Failed to allocate memory for button node\n");
-        exit(EXIT_FAILURE);
-    }
+    ASSERT(node != NULL, "Failed to allocate memory for button node\n");
+
     node->isDirty = 1;  // Dirty by default
     node->type = UI_BUTTON;
     node->state = state;
     node->isVisible = 1;
     node->rect = calloc(1, sizeof(SDL_Rect));
-    if (!node->rect) {
-        printf("Failed to allocate memory for button rectangle\n");
-        exit(EXIT_FAILURE);
-    }
+    ASSERT(node->rect != NULL, "Failed to allocate memory for button rectangle\n");
 
     UIButton *button = calloc(1, sizeof(UIButton));
-    if (!button) {
-        printf("Failed to allocate memory for button UI element\n");
-        exit(EXIT_FAILURE);
-    }
+    ASSERT(button != NULL, "Failed to allocate memory for button UI element\n");
 
     button->onClick = onClick;
     button->data = data;
@@ -973,25 +912,20 @@ UINode* UIcreateButton(
     }
     button->currColor = colors[state];
 
-    SDL_Surface *titleSurface = TTF_RenderText_Solid(button->font, button->text, button->currColor);
-    if (!titleSurface) {
-        printf("Failed to create text surface: %s\n", TTF_GetError());
-        exit(EXIT_FAILURE);
-    }
-    button->texture = SDL_CreateTextureFromSurface(rdr, titleSurface);
-    if (!button->texture) {
-        printf("Failed to create text texture: %s\n", SDL_GetError());
-        exit(EXIT_FAILURE);
-    }
+    SDL_Surface *btnTextSurface = TTF_RenderText_Solid(button->font, button->text, button->currColor);
+    ASSERT(btnTextSurface != NULL, "Failed to create text surface: %s\n", TTF_GetError());
+
+    button->texture = SDL_CreateTextureFromSurface(rdr, btnTextSurface);
+    ASSERT(button->texture != NULL, "Failed to create text texture: %s\n", SDL_GetError());
 
     node->widget = (void *)button;
     *node->rect = (SDL_Rect) {
         .x = 0,
         .y = 0,
-        .w = titleSurface->w,
-        .h = titleSurface->h
+        .w = btnTextSurface->w,
+        .h = btnTextSurface->h
     };
-    SDL_FreeSurface(titleSurface);  // we don't need the surface anymore
+    SDL_FreeSurface(btnTextSurface);
     return node;
 }
 
@@ -1001,30 +935,22 @@ UINode* UIcreateButton(
 
 UINode *UIcreateImage(SDL_Rect rect, SDL_Texture *texture, void *data) {
     UINode *node = calloc(1, sizeof(UINode));
-    if (!node) {
-        printf("Failed to allocate memory for image node\n");
-        exit(EXIT_FAILURE);
-    }
+    ASSERT(node != NULL, "Failed to allocate memory for image node\n");
+
     node->isDirty = 1;  // Dirty by default
     node->type = UI_IMAGE;
     node->isVisible = 1;
     SDL_Rect *nodeRect = calloc(1, sizeof(SDL_Rect));
-    if (!nodeRect) {
-        printf("Failed to allocate memory for image rectangle\n");
-        exit(EXIT_FAILURE);
-    }
+    ASSERT(nodeRect != NULL, "Failed to allocate memory for image rectangle\n");
+
     *nodeRect = rect;
     node->rect = nodeRect;
 
     UIImage *image = calloc(1, sizeof(UIImage));
-    if (!image) {
-        printf("Failed to allocate memory for image UI element\n");
-        exit(EXIT_FAILURE);
-    }
+    ASSERT(image != NULL, "Failed to allocate memory for image UI element\n");
 
     image->texture = texture;
     image->data = data;
-
     node->widget = (void *)image;
     return node;
 }
@@ -1037,26 +963,19 @@ UINode* UIcreateOptionCycle(
     SDL_Rect rect, UILayout *layout, UINode *selectorBtn, CDLLNode *currOption, SDL_Texture *arrowTexture
 ) {
     UINode *node = calloc(1, sizeof(UINode));
-    if (!node) {
-        printf("Failed to allocate memory for option cycle node\n");
-        exit(EXIT_FAILURE);
-    }
+    ASSERT(node != NULL, "Failed to allocate memory for option cycle node\n");
+
     node->isDirty = 1;  // Dirty by default
     node->type = UI_OPTION_CYCLE;
     node->isVisible = 1;
     SDL_Rect *nodeRect = calloc(1, sizeof(SDL_Rect));
-    if (!nodeRect) {
-        printf("Failed to allocate memory for option cycle rectangle\n");
-        exit(EXIT_FAILURE);
-    }
+    ASSERT(nodeRect != NULL, "Failed to allocate memory for option cycle rectangle\n");
+
     *nodeRect = rect;
     node->rect = nodeRect;
 
     UIOptionCycle *optionCycle = calloc(1, sizeof(UIOptionCycle));
-    if (!optionCycle) {
-        printf("Failed to allocate memory for option cycle UI element\n");
-        exit(EXIT_FAILURE);
-    }
+    ASSERT(optionCycle != NULL, "Failed to allocate memory for option cycle UI element\n");
 
     optionCycle->selector = selectorBtn;
     optionCycle->currOption = currOption;
@@ -1072,13 +991,14 @@ UINode* UIcreateOptionCycle(
  */
 
 ActionFunc resolveAction(HashMap parserMap, const char *key) {
-    if (!parserMap || !key) THROW_ERROR_AND_RETURN("Parser map or key is NULL", NULL);
-    if (parserMap->type != MAP_PARSER) THROW_ERROR_AND_RETURN("Parser map is of wrong type", NULL);
+    ASSERT(parserMap && key && parserMap->type == MAP_PARSER,
+        "parserMap = %p, key = %p, parserMap->type = %d\n", parserMap, key, parserMap->type);
+
     MapEntry *entry = MapGetEntry(parserMap, key);
     if (entry && entry->type == ENTRY_BTN_FUNC) return entry->data.ptr;
-    THROW_ERROR_AND_DO(
-        "Action with key", fprintf(stderr, "'%s' not found in parser map\n", key); return NULL;
-    );
+
+    LOG(ERROR, "Action with key '%s' not found in parser map\n", key);
+    return NULL;
 }
 
 /**
@@ -1086,21 +1006,21 @@ ActionFunc resolveAction(HashMap parserMap, const char *key) {
  */
 
 ProviderFunc resolveProvider(HashMap parserMap, const char *key) {
-    if (!parserMap || !key) THROW_ERROR_AND_RETURN("Parser map or key is NULL", NULL);
-    if (parserMap->type != MAP_PARSER) THROW_ERROR_AND_RETURN("Parser map is of wrong type", NULL);
+    ASSERT(parserMap && key && parserMap->type == MAP_PARSER,
+        "parserMap = %p, key = %p, parserMap->type = %d\n", parserMap, key, parserMap->type);
     MapEntry *entry = MapGetEntry(parserMap, key);
     if (entry && entry->type == ENTRY_PROVIDER_FUNC) return entry->data.ptr;
-    THROW_ERROR_AND_DO(
-        "Provider with key", fprintf(stderr, "'%s' not found in parser map\n", key); return NULL;
-    );
+
+    LOG(ERROR, "Provider with key '%s' not found in parser map\n", key);
+    return NULL;
 }
 
 /**
  * =====================================================================================================================
  */
 
-void insertToList(UINode *node, void *context) {
-    if (!node || !context) THROW_ERROR_AND_RETURN_VOID("Node or context is NULL in insertToList");
+void UIinsertToCycleList(UINode *node, void *context) {
+    ASSERT(node && context, "node = %p, context = %p\n", node, context);
 
     switch(node->type) {
         case UI_BUTTON: {
@@ -1116,7 +1036,7 @@ void insertToList(UINode *node, void *context) {
             break;
         }
         default: {
-            THROW_ERROR_AND_RETURN_VOID("Node type unknown in insertToList");
+            LOG(WARNING, "Node type unknown");
         }
     }
 }
@@ -1126,8 +1046,7 @@ void insertToList(UINode *node, void *context) {
  */
 
 void handleProviderResult(ProviderResult *result, NodeConsumer consumer, void *context) {
-    if (!result) THROW_ERROR_AND_RETURN_VOID("Provider result is NULL");
-    if (!consumer) THROW_ERROR_AND_RETURN_VOID("Consumer function is NULL");
+    ASSERT(result && consumer, "result = %p, consumer = %p\n", result, consumer);
 
     switch (result->type) {
         case RESULT_DISPLAYMODE_ARRAY: {
@@ -1135,6 +1054,7 @@ void handleProviderResult(ProviderResult *result, NodeConsumer consumer, void *c
             ButtonNodeContext *btnContext = (ButtonNodeContext *)context;
             for (size_t i = 0; i < result->size; i++) {
                 char *btnText = calloc(16, sizeof(char));
+                ASSERT(btnText != NULL, "Failed to allocate memory for button text\n");
                 snprintf(btnText, 16, "%dx%d", modes[i].w, modes[i].h);
 
                 UINode *btn = UIcreateButton(
@@ -1150,6 +1070,7 @@ void handleProviderResult(ProviderResult *result, NodeConsumer consumer, void *c
             ButtonNodeContext *btnContext = (ButtonNodeContext *)context;
             for (size_t i = 0; i < result->size; i++) {
                 char *btnText = calloc(20, sizeof(char));
+                ASSERT(btnText != NULL, "Failed to allocate memory for button text\n");
                 snprintf(btnText, 20, "%s", values[i] == 0 ? "Windowed" : "Fullscreen");
 
                 UINode *btn = UIcreateButton(
@@ -1179,7 +1100,7 @@ void handleProviderResult(ProviderResult *result, NodeConsumer consumer, void *c
             break;
         }
         default: {
-            break;
+            LOG(WARNING, "Unknown provider result type\n");
         }
     }
 }
@@ -1189,13 +1110,14 @@ void handleProviderResult(ProviderResult *result, NodeConsumer consumer, void *c
  */
 
 SDL_Color resolveColor(HashMap parserMap, const char *key) {
-    if (!parserMap || !key) THROW_ERROR_AND_RETURN("Parser map or key is NULL", COLOR_WHITE);
-    if (parserMap->type != MAP_PARSER) THROW_ERROR_AND_RETURN("Parser map is of wrong type", COLOR_WHITE);
+    ASSERT(parserMap && key && parserMap->type == MAP_PARSER,
+        "parserMap = %p, key = %p, parserMap->type = %d\n", parserMap, key, parserMap->type);
+
     MapEntry *entry = MapGetEntry(parserMap, key);
     if (entry && entry->type == ENTRY_COLOR) return *(SDL_Color *)entry->data.ptr;
-    THROW_ERROR_AND_DO(
-        "Color with key", fprintf(stderr, "'%s' not found in parser map\n", key); return COLOR_WHITE;
-    );
+
+    LOG(WARNING, "Color with key '%s' not found in parser map. Using default\n", key);
+    return COLOR_WHITE;
 }
 
 /**
@@ -1218,7 +1140,9 @@ SDL_Color applyColorAlpha(HashMap parserMap, cJSON *colorJson) {
         }
         return clr;
     }
-    return COLOR_GRAY; // Default color
+
+    LOG(WARNING, "Color JSON NULL. Using default alpha color\n");
+    return COLOR_GRAY;
 }
 
 /**
@@ -1240,7 +1164,8 @@ void loadParserEntries(HashMap parserMap, GameStateType state) {
     MapAddEntry(parserMap, "crimson", (MapEntryVal){.ptr = (void *)&COLOR_TABLE[IDX_CRIMSON]}, ENTRY_COLOR);
     MapAddEntry(parserMap, "purple", (MapEntryVal){.ptr = (void *)&COLOR_TABLE[IDX_PURPLE]}, ENTRY_COLOR);
     MapAddEntry(parserMap, "pink", (MapEntryVal){.ptr = (void *)&COLOR_TABLE[IDX_PINK]}, ENTRY_COLOR);
-    MapAddEntry(parserMap, "crimsondark", (MapEntryVal){.ptr = (void *)&COLOR_TABLE[IDX_CRIMSON_DARK]}, ENTRY_COLOR);
+    MapAddEntry(parserMap, "crimsondark", (MapEntryVal){.ptr = (void *)&COLOR_TABLE[IDX_CRIMSON_DARK]},
+        ENTRY_COLOR);
     MapAddEntry(parserMap, "gold", (MapEntryVal){.ptr = (void *)&COLOR_TABLE[IDX_GOLD]}, ENTRY_COLOR);
     MapAddEntry(parserMap, "brown", (MapEntryVal){.ptr = (void *)&COLOR_TABLE[IDX_BROWN]}, ENTRY_COLOR);
 
@@ -1302,5 +1227,7 @@ void loadParserEntries(HashMap parserMap, GameStateType state) {
             ENTRY_BTN_FUNC);
             break;
         }
+        default:
+            break;
     }
 }

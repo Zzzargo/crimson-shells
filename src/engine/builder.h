@@ -64,9 +64,9 @@ void loadPrefabs(ZENg zEngine, const char *filePath);
 
 /**
  * Frees all the memory used by the PrefabsManager
- * @param prefabmng pointer to the PrefabsManager HashMap = struct map**
+ * @param prefabMng pointer to the PrefabsManager HashMap = struct map**
  */
-void freePrefabsManager(HashMap *prefabmng);
+void freePrefabsManager(HashMap *prefabMng);
 
 // =====================================================================================================================
 

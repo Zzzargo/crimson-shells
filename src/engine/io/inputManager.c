@@ -1,11 +1,9 @@
 #include "inputManager.h"
+#include "global/debug.h"
 
 void saveKeyBindings(InputManager inputMng, const char *filePath) {
     FILE *fout = fopen(filePath, "w");
-    if (!fout) {
-        printf("Failed to open config file %s for writing\n", filePath);
-        return;
-    }
+	ASSERT(fout != NULL, "Failed to open config file %s for writing\n", filePath);
 
     const char *actionNames[INPUT_ACTION_COUNT] = {
         "MOVE_UP",
@@ -28,7 +26,7 @@ void saveKeyBindings(InputManager inputMng, const char *filePath) {
         fprintf(fout, "%s=%s\n", actionNames[action], SDL_GetScancodeName(inputMng->bindings[action]));
     }
     fclose(fout);
-    printf("Key bindings saved to %s\n", filePath);
+    LOG(DEBUG, "Key bindings saved to %s\n", filePath);
 }
 
 /**

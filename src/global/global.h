@@ -1,12 +1,6 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
-#define DEBUG
-// #define DEBUGPP
-#define DEBUGSYSTEMS
-#define DEBUGCOLLISIONS
-#define DEBUGUI
-
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -133,38 +127,5 @@ typedef enum {
 #define DIR_RIGHT (Vec2){1.0, 0.0}
 #define DIR_UP (Vec2){0.0, -1.0}
 #define DIR_DOWN (Vec2){0.0, 1.0}
-
-// I just found out about those sorceries
-
-#define THROW_ERROR_AND_RETURN(msg, ret) \
-    do { \
-        fprintf(stderr, "ERROR: %s\n", msg); \
-        return ret; \
-    } while (0)
-
-#define THROW_ERROR_AND_RETURN_VOID(msg) \
-    do { \
-        fprintf(stderr, "ERROR: %s\n", msg); \
-        return; \
-    } while (0)
-
-#define THROW_ERROR_AND_CONTINUE(msg) \
-    do { \
-        fprintf(stderr, "ERROR: %s\n", msg); \
-        continue; \
-    } while (0)
-
-#define THROW_ERROR_AND_EXIT(msg) \
-    do { \
-        fprintf(stderr, "ERROR: %s\n", msg); \
-        exit(EXIT_FAILURE); \
-    } while (0)
-
-// This one doesn't write a newline at the end of the error message
-#define THROW_ERROR_AND_DO(msg, code) \
-    do { \
-        fprintf(stderr, "ERROR: %s", msg); \
-        code \
-    } while (0)
 
 #endif // GLOBAL_H

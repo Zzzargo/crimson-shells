@@ -129,7 +129,7 @@ typedef struct uiMng {
 UIManager initUIManager();
 
 /**
- * Parses an UI tree from a JSON file with cJson (thank you)
+ * Parses a UI tree from a JSON file with cJson (thank you)
  * @param zEngine pointer to the engine = struct engine*
  * @param filePath path to the JSON file
  * @note the screen dimensions in the JSON file must match the logical screen dimensions (1280x720)
@@ -137,7 +137,7 @@ UIManager initUIManager();
 UINode* UIparseFromFile(ZENg zEngine, const char *filePath);
 
 /**
- * Parses an UI node from a cJSON object
+ * Parses a UI node from a cJSON object
  * @param zEngine pointer to the engine = struct engine*
  * @param parserMap the Parser Map = struct map*
  * @param json the cJSON object
@@ -169,7 +169,7 @@ void UIaddChild(UINode *parent, UINode *child);
 void UIremoveChild(UINode *parent, UINode *child);
 
 /**
- * Removes an UI node from the UI tree
+ * Removes a UI node from the UI tree
  * @param uiManager the UI manager = struct UIManager*
  * @param node the node to be removed
  */
@@ -208,7 +208,7 @@ void UIunmarkNodeDirty(UIManager uiManager);
 void UIapplyLayout(UINode *node);
 
 /**
- * Renders an UI tree from a root node
+ * Renders a UI tree from a root node
  * @param rdr the SDL_Renderer
  * @param node the root node of the UI tree to be rendered
  */
@@ -237,7 +237,7 @@ void UIrefocus(UIManager uiManager, UINode *newFocus);
 Uint8 UIisNodeFocusable(UINode *node);
 
 /**
- * Creates an UI layout
+ * Creates a UI layout
  * @param type layout type
  * @param padding paddings for the child elements of the element that has this layout
  * @param alignment alignment of the child elements of the element that has this layout
@@ -347,7 +347,7 @@ typedef struct {
  * @param node the node to be inserted
  * @param context pointer to the CDLL (struct CDLLNode**)
  */
-void insertToList(UINode *node, void *context);
+void UIinsertToCycleList(UINode *node, void *context);
 
 /**
  * Gets a function pointer from the Parser Map

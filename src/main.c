@@ -1,4 +1,5 @@
 #include "engine/core/engine.h"
+#include "global/debug.h"
 
 Entity PLAYER_ID = 0;  // will be set when the player is created
 
@@ -22,29 +23,22 @@ int main(int argc, char* argv[]) {
         // Cap delta time to prevent spikes after lags
         if (deltaTime > 0.1) deltaTime = 0.1;  // Min 10 FPS
 
-        #ifdef DEBUG
-            printf("=======================FRAME START=====================\n");
-        #endif
+        LOG(DEBUG, "=======================FRAME START=====================\n");
 
         GameState *currState = getCurrState(zEngine->stateMng);
         
         while (SDL_PollEvent(&event)) {
             running = currState->handleEvents(&event, zEngine);
             currState = getCurrState(zEngine->stateMng);  // get the current state after handling events
-            #ifdef DEBUG
-                if (!running) printf("Event handler returned 0 for the main loop\n");
-            #endif
+            LOG(DEBUG, "Event handler returned 0 for the main loop\n");
             
             if (event.type == SDL_QUIT || (currState && currState->type == STATE_EXIT)) {
-                #ifdef DEBUG
-                    printf("Quit event received or current state is EXIT\n");
-                #endif
+                LOG(DEBUG, "Quit event received or current state is EXIT\n");
                 running = 0;
             }
         }
         if (!running) break;
-        
-        // Clear the screen
+
         SDL_SetRenderDrawColor(zEngine->display->renderer, 15, 15, 20, 255);  // Near black
         SDL_RenderClear(zEngine->display->renderer);
         

@@ -90,13 +90,11 @@ Uint8 checkAndHandleEntityCollisions(ZENg zEngine, Entity entity);
  */
 void entityCollisionSystem(ZENg zEngine, double_t deltaTime);
 
-#ifdef DEBUGCOLLISIONS
 /**
  * Renders lines on margins of entities' hitboxes to visualize the collisions
  * @param zEngine pointer to the engine
  */
 void renderDebugCollision(ZENg zEngine);
-#endif
 
 /**
  * Checks whether an entity collides with the world (walls mostly) and passes the colliders to a handling function
@@ -133,7 +131,6 @@ void weaponSystem(ZENg zEngine, double_t deltaTime);
  */
 void transformSystem(ZENg zEngine, double_t deltaTime);
 
-#ifdef DEBUGUI
 /**
  * Renders the UI node and its children with debug outlines
  * @param rdr pointer to the SDL_Renderer
@@ -141,7 +138,6 @@ void transformSystem(ZENg zEngine, double_t deltaTime);
  * @param node pointer to the UI node to render
 */
 void UIdebugRenderNode(SDL_Renderer *rdr, UIManager uiManager, UINode *node);
-#endif
 
 /**
  * Renders the current frame
@@ -156,13 +152,11 @@ void renderSystem(ZENg zEngine, double_t deltaTime);
  */
 void renderArena(ZENg zEngine);
 
-#ifdef DEBUG
 /**
  * Renders lines on the tiles' margins to visualize the grid
  * @param zEngine pointer to the engine
  */
 void renderDebugGrid(ZENg zEngine);
-#endif
 
 /**
  * Updates UI elements

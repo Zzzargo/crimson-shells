@@ -1,13 +1,19 @@
 #include "resourceManager.h"
 
+#include "global/debug.h"
+#include "global/utils/hashMap.h"
+
 SDL_Texture* getTexture(HashMap resMng, const char *key) {
-    if (!resMng || !key) THROW_ERROR_AND_RETURN("Resource manager or key is NULL", NULL);
-    if (resMng->type != MAP_RESOURCES) THROW_ERROR_AND_RETURN("Resource manager is of wrong type", NULL);
+    ASSERT(resMng && key && resMng->type == MAP_RESOURCES,
+        "resMng = %p, key = %p\n, resMng->type = %d", resMng, key, resMng->type);
     MapEntry *entry = MapGetEntry(resMng, key);
     if (entry && entry->type == ENTRY_TEXTURE) {
         return (SDL_Texture *)entry->data.ptr;
     }
-    THROW_ERROR_AND_DO("Texture with key ", fprintf(stderr, "'%s' not found\n", key); return NULL;);
+
+    // TODO: get a default texture
+    LOG(WARNING, "Texture with key '%s' not found\n", key);
+    return NULL;
 }
 
 /**
@@ -15,13 +21,16 @@ SDL_Texture* getTexture(HashMap resMng, const char *key) {
  */
 
 TTF_Font* getFont(HashMap resMng, const char *key) {
-    if (!resMng || !key) THROW_ERROR_AND_RETURN("Resource manager or key is NULL", NULL);
-    if (resMng->type != MAP_RESOURCES) THROW_ERROR_AND_RETURN("Resource manager is of wrong type", NULL);
+    ASSERT(resMng && key && resMng->type == MAP_RESOURCES,
+        "resMng = %p, key = %p\n, resMng->type = %d", resMng, key, resMng->type);
     MapEntry *entry = MapGetEntry(resMng, key);
     if (entry && entry->type == ENTRY_FONT) {
         return (TTF_Font *)entry->data.ptr;
     }
-    THROW_ERROR_AND_DO("Font with key ", fprintf(stderr, "'%s' not found\n", key); return NULL;);
+
+    // TODO: get a default font
+    LOG(WARNING, "Font with key '%s' not found\n", key);
+    return NULL;
 }
 
 /**
@@ -29,13 +38,16 @@ TTF_Font* getFont(HashMap resMng, const char *key) {
  */
 
 Mix_Chunk *getSound(HashMap resMng, const char *key) {
-    if (!resMng || !key) THROW_ERROR_AND_RETURN("Resource manager or key is NULL", NULL);
-    if (resMng->type != MAP_RESOURCES) THROW_ERROR_AND_RETURN("Resource manager is of wrong type", NULL);
+    ASSERT(resMng && key && resMng->type == MAP_RESOURCES,
+        "resMng = %p, key = %p\n, resMng->type = %d", resMng, key, resMng->type);
     MapEntry *entry = MapGetEntry(resMng, key);
     if (entry && entry->type == ENTRY_SOUND) {
         return (Mix_Chunk *)entry->data.ptr;
     }
-    THROW_ERROR_AND_DO("Sound with key ", fprintf(stderr, "'%s' not found\n", key); return NULL;);
+
+    // TODO: get a default sound
+    LOG(WARNING, "Sound with key '%s' not found\n", key);
+    return NULL;
 }
 
 /**
@@ -43,25 +55,23 @@ Mix_Chunk *getSound(HashMap resMng, const char *key) {
  */
 
 MapEntryVal getOrLoadResource(HashMap resMng, SDL_Renderer *renderer, const char *key, MapEntryType type) {
-    if (!resMng || !key) THROW_ERROR_AND_RETURN("Resource manager or key is NULL", (MapEntryVal){.ptr = NULL});
-    if (resMng->type != MAP_RESOURCES)
-        THROW_ERROR_AND_RETURN("Resource manager is of wrong type", (MapEntryVal){.ptr = NULL});
+    ASSERT(resMng && key && resMng->type == MAP_RESOURCES,
+        "resMng = %p, key = %p, resMng->type = %d\n", resMng, key, resMng->type);
+
     MapEntry *entry = MapGetEntry(resMng, key);
     if (entry) {
         // Already loaded, just return it
         return entry->data;
     }
 
-    THROW_ERROR_AND_DO("Resource with key ", fprintf(stderr, "'%s' not found. Loading...\n", key); );
+    LOG(INFO, "Resource with key '%s' not found. Loading...\n", key);
     MapEntryVal resource = {.ptr = NULL};
     switch (type) {
         case ENTRY_TEXTURE: {
             resource.ptr = IMG_LoadTexture(renderer, key);
-            if (!resource.ptr) THROW_ERROR_AND_DO(
-                "Failed to load texture ", fprintf(stderr, "'%s': %s\n", key, IMG_GetError());
-                return (MapEntryVal){.ptr = NULL};
-            );
-            SDL_SetTextureBlendMode((SDL_Texture *)resource.ptr, SDL_BLENDMODE_BLEND);  // activate blending
+            ASSERT(resource.ptr != NULL, "Failed to load texture '%s': %s\n", key, IMG_GetError());
+
+            SDL_SetTextureBlendMode((SDL_Texture *)resource.ptr, SDL_BLENDMODE_BLEND);  // activate blending for pngs
             break;
         }
 
@@ -71,41 +81,37 @@ MapEntryVal getOrLoadResource(HashMap resMng, SDL_Renderer *renderer, const char
             size_t pathLen = 0;
             if (sizeStr) {
                 pathLen = sizeStr - key; // Yes this is valid pointer arithmetic
-                pSize = atoi(sizeStr + 1); // Convert the size part to an integer
-            } else THROW_ERROR_AND_DO(
-                "Font path ", fprintf(stderr, "'%s' is missing size specifier. Using default size %d\n", key, pSize);
-                return (MapEntryVal){.ptr = NULL};
-            );
+                pSize = (int) strtol(sizeStr + 1, NULL, 10); // Convert the size part to an integer
+            } else {
+                LOG(WARNING, "Font path '%s' is missing size specifier. Using default size %d\n", key, pSize);
+            }
 
             char pathBuff[pathLen + 1];
             strncpy(pathBuff, key, pathLen);
             pathBuff[pathLen] = '\0'; // Null-terminate the string
             resource.ptr = TTF_OpenFont(pathBuff, pSize);
-            if (!resource.ptr) THROW_ERROR_AND_DO(
-                "Failed to load font ", fprintf(stderr, "'%s': %s\n", pathBuff, TTF_GetError());
+            if (!resource.ptr) {
+                LOG(WARNING, "Failed to load font '%s': %s.\n", pathBuff, TTF_GetError());
+                // TODO: get the default font
                 return (MapEntryVal){.ptr = NULL};
-            );
+            }
             break;
         }
         case ENTRY_SOUND: {
             resource.ptr = Mix_LoadWAV(key);
-            if (!resource.ptr) THROW_ERROR_AND_DO(
-                "Failed to load sound ", fprintf(stderr, "'%s': %s\n", key, Mix_GetError());
+            if (!resource.ptr) {
+                LOG(WARNING, "Failed to load sound '%s': %s\n", key, Mix_GetError());
+                // TODO: get the default sound
                 return (MapEntryVal){.ptr = NULL};
-            );
+            }
             break;
         }
         default: {
-            THROW_ERROR_AND_DO(
-                "Unsupported resource type ", fprintf(stderr, "%d for key '%s'\n", type, key);
-                return (MapEntryVal){.ptr = NULL};
-            );
+            LOG(WARNING, "Unsupported resource type %d for key '%s'\n", type, key);
+            // TODO: get the default font
+            return (MapEntryVal){.ptr = NULL};
         }
     }
-    if (!resource.ptr) THROW_ERROR_AND_DO(
-        "Resource loading failed for key ", fprintf(stderr, "'%s'\n", key);
-        return (MapEntryVal){.ptr = NULL};
-    );
     
     // Add the newly loaded resource to the resource manager
     MapAddEntry(resMng, key, resource, type);
@@ -151,8 +157,12 @@ void preloadResources(HashMap resMng, SDL_Renderer *renderer) {
  */
 
 void freeResourceManager(HashMap *resMng) {
-    if (!resMng || !*resMng) return;
-    if ((*resMng)->type != MAP_RESOURCES) THROW_ERROR_AND_RETURN_VOID("Resource manager is of wrong type. Can't free");
+    if (!resMng || !*resMng) {
+        LOG(ERROR, "Trying to free a NULL resource manager");
+        return;
+    }
+
+    ASSERT((*resMng)->type == MAP_RESOURCES, "resMng->type = %d", (*resMng)->type);
 
     size_t size = (*resMng)->size;
     for (size_t i = 0; i < size; i++) {
@@ -173,6 +183,8 @@ void freeResourceManager(HashMap *resMng) {
                     Mix_FreeChunk((Mix_Chunk *)entry->data.ptr);
                     break;
                 }
+                default:
+                    LOG(WARNING, "Unknown resource type %d", entry->type);
             }
             free(entry);
             entry = next;

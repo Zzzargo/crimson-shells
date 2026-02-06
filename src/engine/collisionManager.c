@@ -2,23 +2,24 @@
 #include "engine/arena.h"
 #include "engine/core/ecs.h"
 #include "engine/core/engine.h"
+#include "global/debug.h"
 
 CollisionManager initCollisionManager() {
     CollisionManager cm = calloc(1, sizeof(struct colmng));
-    if (!cm) THROW_ERROR_AND_EXIT("Failed allocating memory for the Collision Manager");
+    ASSERT(cm != NULL, "Failed allocating memory for the Collision Manager");
 
     // Initialize the spatial grid
     size_t totalCells = ARENA_WIDTH * ARENA_HEIGHT;
     cm->spatialGrid = calloc(totalCells, sizeof(GridCell));
-    if (!cm->spatialGrid) THROW_ERROR_AND_EXIT("Failed allocating memory for the spatial grid");
+    ASSERT(cm->spatialGrid != NULL, "Failed allocating memory for the spatial grid");
 
-    // Initialize each cell's entity array for 4 entities
+    // Initialize each cell's entity array for 2 entities
     for (size_t i = 0; i < totalCells; i++) {
         GridCell *cell = &cm->spatialGrid[i];
 
-        cell->entities = calloc(4, sizeof(Entity));
-        if (!cell->entities) THROW_ERROR_AND_EXIT("Failed allocating memory for grid cell entities");
-        cell->capacity = 4;
+        cell->entities = calloc(2, sizeof(Entity));
+        ASSERT(cell->entities != NULL, "Failed allocating memory for grid cell entities");
+        cell->capacity = 2;
         cell->entityCount = 0;
     }
 
@@ -93,7 +94,7 @@ void actorVsWorldColHandler(ZENg zEngine, Entity actor, Tile *tile) {
     if (tile->isWalkable) return;  // Move freely
 
     if (!HAS_COMPONENT(zEngine->ecs, actor, COLLISION_COMPONENT))
-        THROW_ERROR_AND_RETURN_VOID("Actor with invalid colComp in actorVsWorldColHandler");
+        LOG(WARNING, "Actor with invalid colComp in %s\n", __func__);
     CollisionComponent *aColComp = NULL;
     GET_COMPONENT(zEngine->ecs, actor, COLLISION_COMPONENT, aColComp, CollisionComponent);
 
@@ -142,7 +143,7 @@ void projectileVsWorldColHandler(ZENg zEngine, Entity projectile, Tile *tile) {
 #endif
     if (!tile->isSolid) return;  // Bullet passes through this wall
     if (!HAS_COMPONENT(zEngine->ecs, projectile, PROJECTILE_COMPONENT))
-        THROW_ERROR_AND_RETURN_VOID("Projectile entity without projectile component in projectileVsWorldCollision");
+        LOG(WARNING, "Projectile entity without projectile component in %s\n", __func__);
      ProjectileComponent *projComp = NULL;
      GET_COMPONENT(zEngine->ecs, projectile, PROJECTILE_COMPONENT, projComp, ProjectileComponent);
      if (
@@ -171,12 +172,10 @@ void projectileVsActorColHandler(ZENg zEngine, Entity actor, Entity projectile) 
 #ifdef DEBUGCOLLISIONS
     printf("[ENTITY COLLISION SYSTEM] Projectile(%lu) VS Actor(%lu) collision\n", actor, projectile);
 #endif
-    if (!HAS_COMPONENT(zEngine->ecs, projectile, PROJECTILE_COMPONENT)) THROW_ERROR_AND_RETURN_VOID(
-            "Projectile without projectile component in projectileVsActorColHandler\n"
-        );
-    if (!HAS_COMPONENT(zEngine->ecs, actor, HEALTH_COMPONENT)) THROW_ERROR_AND_RETURN_VOID(
-            "Actor without health component in projectileVsActorColHandler\n"
-        );
+    if (!HAS_COMPONENT(zEngine->ecs, projectile, PROJECTILE_COMPONENT))
+        LOG(WARNING,"Projectile without projectile component in %s\n", __func__);
+    if (!HAS_COMPONENT(zEngine->ecs, actor, HEALTH_COMPONENT))
+        LOG(WARNING, "Actor without health component in %s\n", __func__);
     ProjectileComponent *projComp = NULL;
     GET_COMPONENT(zEngine->ecs, projectile, PROJECTILE_COMPONENT, projComp, ProjectileComponent);
     HealthComponent *healthComp = NULL;
@@ -200,10 +199,8 @@ void populateHandlersTables(CollisionManager cm) {
 // =====================================================================================================================
 
 void registerEntityToSG(CollisionManager cm, Entity e, CollisionComponent *colComp) {
-    if (!cm) THROW_ERROR_AND_RETURN_VOID("Collision manager NULL in insertEntityToSG");
-    if (!colComp) THROW_ERROR_AND_RETURN_VOID("Entity's colComp NULL in insertEntityToSG");
+    ASSERT(cm && colComp && colComp->hitbox, "cm = %p, colComp = %p, hb = %p", cm, colComp, colComp->hitbox);
     SDL_Rect *hb = colComp->hitbox;
-    if (!hb) THROW_ERROR_AND_RETURN_VOID("Entity's hitbox NULL in insertEntityToSG");
 
     // Compute the tile range that the entity covers. At instantiation the hitbox corresponds to the position component
     Int32 startX = hb->x / TILE_SIZE;
@@ -242,7 +239,7 @@ void insertEntityToSGCell(Entity e, GridCell *cell) {
     // Check if another would fit
     if (cell->entityCount >= cell->capacity) {
         Entity *tmp = realloc(cell->entities, sizeof(Entity) * cell->capacity * 2);
-        if (!tmp) THROW_ERROR_AND_EXIT("Memory reallocation failed for the entities array of a spatial grid cell");
+        ASSERT(tmp != NULL, "Memory reallocation failed for the entities array of a spatial grid cell");
         cell->entities = tmp;
         cell->capacity *= 2;
     }

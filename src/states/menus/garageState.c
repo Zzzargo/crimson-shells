@@ -1,7 +1,9 @@
+#include "engine/core/componentFactory.h"
+#include "global/debug.h"
 #include "states/stateManager.h"
 
 void onEnterGarage(ZENg zEngine) {
-    // Here the engine should fetch the player data from a savegame but it's not implemented yet so hardcode
+    // Here the engine should fetch the player data from a savegame, but it's not implemented yet so hardcode
 
     Entity playa = instantiateTank(
         zEngine, getTankPrefab(zEngine->prefabs, "player"), (Vec2){.x = 0, .y =0}
@@ -76,10 +78,12 @@ void onExitGarage(ZENg zEngine) {
 ProviderResult* getMainGuns(ZENg zEngine) {
     // This should fetch the player's available main guns but it's not implemented yet
     // So this function is going to get the player's loadout guns
+    // TODO: fix that
 
-    if (!zEngine) THROW_ERROR_AND_RETURN("Engine is NULL in getMainGuns", NULL);
+    ASSERT(zEngine != NULL, "Lost reference to the engine");
+
     Entity *guns = calloc(3, sizeof(Entity));
-    if (!guns) THROW_ERROR_AND_EXIT("Failed to allocate memory for main guns array in getMainGuns");
+    ASSERT(guns != NULL, "Failed to allocate memory for main guns array");
 
     Uint64 page = PLAYER_ID / PAGE_SIZE;
     Uint64 offset = PLAYER_ID % PAGE_SIZE;
@@ -94,17 +98,14 @@ ProviderResult* getMainGuns(ZENg zEngine) {
     guns[2] = secGun2ID;
 
     ProviderResult *result = calloc(1, sizeof(ProviderResult));
-    if (!result) THROW_ERROR_AND_EXIT("Failed to allocate memory for ProviderResult in getMainGuns");
+    ASSERT(result != NULL, "Failed to allocate memory for ProviderResult");
+
     result->data = (void *)guns;
     result->size = 3;
     result->type = RESULT_WEAPONS_ARRAY;
 
     HashMap stateData = getCurrState(zEngine->stateMng)->stateData;
     MapAddEntry(stateData, "mainGuns", (MapEntryVal){.ptr = result}, ENTRY_PROVIDER_RESULT);
-
-    #ifdef DEBUG
-        printf("Added 3 main guns to parser map\n");
-    #endif
     return result;
 }
 

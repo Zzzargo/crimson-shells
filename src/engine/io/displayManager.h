@@ -3,11 +3,11 @@
 
 #include "global/global.h"
 
-typedef struct displaymng {
+typedef struct displayMng {
     SDL_Window *window;  // pointer to the game's window
     SDL_Renderer *renderer;  // pointer to the renderer
 
-    SDL_DisplayMode currentMode;  // thanks SDL for making this easy
+    SDL_DisplayMode currentMode;  // thanks, SDL for making this easy
     Uint32 wdwFlags;  // fullscreen, borderless, etc.
     Uint8 fullscreen;
     Uint8 vsync;

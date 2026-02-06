@@ -1,15 +1,19 @@
 #include "builder.h"
 #include "engine/core/engine.h"  // This is some dark magic here
+#include "global/debug.h"
 
 WeaponPrefab* getWeaponPrefab(HashMap prefabMng, const char *key) {
-    if (!prefabMng || !key) THROW_ERROR_AND_RETURN("Resource manager or key is NULL", NULL);
-    if (prefabMng->type != MAP_PREFABS) THROW_ERROR_AND_RETURN("Prefabs manager is of wrong type", NULL);
+    // TODO: maybe get the default when the mng is valid but the key not
+	ASSERT(prefabMng && key && prefabMng->type == MAP_PREFABS,
+		"prefabMng = %p, key = %p, prefabMng->type = %d", prefabMng, key, prefabMng->type);
     MapEntry *entry = MapGetEntry(prefabMng, key);
     if (entry && entry->type == ENTRY_WEAPON_PREFAB) {
         return (WeaponPrefab *)entry->data.ptr;
     }
-    fprintf(stderr, "Weapon prefab with key '%s' not found or wrong type\n", key);
-    return NULL;  // weapon prefab not found or wrong type
+
+    // TODO: Create a weapon prefab placeholder
+    LOG(WARNING, "Couldn't find weapon prefab with key %s", key);
+    return NULL;
 }
 
 /**
@@ -17,13 +21,16 @@ WeaponPrefab* getWeaponPrefab(HashMap prefabMng, const char *key) {
  */
 
 TankPrefab* getTankPrefab(HashMap prefabMng, const char *key) {
-    if (!prefabMng || !key) THROW_ERROR_AND_RETURN("Resource manager or key is NULL", NULL);
-    if (prefabMng->type != MAP_PREFABS) THROW_ERROR_AND_RETURN("Prefabs manager is of wrong type", NULL);
+    ASSERT(prefabMng && key && prefabMng->type == MAP_PREFABS,
+        "prefabMng = %p, key = %p, prefabMng->type = %d", prefabMng, key, prefabMng->type);
     MapEntry *entry = MapGetEntry(prefabMng, key);
     if (entry && entry->type == ENTRY_TANK_PREFAB) {
         return (TankPrefab *)entry->data.ptr;
     }
-    THROW_ERROR_AND_DO("Tank prefab with key ", fprintf(stderr, "'%s' not found\n", key); return NULL;);
+
+    // TODO: Create a weapon prefab placeholder
+    LOG(WARNING, "Couldn't find tank prefab with key %s", key);
+    return NULL;
 }
 
 /**
@@ -31,13 +38,16 @@ TankPrefab* getTankPrefab(HashMap prefabMng, const char *key) {
  */
 
 Tile getTilePrefab(HashMap prefabMng, const char *key) {
-    if (!prefabMng || !key) THROW_ERROR_AND_RETURN("Resource manager or key is NULL", (Tile){0});
-    if (prefabMng->type != MAP_PREFABS) THROW_ERROR_AND_RETURN("Prefabs manager is of wrong type", (Tile){0});
+    ASSERT(prefabMng && key && prefabMng->type == MAP_PREFABS,
+        "prefabMng = %p, key = %p, prefabMng->type = %d", prefabMng, key, prefabMng->type);
     MapEntry *entry = MapGetEntry(prefabMng, key);
     if (entry && entry->type == ENTRY_TILE_PREFAB) {
         return *(Tile *)entry->data.ptr;
     }
-    THROW_ERROR_AND_DO("Tile prefab with key ", fprintf(stderr, "'%s' not found\n", key); return (Tile){0};);
+
+    // TODO: Create a weapon prefab placeholder
+    LOG(WARNING, "Couldn't find tank prefab with key %s", key);
+    return (Tile){0};
 }
 
 /**
@@ -231,13 +241,16 @@ void loadPrefabs(ZENg zEngine, const char *filePath) {
  * =====================================================================================================================
  */
 
-void freePrefabsManager(HashMap *prefabmng) {
-    if (!prefabmng || !*prefabmng) return;
-    if ((*prefabmng)->type != MAP_PREFABS) THROW_ERROR_AND_RETURN_VOID("Prefabs manager is of wrong type");
+void freePrefabsManager(HashMap *prefabMng) {
+    if (!prefabMng || !*prefabMng) {
+        LOG(ERROR, "Trying to free a NULL prefab manager");
+        return;
+    }
+    ASSERT((*prefabMng)->type == MAP_PREFABS, "prefabMng->type = %d", (*prefabMng)->type);
 
-    size_t size = (*prefabmng)->size;
+    size_t size = (*prefabMng)->size;
     for (Uint32 i = 0; i < size; i++) {
-        MapEntry *entry = (*prefabmng)->entries[i];
+        MapEntry *entry = (*prefabMng)->entries[i];
         while (entry) {
             MapEntry *next = entry->next;
             switch(entry->type) {
@@ -278,10 +291,7 @@ void freePrefabsManager(HashMap *prefabmng) {
                     break;
                 }
                 default: {
-                    THROW_ERROR_AND_DO(
-                        "Unknown prefab type ",
-                        fprintf(stderr, "%d for key '%s'\n", entry->type, entry->key);
-                    );
+                    LOG(WARNING, "Unknown prefab type: %d for key %s", entry->type, entry->key);
                     break;
                 }
             }
@@ -291,9 +301,9 @@ void freePrefabsManager(HashMap *prefabmng) {
         }
     }
 
-    free((*prefabmng)->entries);
-    free(*prefabmng);
-    *prefabmng = NULL;
+    free((*prefabMng)->entries);
+    free(*prefabMng);
+    *prefabMng = NULL;
 }
 
 /**

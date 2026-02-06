@@ -1,8 +1,10 @@
+#include "global/debug.h"
 #include "global/global.h" // For the macros
 
 CDLLNode* initList(GenericData data, GenericDataType dataType) {
     CDLLNode *head = calloc(1, sizeof(CDLLNode));
-    if (!head) THROW_ERROR_AND_EXIT("Failed to allocate memory for list head");
+    ASSERT(head != NULL, "Failed to allocate memory for list head");
+
     head->data = data;
     head->dataType = dataType;
     head->next = head;
@@ -11,10 +13,11 @@ CDLLNode* initList(GenericData data, GenericDataType dataType) {
 }
 
 void CDLLInsertLast(CDLLNode *head, GenericData data, GenericDataType dataType) {
-    if (!head) THROW_ERROR_AND_RETURN_VOID("Cannot insert into list: head is NULL");
+    ASSERT(head != NULL, "Cannot insert into list: head is NULL");
 
     CDLLNode *newNode = calloc(1, sizeof(CDLLNode));
-    if (!newNode) THROW_ERROR_AND_EXIT("Failed to allocate memory for new list node");
+    ASSERT(newNode != NULL, "Failed to allocate memory for new list node");
+
     newNode->data = data;
     newNode->dataType = dataType;
 
@@ -26,7 +29,7 @@ void CDLLInsertLast(CDLLNode *head, GenericData data, GenericDataType dataType) 
 }
 
 void CDLLRemoveLast(CDLLNode *head) {
-    if (!head) THROW_ERROR_AND_RETURN_VOID("Cannot remove from list: head is NULL");
+    ASSERT(head != NULL, "Cannot remove from list: head is NULL");
 
     CDLLNode *lastNode = head->prev;
     if (lastNode == head) {
@@ -40,7 +43,10 @@ void CDLLRemoveLast(CDLLNode *head) {
 }
 
 void freeList(CDLLNode **head) {
-    if (!head || !*head) return;
+    if (!head || !*head) {
+        LOG(ERROR, "Head NULL: head = %p, *head = %p\n", head, *head);
+        return;
+    }
 
     CDLLNode *current = (*head)->next;
     while (current != *head) {

@@ -5,20 +5,21 @@
 #include <SDL2/SDL_blendmode.h>
 #include <SDL2/SDL_rect.h>
 #include <SDL2/SDL_render.h>
+#include "global/debug.h"
 
 void loadSettings(ZENg zEngine, const char *filePath) {
     // look for the file
     FILE *fin = fopen(filePath, "r");
 
     zEngine->inputMng = calloc(1, sizeof(struct inputmng));
-    if (!zEngine->inputMng) THROW_ERROR_AND_EXIT("Failed allocating memory for the input manager");
+    ASSERT(zEngine->inputMng, "zEngine->inputMng = %p\n", zEngine->inputMng);
 
-    zEngine->display = calloc(1, sizeof(struct displaymng));
-    if (!zEngine->display) THROW_ERROR_AND_EXIT("Failed allocating memory for the display manager");
+    zEngine->display = calloc(1, sizeof(struct displayMng));
+    ASSERT(zEngine->display, "zEngine->display = %p\n", zEngine->display);
 
     if (!fin) {
         // file doesn't exist
-        fprintf(stderr, "No config file found in %s. Using defaults\n", filePath);
+        LOG(INFO, "No config file found in %s. Using defaults\n", filePath);
         setDefaultBindings(zEngine->inputMng);
         setDefaultDisplaySettings(zEngine->display);
         
@@ -31,28 +32,22 @@ void loadSettings(ZENg zEngine, const char *filePath) {
             zEngine->display->currentMode.h,
             zEngine->display->wdwFlags
         );
-        if (!zEngine->display->window) THROW_ERROR_AND_DO(
-            "Window creation failed: ", fprintf(stderr, "%s\n", SDL_GetError()); exit(EXIT_FAILURE);
-        );
+        ASSERT(zEngine->display->window != NULL, "%s\n", SDL_GetError());
         zEngine->display->renderer = SDL_CreateRenderer(
             zEngine->display->window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC
         );
-        if (!zEngine->display->renderer) THROW_ERROR_AND_DO(
-            "Renderer creation failed: ", fprintf(stderr, "%s\n", SDL_GetError());
-            SDL_DestroyWindow(zEngine->display->window); exit(EXIT_FAILURE);
-        );
-        return;
+        ASSERT(zEngine->display->renderer != NULL, "%s\n", SDL_GetError());
     }
 
     // if the file exists, read the settings
 
-    enum {
+    enum SettingsSection {
         NONE,
         SECTION_DISPLAY,
         SECTION_BINDINGS
     } currSect = NONE;
 
-    /* In case display settings are not fully specified, here's a failsafe*/
+    // In case display settings are not fully specified, here's a failsafe with maximized compatibility
     Int32 width = 1280, height = 720;
     Int32 fullscreen = 0; Int32 vsync = 0;
 
@@ -81,22 +76,22 @@ void loadSettings(ZENg zEngine, const char *filePath) {
         switch (currSect) {
             case SECTION_DISPLAY: {
                 if (strcmp(setting, "WIDTH") == 0) {
-                    width = atoi(value);
+                    width = (int)strtol(value, NULL, 10);
                 } else if (strcmp(setting, "HEIGHT") == 0) {
-                    height = atoi(value);
+                    height = (int)strtol(value, NULL, 10);
                 } else if (strcmp(setting, "FULLSCREEN") == 0) {
-                    fullscreen = atoi(value);
+                    fullscreen = (int)strtol(value, NULL, 10);
                 } else if (strcmp(setting, "VSYNC") == 0) {
-                    vsync = atoi(value);
+                    vsync = (int)strtol(value, NULL, 10);
                 } else {
-                    printf("Unknown DISPLAY setting: %s\n", setting);
+                    LOG(WARNING, "Unknown DISPLAY setting: %s\n", setting);
                 }
                 break;
             }
             case SECTION_BINDINGS: {
                 SDL_Scancode scancode = SDL_GetScancodeFromName(value);
                 if (scancode == SDL_SCANCODE_UNKNOWN) {
-                    printf("Unknown value '%s' for action '%s'\n", value, setting);
+                    LOG(WARNING, "Unknown value '%s' for action '%s'\n", value, setting);
                     continue;
                 }
                 if (strcmp(setting, "MOVE_UP") == 0) {
@@ -124,10 +119,12 @@ void loadSettings(ZENg zEngine, const char *filePath) {
                 } else if (strcmp(setting, "SPECIAL") == 0) {
                     zEngine->inputMng->bindings[INPUT_SPECIAL] = scancode;
                 } else {
-                    printf("Unknown action '%s'\n", setting);
+                    LOG(WARNING, "Unknown action '%s'\n", setting);
                 }
                 break;
             }
+            default:
+                break;
         }
     }
     fclose(fin);
@@ -148,9 +145,7 @@ void loadSettings(ZENg zEngine, const char *filePath) {
         zEngine->display->wdwFlags
     );
 
-    if (!zEngine->display->window) THROW_ERROR_AND_DO(
-        "Window creation failed: ", fprintf(stderr, "%s\n", SDL_GetError()); exit(EXIT_FAILURE);
-    );
+    ASSERT(zEngine->display->window != NULL, "%s\n", SDL_GetError());
 
     // Create renderer
     Int32 rendererFlags = SDL_RENDERER_ACCELERATED;
@@ -159,21 +154,15 @@ void loadSettings(ZENg zEngine, const char *filePath) {
     zEngine->display->renderer = SDL_CreateRenderer(
         zEngine->display->window, -1, rendererFlags
     );
-    if (!zEngine->display->renderer) THROW_ERROR_AND_DO(
-        "Renderer creation failed: ", fprintf(stderr, "%s\n", SDL_GetError());
-        SDL_DestroyWindow(zEngine->display->window); exit(EXIT_FAILURE);
-    );
+    ASSERT(zEngine->display->renderer != NULL, "%s\n", SDL_GetError());
 
-    printf("Settings loaded from %s\n", filePath);
-
-    #ifdef DEBUG
-        printf("Display settings: %dx%d, fullscreen: %d, vsync: %d\n",
+    LOG(INFO, "Settings loaded from %s\n", filePath);
+    LOG(DEBUG, "Display settings: %dx%d, fullscreen: %d, vsync: %hhu\n",
             zEngine->display->currentMode.w,
             zEngine->display->currentMode.h,
             zEngine->display->fullscreen,
             zEngine->display->vsync
-        );
-    #endif
+    );
 }
 
 /**
@@ -181,41 +170,43 @@ void loadSettings(ZENg zEngine, const char *filePath) {
  */
 
 void initLevel(ZENg zEngine, const char *levelFilePath) {
-    if (!zEngine || !levelFilePath) THROW_ERROR_AND_RETURN_VOID("zEngine or levelFilePath is NULL in initLevel");
+    ASSERT(zEngine && levelFilePath, "zEngine = %p, levelFilePath = %p\n", zEngine, levelFilePath);
 
     zEngine->map = calloc(1, sizeof(struct arena));
-    if (!zEngine->map) THROW_ERROR_AND_EXIT("Failed to allocate memory for Arena");
+    ASSERT(zEngine->map != NULL, "Failed to allocate memory for Arena");
 
     zEngine->map->tiles = calloc(ARENA_HEIGHT, sizeof(Tile*));
-    if (!zEngine->map->tiles) THROW_ERROR_AND_EXIT("Failed to allocate memory for arena tiles rows");
+    ASSERT(zEngine->map->tiles != NULL, "Failed to allocate memory for arena tiles rows");
     for (Uint32 i = 0; i < ARENA_HEIGHT; i++) {
         zEngine->map->tiles[i] = calloc(ARENA_WIDTH, sizeof(Tile));
-        if (!zEngine->map->tiles[i]) THROW_ERROR_AND_EXIT("Failed to allocate memory for arena tiles columns");
+        ASSERT(zEngine->map->tiles[i], "Failed to allocate memory for arena tiles columns");
     }
 
-    // Don't forget about the spatial grid
     zEngine->collisionMng = initCollisionManager();
 
     FILE *f = fopen(levelFilePath, "rb");
-    if (!f) THROW_ERROR_AND_DO("Failed to open level file: ", fprintf(stderr, "'%s'\n", levelFilePath); return;);
+    ASSERT(f != NULL, "Failed to open level file: %s\n", levelFilePath);
 
     fseek(f, 0, SEEK_END);
     long size = ftell(f);
     fseek(f, 0, SEEK_SET);
 
     char *data = malloc(size + 1);
+    ASSERT(data != NULL, "Failed to allocate memory for level file data\n");
     fread(data, 1, size, f);
     data[size] = '\0';
     fclose(f);
 
     cJSON *root = cJSON_Parse(data);
+    ASSERT(root != NULL, "Failed to parse game level JSON file");
     free(data);
-
-    if (!root) THROW_ERROR_AND_RETURN_VOID("Failed to parse level JSON");
 
     // The arena files have an object with the arrays "tiles" and "entities"
     cJSON *tilesArray = cJSON_GetObjectItem(root, "tiles");
-    if (!cJSON_IsArray(tilesArray)) THROW_ERROR_AND_RETURN_VOID("Invalid or missing 'tiles' array in level file");
+    if (!cJSON_IsArray(tilesArray)) {
+        LOG(WARNING, "Invalid or missing 'tiles' array in level file");
+        return;
+    }
 
     char *tileTypeToStr[] = {
         [TILE_EMPTY] = "TILE_EMPTY",
@@ -228,48 +219,55 @@ void initLevel(ZENg zEngine, const char *levelFilePath) {
     };
 
     Uint32 row = 0;
-    cJSON *tileRow = NULL;
+    cJSON *tileRowJSON = NULL;
 
-    cJSON_ArrayForEach(tileRow, tilesArray) {
-        if (!cJSON_IsArray(tileRow)) THROW_ERROR_AND_DO(
-            "Invalid tile row at index ", fprintf(stderr, "%d\n", row); continue;
-        );
-        if (row >= ARENA_HEIGHT) THROW_ERROR_AND_DO(
-            "Warning: More tile rows in level file than expected",
-            fprintf(stderr, " (%d). Ignoring extra rows\n", ARENA_HEIGHT); break;
-        );
+    cJSON_ArrayForEach(tileRowJSON, tilesArray) {
+        if (!cJSON_IsArray(tileRowJSON)) {
+            LOG(WARNING, "Invalid tile row at index %d\n", row);
+            continue;
+        }
+
+        if (row >= ARENA_HEIGHT) {
+            LOG(WARNING, "More tile rows in level file than expected (%d). Ignoring extra rows\n", ARENA_HEIGHT);
+            break;
+        }
+
         Uint32 col = 0;
-        cJSON *tile = NULL;
-        cJSON_ArrayForEach(tile, tileRow) {
-            if (!cJSON_IsNumber(tile)) THROW_ERROR_AND_DO(
-                "Invalid tile type at row ", fprintf(stderr, "%d, column %d\n", row, col); continue;
-            );
-            if (col >= ARENA_WIDTH) THROW_ERROR_AND_DO(
-                "Warning: More tile columns in row ",
-                fprintf(stderr, "%d than expected (%d). Ignoring extra columns\n", row, ARENA_WIDTH); break;
-            );
-            TileType currTileType = (TileType)tile->valueint;
-            if (currTileType < 0 || currTileType >= TILE_COUNT) THROW_ERROR_AND_DO(
-                "Invalid tile type value at row ",
-                fprintf(stderr, "%d, column %d: %d. Defaulting to TILE_EMPTY\n", row, col, currTileType);
+        cJSON *tileJSON = NULL;
+        cJSON_ArrayForEach(tileJSON, tileRowJSON) {
+            if (!cJSON_IsNumber(tileJSON)) {
+                LOG(WARNING, "Invalid tile type at row %d, column %d\n", row, col);
+                continue;
+            }
+
+            if (col >= ARENA_WIDTH) {
+                LOG(WARNING,
+                    "More tile columns in row %d than expected (%d). Ignoring extra columns\n", row, ARENA_WIDTH);
+                break;
+            }
+
+            TileType currTileType = (TileType)tileJSON->valueint;
+            if (currTileType < 0 || currTileType >= TILE_COUNT) {
+                LOG(WARNING, "Invalid tile type value at row %d, column %d: %d. Defaulting to TILE_EMPTY\n",
+                    row, col, currTileType);
                 currTileType = TILE_EMPTY;
-            );
+            }
+
             zEngine->map->tiles[row][col] = getTilePrefab(zEngine->prefabs, tileTypeToStr[currTileType]);
             zEngine->map->tiles[row][col].idx = row * ARENA_WIDTH + col;
             col++;
         }
-        if (col < ARENA_WIDTH) THROW_ERROR_AND_DO(
-            "Warning: Fewer tile columns (",
-            fprintf(stderr, "%d) in row %d than expected (%d). The rest are TILE_EMPTY.\n",
+        if (col < ARENA_WIDTH) {
+            LOG(WARNING, "Fewer tile columns (%d) in row %d than expected (%d). The rest will be set TILE_EMPTY.\n",
             col, row, ARENA_WIDTH);
-        );
+        }
         row++;
     }
-    if (row < ARENA_HEIGHT) THROW_ERROR_AND_DO(
-        "Warning: Fewer tile rows (",
-        fprintf(stderr, "%d) in level file than expected (%d). The rest are TILE_EMPTY.\n",
+
+    if (row < ARENA_HEIGHT) {
+        LOG(WARNING, "Fewer tile rows (%d) in level file than expected (%d). The remaining tiles are set TILE_EMPTY.\n",
         row, ARENA_HEIGHT);
-    );
+    }
 
     cJSON *entitiesArray = cJSON_GetObjectItem(root, "entities");
     if (cJSON_IsArray(entitiesArray)) {
@@ -279,9 +277,11 @@ void initLevel(ZENg zEngine, const char *levelFilePath) {
             cJSON *xJson = cJSON_GetObjectItem(entityJson, "x");
             cJSON *yJson = cJSON_GetObjectItem(entityJson, "y");
 
-            if (!cJSON_IsString(entityTypeJson) || !cJSON_IsNumber(xJson) || !cJSON_IsNumber(yJson)) THROW_ERROR_AND_DO(
-                "Invalid entity in entities array. Skipping.\n", continue;
-            );
+            if (!cJSON_IsString(entityTypeJson) || !cJSON_IsNumber(xJson) || !cJSON_IsNumber(yJson)) {
+                LOG(WARNING, "Invalid entity entry in the JSON entities array. Skipping.\n");
+                continue;
+            }
+
             char entityTypeStr[64];
             strncpy(entityTypeStr, entityTypeJson->valuestring, sizeof(entityTypeStr));
             entityTypeStr[sizeof(entityTypeStr) - 1] = '\0';
@@ -292,18 +292,18 @@ void initLevel(ZENg zEngine, const char *levelFilePath) {
             Entity tank = instantiateTank(
                 zEngine, getTankPrefab(zEngine->prefabs, entityTypeStr), (Vec2){.x = x * TILE_SIZE, .y = y * TILE_SIZE}
             );
-            if (!HAS_COMPONENT(zEngine->ecs, tank, COLLISION_COMPONENT)) THROW_ERROR_AND_CONTINUE(
-                    "Failed to add collision component to spawned tank in initLevel()");
+            if (!HAS_COMPONENT(zEngine->ecs, tank, COLLISION_COMPONENT)) {
+                LOG(WARNING, "Failed to add collision component to spawned tank\n");
+                continue;
+            }
+
             CollisionComponent *tankColComp = NULL;
             GET_COMPONENT(zEngine->ecs, tank, COLLISION_COMPONENT, tankColComp, CollisionComponent);
             registerEntityToSG(zEngine->collisionMng, tank, tankColComp);
 
-            #ifdef DEBUG
-                printf("Instantiated tank of type %s at (%d, %d)\n", entityTypeStr, y, x);
-            #endif
+            LOG(DEBUG, "Instantiated tank of type %s at (%d, %d)\n", entityTypeStr, y, x);
         }
     }
-
     cJSON_Delete(root);
 }
 
@@ -312,7 +312,10 @@ void initLevel(ZENg zEngine, const char *levelFilePath) {
  */
 
 void clearLevel(ZENg zEngine) {
-    if (!zEngine || !zEngine->map) THROW_ERROR_AND_RETURN_VOID("zEngine or zEngine->map is NULL in clearLevel");
+    if (!zEngine || !zEngine->map) {
+        LOG(ERROR, "zEngine or zEngine->map is NULL");
+        return;
+    }
 
     if (zEngine->map->tiles) {
         for (Uint32 i = 0; i < ARENA_HEIGHT; i++) {
@@ -336,12 +339,12 @@ void clearLevel(ZENg zEngine) {
 
 DependencyGraph* initDependencyGraph() {
     DependencyGraph *graph = calloc(1, sizeof(DependencyGraph));
-    if (!graph) THROW_ERROR_AND_EXIT("Failed to allocate memory for dependency graph");
+    ASSERT(graph != NULL, "Failed to allocate memory for dependency graph");
 
     graph->nodes = calloc(SYS_COUNT, sizeof(SystemNode*));
-    if (!graph->nodes) THROW_ERROR_AND_EXIT("Failed to allocate memory for system nodes array");
+    ASSERT(graph->nodes != NULL, "Failed to allocate memory for system nodes array");
 
-    typedef struct {
+    typedef struct SysPair{
         SystemType type;
         void (*update)(ZENg, double_t);
         Uint8 isFineGrained;
@@ -388,7 +391,7 @@ DependencyGraph* initDependencyGraph() {
         if (dependency && dependent) {
             addSystemDependency(dependency, dependent);
 
-            #ifdef DEBUG
+            if (LOG_LEVEL <= DEBUG) {
                 const char* sysNames[] = {
                     "SYS_LIFETIME",
                     "SYS_WEAPONS",
@@ -401,14 +404,13 @@ DependencyGraph* initDependencyGraph() {
                     "SYS_RENDER",
                     "SYS_UI"
                 };
-                printf("Added system dependency: %s -> %s\n", sysNames[dependency->type], sysNames[dependent->type]);
-            #endif
-        } else THROW_ERROR_AND_DO(
-            "Invalid system relationship in dependencies array: ",
-            fprintf(stderr, "(%d -> %d)\n", dependencies[i].dependency, dependencies[i].dependent);
-        );
+                LOG(DEBUG,
+                    "Added system dependency: %s -> %s\n", sysNames[dependency->type], sysNames[dependent->type]);
+            }
+        } else
+            LOG(ERROR, "Invalid system relationship in dependencies array: (%d -> %d)\n",
+                dependencies[i].dependency, dependencies[i].dependent);
     }
-
     return graph;
 }
 
@@ -418,37 +420,30 @@ DependencyGraph* initDependencyGraph() {
 
 ZENg initGame() {
     ZENg zEngine = calloc(1, sizeof(struct engine));
-    if (!zEngine) THROW_ERROR_AND_EXIT("Failed to allocate memory for the game engine");
-    // Initialize SDL
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0) THROW_ERROR_AND_DO(
-        "SDL_Init Error: ", fprintf(stderr, "%s\n", SDL_GetError()); exit(EXIT_FAILURE);
-    );
+    ASSERT(zEngine != NULL, "Failed to allocate memory for engine");
 
-    // Prepare the audio device
-    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) THROW_ERROR_AND_DO(
-        "SDL_Mixer could not initialize: ",
-        fprintf(stderr, "%s\n", Mix_GetError()); exit(EXIT_FAILURE);
-    );
+    // Initialize SDL
+    int successVal = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
+    ASSERT(successVal == 0, "SDL_Init Error: %s\n", SDL_GetError());
+
+    // Init the audio device
+    successVal = Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048);
+    ASSERT(successVal >= 0, "SDL_Mixer could not initialize: %s\n", Mix_GetError());
 
     // Init fonts
-    if (TTF_Init() == -1) THROW_ERROR_AND_DO(
-        "SDL_TTF could not initialize: ",
-        fprintf(stderr, "%s\n", TTF_GetError()); exit(EXIT_FAILURE);
-    );
+    successVal = TTF_Init();
+    ASSERT(successVal != -1, "SDL_TTF could not initialize: %s\n", TTF_GetError());
 
     // Init SDL_Image
-    if (IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG) == 0) THROW_ERROR_AND_DO(
-        "SDL_Image could not initialize: ",
-        fprintf(stderr, "%s\n", IMG_GetError()); exit(EXIT_FAILURE);
-    );
-
+    successVal = IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
+    ASSERT(successVal != 0, "SDL_Image could not initialize: %s\n", IMG_GetError());
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
     
     // Initalize the display and input managers by reading settings file if existent
     loadSettings(zEngine, "settings.ini");
     // Set logical screen size
-    if (SDL_RenderSetLogicalSize(zEngine->display->renderer, LOGICAL_WIDTH, LOGICAL_HEIGHT) < 0)
-        THROW_ERROR_AND_DO("SDL_RenderSetLogicalSize failed: ", fprintf(stderr, "%s\n", SDL_GetError()););
+    successVal = SDL_RenderSetLogicalSize(zEngine->display->renderer, LOGICAL_WIDTH, LOGICAL_HEIGHT);
+    ASSERT(successVal >= 0, "Failed to set renderer logical size: %s\n", SDL_GetError());
                 
     // After setting the display resolution define the tile size
     // The tiles are guaranteed to be square integers
@@ -469,15 +464,14 @@ ZENg initGame() {
 
     // Start on the main menu
     initStateManager(&zEngine->stateMng);
-    GameState *mainMenuState = calloc(1, sizeof(GameState));
-    if (!mainMenuState) THROW_ERROR_AND_EXIT("Failed to allocate memory for main menu state");
 
+    GameState *mainMenuState = calloc(1, sizeof(GameState));
+    ASSERT(mainMenuState != NULL, "Failed to allocate memory for the main menu state");
     mainMenuState->type = STATE_MAIN_MENU;
     mainMenuState->onEnter = &onEnterMainMenu;
     mainMenuState->onExit = &onExitMainMenu;
     mainMenuState->handleEvents = &handleMainMenuEvents;
     pushState(zEngine, mainMenuState);
-
     return zEngine;
 }
 
@@ -491,19 +485,13 @@ void velocitySystem(ZENg zEngine, double_t deltaTime) {
             // If there are projectiles, let them behave
             zEngine->ecs->depGraph->nodes[SYS_VELOCITY]->isDirty = 1;
         } else {
-            #ifdef DEBUGSYSTEMS
-                printf("[VELOCITY SYSTEM] Velocity system is not dirty\n");
-            #endif
+			SYS_DEBUG(DEBUG_SYSTEMS, "[VELOCITY SYSTEM] Velocity system is not dirty\n");
             return;
         }
     }
     
-    #ifdef DEBUGSYSTEMS
-        printf(
-            "[VELOCITY SYSTEM] Running velocity system for %lu entities\n",
-            zEngine->ecs->components[VELOCITY_COMPONENT].denseSize
-        );
-    #endif
+	SYS_DEBUG(DEBUG_SYSTEMS, "[VELOCITY SYSTEM] Running velocity system for %lu entities\n",
+		   zEngine->ecs->components[VELOCITY_COMPONENT].denseSize);
 
     ComponentTypeSet velComps = zEngine->ecs->components[VELOCITY_COMPONENT];
     // for each entity with a VELOCITY_COMPONENT, update its position based on the current velocity
@@ -512,7 +500,7 @@ void velocitySystem(ZENg zEngine, double_t deltaTime) {
         Entity entitty = velComps.denseToEntity[i];
         
         if (!HAS_COMPONENT(zEngine->ecs, entitty, POSITION_COMPONENT))
-            THROW_ERROR_AND_RETURN_VOID("Entity with VELOCITY_COMPONENT has no POSITION_COMPONENT");
+            LOG(WARNING, "Entity with VELOCITY_COMPONENT has no POSITION_COMPONENT");
         PositionComponent *posComp = NULL;
         GET_COMPONENT(zEngine->ecs, entitty, POSITION_COMPONENT, posComp, PositionComponent);
 
@@ -552,18 +540,11 @@ void velocitySystem(ZENg zEngine, double_t deltaTime) {
 
 void positionSystem(ZENg zEngine, double_t deltaTime) {
     if (zEngine->ecs->depGraph->nodes[SYS_POSITION]->isDirty == 0) {
-        #ifdef DEBUGSYSTEMS
-            printf("[POSITION SYSTEM] Position system is not dirty\n");
-        #endif
+		SYS_DEBUG(DEBUG_SYSTEMS, "[POSITION SYSTEM] Position system is not dirty\n");
         return;
     }
     ComponentTypeSet posComps = zEngine->ecs->components[POSITION_COMPONENT];
-    #ifdef DEBUGSYSTEMS
-        printf(
-            "[POSITION SYSTEM] Running position system for %lu entities\n",
-            posComps.denseSize
-        );
-    #endif
+	SYS_DEBUG(DEBUG_SYSTEMS, "[POSITION SYSTEM] Running position system for %lu entities\n", posComps.denseSize);
 
     for (Uint64 i = 0; i  < posComps.denseSize; i++) {
         PositionComponent *posComp = (PositionComponent *)(posComps.dense[i]);
@@ -622,18 +603,12 @@ void positionSystem(ZENg zEngine, double_t deltaTime) {
 
 void lifetimeSystem(ZENg zEngine, double_t deltaTime) {
     if (zEngine->ecs->depGraph->nodes[SYS_LIFETIME]->isDirty == 0) {
-        #ifdef DEBUGSYSTEMS
-            printf("[LIFETIME SYSTEM] Lifetime system is not dirty. Something wrong happened\n");
-        #endif
+		SYS_DEBUG(DEBUG_SYSTEMS, "[LIFETIME SYSTEM] Lifetime system is not dirty. Something wrong happened\n");
         return;
     }
     ComponentTypeSet *comps = zEngine->ecs->components;
-    #ifdef DEBUGSYSTEMS
-        printf(
-            "[LIFETIME SYSTEM] Running lifetime system for %lu entities\n",
-            comps[LIFETIME_COMPONENT].denseSize
-        );
-    #endif
+	SYS_DEBUG(DEBUG_SYSTEMS, "[LIFETIME SYSTEM] Running lifetime system for %lu entities\n",
+		   comps[LIFETIME_COMPONENT].denseSize);
 
     for (Uint64 i = 0; i < comps[LIFETIME_COMPONENT].denseSize; i++) {
         LifetimeComponent *lftComp = (LifetimeComponent *)(comps[LIFETIME_COMPONENT].dense[i]);
@@ -661,9 +636,8 @@ Uint8 checkAndHandleEntityCollisions(ZENg zEngine, Entity entity) {
     Uint16 maxX = colComp->coverageEnd % ARENA_WIDTH;
     Uint16 maxY = colComp->coverageEnd / ARENA_WIDTH;
 
-#ifdef DEBUGCOLLISIONS
-    printf("[ENTITY COLLISION SYSTEM] Entity %lu spans over (y:%d-%d, x:%d-%d)\n", entity, minY, maxY, minX, maxX);
-#endif
+    SYS_DEBUG(DEBUG_COLLISIONS, "[ENTITY COLLISION SYSTEM] Entity %lu spans over (y:%d-%d, x:%d-%d)\n",
+			  entity, minY, maxY, minX, maxX);
 
     Uint8 numCollided = 0;
 
@@ -689,10 +663,12 @@ Uint8 checkAndHandleEntityCollisions(ZENg zEngine, Entity entity) {
                     GET_COMPONENT(zEngine->ecs, susColEntity, COLLISION_COMPONENT, susEColComp, CollisionComponent);
                     if (SDL_HasIntersection(hitbox, susEColComp->hitbox)) {
                         // Call the appropriate handler function
-#ifdef DEBUGCOLLISIONS
-                        printf("[ENTITY COLLISION SYSTEM] Attempting to call a collision handler for entities");
-                        printf(" %lu(role %d) vs %lu(role %d)...\n", entity, colComp->role, susColEntity, susEColComp->role);
-#endif
+
+                        SYS_DEBUG(DEBUG_COLLISIONS,
+								  "[ENTITY COLLISION SYSTEM] Attempting to call a collision handler for entities");
+                        SYS_DEBUG(DEBUG_COLLISIONS, " %lu(role %d) vs %lu(role %d)...\n",
+								  entity, colComp->role, susColEntity, susEColComp->role);
+
                         if (zEngine->collisionMng->eVsEHandlers[colComp->role][susEColComp->role]) {
                             normalizeRoles(&entity, &susColEntity, &colComp, &susEColComp);
                             zEngine->collisionMng->eVsEHandlers[colComp->role][susEColComp->role](
@@ -717,19 +693,13 @@ Uint8 checkAndHandleEntityCollisions(ZENg zEngine, Entity entity) {
 
 void entityCollisionSystem(ZENg zEngine, double_t deltaTime) {
     if (zEngine->ecs->depGraph->nodes[SYS_ENTITY_COLLISIONS]->isDirty == 0) {
-        #ifdef DEBUGSYSTEMS
-            printf("[ENTITY COLLISION SYSTEM] Entity collision system is not dirty\n");
-        #endif
+		SYS_DEBUG(DEBUG_SYSTEMS, "[ENTITY COLLISION SYSTEM] Entity collision system is not dirty\n");
         return;
     }
     ComponentTypeSet *colComps = &zEngine->ecs->components[COLLISION_COMPONENT];
 
-    #ifdef DEBUGSYSTEMS
-        printf(
-            "[ENTITY COLLISION SYSTEM] Running entity collision system for %lu entities\n",
-            colComps->denseSize
-        );
-    #endif
+	SYS_DEBUG(DEBUG_SYSTEMS, "[ENTITY COLLISION SYSTEM] Running entity collision system for %lu entities\n",
+		   colComps->denseSize);
 
     for (Uint64 i = 0; i < colComps->denseSize; i++) {
         CollisionComponent *colComp = (CollisionComponent *)(colComps->dense[i]);
@@ -790,10 +760,10 @@ Uint8 checkAndHandleWorldCollisions(ZENg zEngine, Entity entity) {
             };
 
             if (SDL_HasIntersection(hitbox, &neighTileRect)) {
-#ifdef DEBUGCOLLISIONS
-                printf("[WORLD COLLISION SYSTEM] Attempting to call handler function for entity");
-                printf(" %lu vs tile type %d\n", entity, neighTile->type);
-#endif
+
+                SYS_DEBUG(DEBUG_COLLISIONS, "[WORLD COLLISION SYSTEM] Attempting to call handler function for entity");
+                SYS_DEBUG(DEBUG_COLLISIONS, " %lu vs tile type %d\n", entity, neighTile->type);
+
                 if (zEngine->collisionMng->eVsWHandlers[colComp->role])
                     zEngine->collisionMng->eVsWHandlers[colComp->role](zEngine, entity, neighTile);
                 numCollided++;
@@ -812,20 +782,14 @@ Uint8 checkAndHandleWorldCollisions(ZENg zEngine, Entity entity) {
 
 void worldCollisionSystem(ZENg zEngine, double_t deltaTime) {
     if (zEngine->ecs->depGraph->nodes[SYS_WORLD_COLLISIONS]->isDirty == 0) {
-        #ifdef DEBUGSYSTEMS
-            printf("[WORLD COLLISION SYSTEM] World collision system is not dirty\n");
-        #endif
+		SYS_DEBUG(DEBUG_SYSTEMS, "[WORLD COLLISION SYSTEM] World collision system is not dirty\n");
         return;
     }
 
     ComponentTypeSet *colComps = &zEngine->ecs->components[COLLISION_COMPONENT];
 
-    #ifdef DEBUGSYSTEMS
-        printf(
-            "[WORLD COLLISION SYSTEM] Running world collision system for %lu entities\n",
-            colComps->denseSize
-        );
-    #endif
+	SYS_DEBUG(DEBUG_SYSTEMS, "[WORLD COLLISION SYSTEM] Running world collision system for %lu entities\n",
+		colComps->denseSize);
 
     for (Uint64 i = 0; i < colComps->denseSize; i++) {
         CollisionComponent *colComp = colComps->dense[i];
@@ -853,12 +817,8 @@ void worldCollisionSystem(ZENg zEngine, double_t deltaTime) {
 
 void healthSystem(ZENg zEngine, double_t deltaTime) {
     ComponentTypeSet *comps = zEngine->ecs->components;
-    #ifdef DEBUGSYSTEMS
-        printf(
-            "[HEALTH SYSTEM] There are %lu dirty health components\n",
-            comps[HEALTH_COMPONENT].dirtyCount
-        );
-    #endif
+	SYS_DEBUG(DEBUG_SYSTEMS, "[HEALTH SYSTEM] There are %lu dirty health components\n",
+		   comps[HEALTH_COMPONENT].dirtyCount);
 
     if (comps[HEALTH_COMPONENT].dirtyCount != 0) {
         propagateSystemDirtiness(zEngine->ecs->depGraph->nodes[SYS_HEALTH]);
@@ -880,18 +840,11 @@ void healthSystem(ZENg zEngine, double_t deltaTime) {
 
 void weaponSystem(ZENg zEngine, double_t deltaTime) {
     if (zEngine->ecs->depGraph->nodes[SYS_WEAPONS]->isDirty == 0) {
-        #ifdef DEBUGSYSTEMS
-            printf("[WEAPON SYSTEM] Weapon system is not dirty\n");
-        #endif
+		SYS_DEBUG(DEBUG_SYSTEMS, "[WEAPON SYSTEM] Weapon system is not dirty\n");
         return;
     }
     ComponentTypeSet weapComps = zEngine->ecs->components[WEAPON_COMPONENT];
-    #ifdef DEBUGSYSTEMS
-        printf(
-            "[WEAPON SYSTEM] Running weapon system for %lu entities\n",
-            weapComps.denseSize
-        );
-    #endif
+	SYS_DEBUG(DEBUG_SYSTEMS, "[WEAPON SYSTEM] Running weapon system for %lu entities\n", weapComps.denseSize);
 
     for (Uint64 i = 0; i < weapComps.denseSize; i++) {
         WeaponComponent *currWeapon = (WeaponComponent *)(weapComps.dense[i]);
@@ -912,18 +865,11 @@ void weaponSystem(ZENg zEngine, double_t deltaTime) {
 
 void transformSystem(ZENg zEngine, double_t deltaTime) {
     if (zEngine->ecs->depGraph->nodes[SYS_TRANSFORM]->isDirty == 0) {
-        #ifdef DEBUGSYSTEMS
-            printf("[TRANSFORM SYSTEM] Transform system is not dirty\n");
-        #endif
+		SYS_DEBUG(DEBUG_SYSTEMS, "[TRANSFORM SYSTEM] Transform system is not dirty\n");
         return;
     }
     ComponentTypeSet posComps = zEngine->ecs->components[POSITION_COMPONENT];
-    #ifdef DEBUGSYSTEMS
-        printf(
-            "[TRANSFORM SYSTEM] Running transform system for %lu entities\n",
-            posComps.denseSize
-        );
-    #endif
+	SYS_DEBUG(DEBUG_SYSTEMS, "[TRANSFORM SYSTEM] Running transform system for %lu entities\n", posComps.denseSize);
 
     // iterate through all entities with POSITION_COMPONENT and update their rendered textures
     for (Uint64 i = 0; i < posComps.denseSize; i++) {
@@ -949,7 +895,6 @@ void transformSystem(ZENg zEngine, double_t deltaTime) {
  * =====================================================================================================================
  */
 
-#ifdef DEBUG
 void UIdebugRenderNode(SDL_Renderer *rdr, UIManager uiManager, UINode *node) {
     if (!node || !node->isVisible || !node->rect) return;
 
@@ -983,7 +928,6 @@ void UIdebugRenderNode(SDL_Renderer *rdr, UIManager uiManager, UINode *node) {
         UIdebugRenderNode(rdr, uiManager, node->children[i]);
     }
 }
-#endif
 
 /**
  * =====================================================================================================================
@@ -991,24 +935,19 @@ void UIdebugRenderNode(SDL_Renderer *rdr, UIManager uiManager, UINode *node) {
 
 void renderSystem(ZENg zEngine, double_t deltaTime) {
     if (zEngine->ecs->depGraph->nodes[SYS_RENDER]->isDirty == 0) {
-        #ifdef DEBUGSYSTEMS
-            printf("[RENDER SYSTEM] Render system is not dirty. Not good.\n");
-        #endif
+		SYS_DEBUG(DEBUG_SYSTEMS, "[RENDER SYSTEM] Render system is not dirty. Not good.\n");
     }
-    ComponentTypeSet rdrComps = zEngine->ecs->components[RENDER_COMPONENT];
-    #ifdef DEBUGSYSTEMS
-        Uint64 renderCount = rdrComps.denseSize;
-        printf("[RENDER SYSTEM] Running render system for %lu entities\n", renderCount);
-    #endif
+	ComponentTypeSet rdrComps = zEngine->ecs->components[RENDER_COMPONENT];
+	Uint64 renderCount = rdrComps.denseSize;
+	SYS_DEBUG(DEBUG_SYSTEMS, "[RENDER SYSTEM] Running render system for %lu entities\n", renderCount);
 
     GameState *currState = getCurrState(zEngine->stateMng);
     if (currState->type == STATE_PLAYING || currState->type == STATE_PAUSED) {
         renderArena(zEngine);
     }
 
-    #ifdef DEBUG
-        if (currState->type == STATE_PLAYING || currState->type == STATE_PAUSED) renderDebugGrid(zEngine);
-    #endif
+	if ((DEBUG_MASK & DEBUG_COLLISIONS) && (currState->type == STATE_PLAYING || currState->type == STATE_PAUSED))
+		renderDebugGrid(zEngine);
 
     for (Uint64 i = 0; i < rdrComps.denseSize; i++) {
         RenderComponent *render = (RenderComponent *)(rdrComps.dense[i]);
@@ -1028,9 +967,8 @@ void renderSystem(ZENg zEngine, double_t deltaTime) {
         );
     }
     
-    #ifdef DEBUGCOLLISIONS
-        if (currState->type == STATE_PLAYING || currState->type == STATE_PAUSED) renderDebugCollision(zEngine);
-    #endif
+	if (DEBUG_MASK & DEBUG_COLLISIONS && (currState->type == STATE_PLAYING || currState->type == STATE_PAUSED))
+		renderDebugCollision(zEngine);
 
     if (currState->type == STATE_PAUSED) {
         // Make the game appear as in background
@@ -1043,12 +981,10 @@ void renderSystem(ZENg zEngine, double_t deltaTime) {
         SDL_SetRenderDrawBlendMode(zEngine->display->renderer, SDL_BLENDMODE_NONE); // Reset if needed
     }
 
-    #ifdef DEBUGUI
         // Render UI nodes with debug outlines
-        if (zEngine->uiManager->root) {
+        if (DEBUG_MASK & DEBUG_UI && zEngine->uiManager->root)
             UIdebugRenderNode(zEngine->display->renderer, zEngine->uiManager, zEngine->uiManager->root);
-        }
-    #endif
+
     UIrender(zEngine->uiManager, zEngine->display->renderer);  // Voila
 
     // Should propagate the dirtiness here, but the render system is pretty much always the last
@@ -1061,9 +997,7 @@ void renderSystem(ZENg zEngine, double_t deltaTime) {
  */
 
 void uiSystem(ZENg zEngine, double_t deltaTime) {
-    #ifdef DEBUGSYSTEMS
-        printf("[UI SYSTEM] There are %lu dirty UI components\n", zEngine->uiManager->dirtyCount);
-    #endif
+	SYS_DEBUG(DEBUG_SYSTEMS, "[UI SYSTEM] There are %lu dirty UI components\n", zEngine->uiManager->dirtyCount);
     
     while (zEngine->uiManager->dirtyCount > 0) {
         UINode *dirtyNode = zEngine->uiManager->dirtyNodes[0];
@@ -1078,16 +1012,10 @@ void uiSystem(ZENg zEngine, double_t deltaTime) {
                     btn->text,
                     btn->currColor
                 );
-                if (!btnSurface) THROW_ERROR_AND_DO(
-                    "Failed to create button surface: ",
-                    fprintf(stderr, "%s\n", SDL_GetError()); exit(EXIT_FAILURE);
-                );
+                ASSERT(btnSurface != NULL, "Failed to create button surface: %s\n", SDL_GetError());
                 btn->texture = SDL_CreateTextureFromSurface(zEngine->display->renderer, btnSurface);
                 SDL_FreeSurface(btnSurface);
-                if (!btn->texture) THROW_ERROR_AND_DO(
-                    "Failed to create button texture: ",
-                    fprintf(stderr, "%s\n", SDL_GetError()); exit(EXIT_FAILURE);
-                );
+                ASSERT(btn->texture != NULL, "Failed to create texture: %s\n", SDL_GetError());
                 break;
             }
         }
@@ -1103,9 +1031,7 @@ void renderArena(ZENg zEngine) {
     SDL_SetRenderDrawColor(zEngine->display->renderer, 20, 20, 20, 200);  // background color - grey
     SDL_RenderClear(zEngine->display->renderer);
 
-    if (!zEngine->map || !zEngine->map->tiles) THROW_ERROR_AND_EXIT(
-        "Error: Cannot render arena - map or tiles are NULL\n"
-    );
+    if (!zEngine->map || !zEngine->map->tiles) LOG(ERROR, "Error: Cannot render arena - map or tiles are NULL\n");
 
     for (Uint64 y = 0; y < ARENA_HEIGHT; y++) {
         for (Uint64 x = 0; x < ARENA_WIDTH; x++) {
@@ -1131,7 +1057,6 @@ void renderArena(ZENg zEngine) {
  * =====================================================================================================================
  */
 
-#ifdef DEBUG
 void renderDebugGrid(ZENg zEngine) {
     SDL_SetRenderDrawColor(zEngine->display->renderer, 100, 100, 100, 50);
     
@@ -1153,9 +1078,7 @@ void renderDebugGrid(ZENg zEngine) {
         );
     }
 }
-#endif
 
-#ifdef DEBUGCOLLISIONS
 void renderDebugCollision(ZENg zEngine) {
     // Draw entity hitboxes in red and grid coverage in yellow
     ComponentTypeSet colComps = zEngine->ecs->components[COLLISION_COMPONENT];
@@ -1163,7 +1086,10 @@ void renderDebugCollision(ZENg zEngine) {
 
     for (Uint64 i = 0; i < colComps.denseSize; i++) {
         CollisionComponent *colComp = (CollisionComponent *)(colComps.dense[i]);
-        if (!colComp || !colComp->hitbox) THROW_ERROR_AND_CONTINUE("Invalid colComp in renderDebugCollision\n");
+        if (!colComp || !colComp->hitbox) {
+			LOG(ERROR, "Invalid colComp\n");
+			continue;
+		}
 
         // Red
         SDL_SetRenderDrawColor(zEngine->display->renderer, 255, 0, 0, 255);
@@ -1214,7 +1140,6 @@ void renderDebugCollision(ZENg zEngine) {
         }
     }
 }
-#endif
 
 /**
  * =====================================================================================================================
@@ -1236,7 +1161,7 @@ void runSystems(ZENg zEngine, double_t deltaTime) {
 void saveSettings(ZENg zEngine, const char *filePath) {
     saveKeyBindings(zEngine->inputMng, filePath);
     saveDisplaySettings(zEngine->display, filePath);
-    printf("Settings saved to %s\n", filePath);
+    LOG(DEBUG, "Settings saved to %s\n", filePath);
 }
 
 /**

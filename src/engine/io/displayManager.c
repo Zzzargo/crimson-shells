@@ -1,10 +1,9 @@
 #include "displayManager.h"
 
+#include "global/debug.h"
+
 void setDefaultDisplaySettings(DisplayManager display) {
-    if (!display) {
-        printf("Display manager is NULL, cannot set default settings\n");
-        return;
-    }
+    ASSERT(display != NULL, "Display manager is NULL, cannot set default settings\n");
 
     display->currentMode.w = 1280;  // default width
     display->currentMode.h = 720;  // default height
@@ -21,10 +20,10 @@ void setDefaultDisplaySettings(DisplayManager display) {
  */
 
 void toggleFullscreen(DisplayManager mgr) {
-    if (!mgr) return;
+    ASSERT(mgr != NULL, "Display manager reference was lost somehow");
 
-    int curr = mgr->wdwFlags & SDL_WINDOW_FULLSCREEN;
-    if (curr) {
+    int isFullscreen = mgr->wdwFlags & SDL_WINDOW_FULLSCREEN;
+    if (isFullscreen) {
         SDL_SetWindowFullscreen(mgr->window, 0);
         mgr->wdwFlags &= ~SDL_WINDOW_FULLSCREEN;
         mgr->fullscreen = 0;
@@ -41,16 +40,16 @@ void toggleFullscreen(DisplayManager mgr) {
  */
 
 SDL_DisplayMode* getAvailableDisplayModes(DisplayManager mgr, int *count) {
-    if (!mgr || !count) THROW_ERROR_AND_RETURN("Display manager or count pointer is NULL", NULL);
+    ASSERT(mgr && count, "mgr = %p, count = %p\n", mgr, count);
 
     SDL_DisplayMode *availableModes = NULL;
     int modeCount = SDL_GetNumDisplayModes(0);  // 0 for the primary display
     if (modeCount < 0) {
-        printf("SDL_GetNumDisplayModes failed: %s\n", SDL_GetError());
+        LOG(ERROR, "SDL_GetNumDisplayModes failed: %s\n", SDL_GetError());
         return NULL;
     }
 
-    typedef struct {
+    typedef struct Resolution {
         int w, h;
     } Resolution;  // helper struct to store resolutions
 
@@ -67,28 +66,32 @@ SDL_DisplayMode* getAvailableDisplayModes(DisplayManager mgr, int *count) {
     int neededCount = sizeof(neededResolutions) / sizeof(Resolution);
     *count = 0;
     SDL_DisplayMode *neededModes = calloc(neededCount, sizeof(SDL_DisplayMode));
-    if (!neededModes) THROW_ERROR_AND_EXIT("Failed to allocate memory for needed modes in getAvailableDisplayModes");
+    ASSERT(neededModes != NULL, "Failed to allocate memory for needed modes");
 
     availableModes = calloc(modeCount, sizeof(SDL_DisplayMode));
-    if (!availableModes)
-        THROW_ERROR_AND_EXIT("Failed to allocate memory for available modes in getAvailableDisplayModes");
+    ASSERT(availableModes != NULL, "Failed to allocate memory for available modes");
 
     for (int i = 0; i < modeCount; i++) {
-        if (SDL_GetDisplayMode(0, i, &availableModes[i]) != 0) THROW_ERROR_AND_DO(
-            "SDL_GetDisplayMode failed: ", fprintf(stderr, "'%s'\n", SDL_GetError());
+        int successVal = SDL_GetDisplayMode(0, i, &availableModes[i]);
+        if (successVal != 0) {
+            LOG(ERROR, "SDL_GetDisplayMode failed: '%s'\n", SDL_GetError());
             return NULL;
-        );
-        if (
-            (double)availableModes[i].w / availableModes[i].h < 1.8
-            && (double)availableModes[i].w / availableModes[i].h > 1.7
-        )
-            neededModes[(*count)++] = availableModes[i];  // 16:9 ratio with a big enough decimal tolerance
-        if ((availableModes[i].w <= 1024) && (availableModes[i].h <= 576))
-            break;  // Skip availableModes that are too small
+        }
+
+        SDL_DisplayMode availableMode = availableModes[i];
+
+        if ((double)availableMode.w / availableMode.h < 1.8
+            && (double)availableMode.w / availableMode.h > 1.7)
+            neededModes[(*count)++] = availableMode;  // 16:9 ratio with a big enough decimal tolerance
+        if ((availableMode.w <= 1024) && (availableMode.h <= 576)) {
+            LOG(DEBUG, "Skipping unsatisfying resolution %dx%d @%dHz\n",
+                availableMode.w, availableMode.h, availableMode.refresh_rate);
+            break;
+        }
     }
     if (neededCount != *count) {
         neededModes = realloc(neededModes, *count * sizeof(SDL_DisplayMode));
-        if (!neededModes) THROW_ERROR_AND_EXIT("Failed to resize needed modes in getAvailableDisplayModes");
+        ASSERT(neededModes != NULL, "Failed to resize needed modes");
     }
     free(availableModes);
     return neededModes;
@@ -99,8 +102,7 @@ SDL_DisplayMode* getAvailableDisplayModes(DisplayManager mgr, int *count) {
  */
 
 void setDisplayMode(DisplayManager mgr, const SDL_DisplayMode *mode) {
-    if (!mgr || !mode) return;
-
+    ASSERT(mgr && mode, "mgr = %p, node = %p\n", mgr, mode);
     mgr->currentMode = *mode;
 
     // If fullscreen mode switch to windowed mode to change the size
@@ -116,13 +118,9 @@ void setDisplayMode(DisplayManager mgr, const SDL_DisplayMode *mode) {
         SDL_SetWindowFullscreen(mgr->window, SDL_WINDOW_FULLSCREEN);
         mgr->wdwFlags |= SDL_WINDOW_FULLSCREEN;  // just in case
     }
-    
-    #ifdef DEBUG
-        printf(
-            "Display mode set to %dx%d @ %dHz\n",
-            mgr->currentMode.w, mgr->currentMode.h, mgr->currentMode.refresh_rate
-        );
-    #endif
+
+    LOG(INFO, "Display mode set to %dx%d @%dHz\n",
+        mgr->currentMode.w, mgr->currentMode.h, mgr->currentMode.refresh_rate);
 }
 
 /**
@@ -130,11 +128,14 @@ void setDisplayMode(DisplayManager mgr, const SDL_DisplayMode *mode) {
  */
 
 void saveDisplaySettings(DisplayManager mgr, const char *filePath) {
-    if (!mgr || !filePath) return;
+    if (!mgr || !filePath) {
+        LOG(ERROR, "Display manager or filePath is NULL");
+        return;
+    }
 
     FILE *fout = fopen(filePath, "a");
     if (!fout) {
-        printf("Failed to open config file for writing: %s\n", filePath);
+        LOG(ERROR, "Failed to open config file for writing: %s\n", filePath);
         return;
     }
 
@@ -142,6 +143,7 @@ void saveDisplaySettings(DisplayManager mgr, const char *filePath) {
     fprintf(fout, "WIDTH=%d\n", mgr->currentMode.w);
     fprintf(fout, "HEIGHT=%d\n", mgr->currentMode.h);
     fprintf(fout, "FULLSCREEN=%d\n", (mgr->wdwFlags & SDL_WINDOW_FULLSCREEN) ? 1 : 0);
+    // TODO: This looks sus
     fprintf(fout, "VSYNC=%d\n", (mgr->wdwFlags & SDL_RENDERER_PRESENTVSYNC) ? 1 : 0);
 
     fclose(fout);

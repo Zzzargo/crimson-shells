@@ -2,6 +2,7 @@
 #include "global/global.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include "global/debug.h"
 
 void initECS(ECS *ecs) {
     (*ecs) = malloc(sizeof(struct EeSiEs));
@@ -14,41 +15,23 @@ void initECS(ECS *ecs) {
     (*ecs)->entityCount = 0;
     (*ecs)->capacity = INIT_CAPACITY;
     (*ecs)->activeEntities = calloc(INIT_CAPACITY, sizeof(Entity));
-    if (!(*ecs)->activeEntities) {
-        fprintf(stderr, "Failed to allocate memory for ECS active entities\n");
-        free(*ecs);
-        exit(EXIT_FAILURE);
-    }
+    ASSERT((*ecs)->activeEntities != NULL, "Failed to allocate memory for ECS active entities\n");
 
 	(*ecs)->entityToActiveIndex = calloc(INIT_CAPACITY, sizeof(Uint64));
-	if (!(*ecs)->entityToActiveIndex) {
-		THROW_ERROR_AND_EXIT("Failed to allocate memory for the ECS entity->active index array map");
-	}
-	
+    ASSERT((*ecs)->entityToActiveIndex != NULL, "Failed to allocate memory for the ECS entity->active index array map");
 
     (*ecs)->freeEntities = calloc(INIT_CAPACITY, sizeof(Entity));
-    if (!(*ecs)->freeEntities) {
-        fprintf(stderr, "Failed to allocate memory for ECS free entities\n");
-        free(*ecs);
-        exit(EXIT_FAILURE);
-    }
+    ASSERT((*ecs)->freeEntities != NULL, "Failed to allocate memory for the ECS free entities\n");
+
     (*ecs)->freeEntityCount = 0;
     (*ecs)->freeEntityCapacity = INIT_CAPACITY;
 
     // initialize the component arrays
     (*ecs)->componentsFlags = calloc((*ecs)->capacity, sizeof(bitset));
-    if (!(*ecs)->componentsFlags) {
-        fprintf(stderr, "Failed to allocate memory for ECS components flags\n");
-        free(*ecs);
-        exit(EXIT_FAILURE);
-    }
+    ASSERT((*ecs)->componentsFlags != NULL, "Failed to allocate memory for ECS components flags\n");
+
     (*ecs)->components = calloc(COMPONENT_TYPE_COUNT, sizeof(ComponentTypeSet));
-    if (!(*ecs)->components) {
-        fprintf(stderr, "Failed to allocate memory for ECS components\n");
-        free((*ecs)->componentsFlags);
-        free(*ecs);
-        exit(EXIT_FAILURE);
-    }
+    ASSERT((*ecs)->components != NULL, "Failed to allocate memory for ECS components\n");
 
     for (Uint64 i = 0; i < COMPONENT_TYPE_COUNT; i++)
         (*ecs)->components[i].type = i;
@@ -72,74 +55,41 @@ Entity createEntity(ECS ecs, StateTagComponent state) {
             // resize the ECS if needed
             Uint64 oldCapacity = ecs->capacity;
             ecs->capacity *= 2;
-
-            #ifdef DEBUG
-                printf("Resizing ECS from %lu to %lu\n", oldCapacity, ecs->capacity);
-            #endif
+            LOG(DEBUG, "Resizing ECS from %lu to %lu\n", oldCapacity, ecs->capacity);
 
             Entity *tmpActive = realloc(ecs->activeEntities, ecs->capacity * sizeof(Entity));
-            if (!tmpActive) {
-                fprintf(stderr, "Failed to reallocate memory for ECS active entities\n");
-                free(ecs->activeEntities);
-                free(ecs->componentsFlags);
-                free(ecs->components);
-                free(ecs);
-                exit(EXIT_FAILURE);
-            }
+            ASSERT(tmpActive != NULL, "Failed to reallocate memory for ECS active entities\n");
             ecs->activeEntities = tmpActive;
 
             bitset *tmpFlags = realloc(ecs->componentsFlags, ecs->capacity * sizeof(bitset));
-            if (!tmpFlags) {
-                fprintf(stderr, "Failed to reallocate memory for ECS components flags\n");
-                free(ecs->componentsFlags);
-                free(ecs->components);
-                free(ecs);
-                exit(EXIT_FAILURE);
-            }
+            ASSERT(tmpFlags != NULL, "Failed to reallocate memory for ECS components flags\n");
             ecs->componentsFlags = tmpFlags;
 
             Uint64 *tmpEntityToActive = realloc(ecs->entityToActiveIndex, ecs->capacity * sizeof(Uint64));
-            if (!tmpEntityToActive) {
-                fprintf(stderr, "Failed to reallocate memory for ECS entity->active array map\n");
-                free(ecs->activeEntities);
-                free(ecs->componentsFlags);
-                free(ecs->components);
-                free(ecs->entityToActiveIndex);
-                free(ecs);
-                exit(EXIT_FAILURE);
-            }
+            ASSERT(tmpEntityToActive != NULL, "Failed to reallocate memory for ECS entity->active array map\n");
             ecs->entityToActiveIndex = tmpEntityToActive;
 
-            // Resize the freeEntities array to match the new capacity
             Entity *tmpFreeEntities = realloc(ecs->freeEntities, ecs->capacity * sizeof(Entity));
-            if (!tmpFreeEntities) {
-                fprintf(stderr, "Failed to reallocate memory for ECS free entities\n");
-                free(ecs->activeEntities);
-                free(ecs->componentsFlags);
-                free(ecs->components);
-                free(ecs->entityToActiveIndex);
-                free(ecs->freeEntities);
-                free(ecs);
-                exit(EXIT_FAILURE);
-            }
+            ASSERT(tmpFreeEntities != NULL, "Failed to reallocate memory for ECS free entities\n");
             ecs->freeEntities = tmpFreeEntities;
             ecs->freeEntityCapacity = ecs->capacity;
 
-            // initalize the new flags to 0
+            // initialize the new flags to 0
             for (Uint64 i = oldCapacity; i < ecs->capacity; i++) {
-                ecs->componentsFlags[i] = 00000000;
+                ecs->componentsFlags[i] = 0;
             }
 
             // resize the components arrays - only dense part
             for (Uint64 i = 0; i < COMPONENT_TYPE_COUNT; i++) {
                 if (ecs->components[i].dense) {
                     void **tmpDense = realloc(ecs->components[i].dense, ecs->capacity * sizeof(void *));
-                    Entity *tmpDenseToEntity = realloc(ecs->components[i].denseToEntity, ecs->capacity * sizeof(Entity));
-                    if (!tmpDense || !tmpDenseToEntity) {
-                        fprintf(stderr, "Failed to reallocate memory for component %lu dense arrays\n", i);
-                        exit(EXIT_FAILURE);
-                    }
+                    ASSERT(tmpDense != NULL, "Failed to reallocate memory for the dense array of component set %lu", i);
                     ecs->components[i].dense = tmpDense;
+
+                    Entity *tmpDenseToEntity = realloc(
+                        ecs->components[i].denseToEntity, ecs->capacity * sizeof(Entity));
+                    ASSERT(tmpDenseToEntity != NULL,
+                        "Failed to reallocate memory for dense index -> entity array map of component set %lu", i);
                     ecs->components[i].denseToEntity = tmpDenseToEntity;
                 }
             }
@@ -154,174 +104,17 @@ Entity createEntity(ECS ecs, StateTagComponent state) {
 
     // Add the state tag component
     StateTagComponent *stateTag = calloc(1, sizeof(StateTagComponent));
-    if (!stateTag) {
-        printf("Failed allocating memory for the state tag of entity %lu\n", entitty);
-        exit(EXIT_FAILURE);
-    }
-
+    ASSERT(stateTag != NULL, "Failed to allocate memory for the state tag of entity %lu\n", entitty);
     *stateTag = state; 
     addComponent(ecs, entitty, STATE_TAG_COMPONENT, (void*)stateTag);
 
     ActiveTagComponent *activeTag = calloc(1, sizeof(ActiveTagComponent));
-    if (!activeTag) THROW_ERROR_AND_EXIT("Failed allocating memory for the active tag of an entity");
+    ASSERT(activeTag != NULL, "Failed allocating memory for the active tag of an entity");
     *activeTag = 1;
     addComponent(ecs, entitty, ACTIVE_TAG_COMPONENT, activeTag);
 
-    #ifdef DEBUG
-        printf("Created entity %lu belonging to state %d\n", entitty, *stateTag);
-    #endif
-
+    LOG(DEBUG, "Created entity %lu belonging to state %d\n", entitty, *stateTag);
     return entitty;
-}
-
-/**
- * =====================================================================================================================
- */
-
-DirectionComponent* createDirectionComponent(DirectionComponent dir) {
-    DirectionComponent *comp = calloc(1, sizeof(DirectionComponent));
-    if (!comp) {
-        printf("Failed to allocate memory for direction component\n");
-        exit(EXIT_FAILURE);
-    }
-    *comp = dir;
-    return comp;
-}
-
-/**
- * =====================================================================================================================
- */
-
-PositionComponent* createPositionComponent(PositionComponent pos) {
-    PositionComponent *comp = calloc(1, sizeof(PositionComponent));
-    if (!comp) {
-        printf("Failed to allocate memory for position component\n");
-        exit(EXIT_FAILURE);
-    }
-    *comp = pos;
-    return comp;
-}
-
-
-/**
- * =====================================================================================================================
- */
-
-VelocityComponent* createVelocityComponent(Vec2 velocity, double_t maxVelocity, PositionComponent predictedPos, Axis lastAxis, Uint8 active) {
-    VelocityComponent *comp = calloc(1, sizeof(VelocityComponent));
-    if (!comp) {
-        printf("Failed to allocate memory for velocity component\n");
-        exit(EXIT_FAILURE);
-    }
-    comp->currVelocity = velocity;
-    comp->maxVelocity = maxVelocity;
-    comp->predictedPos = predictedPos;
-    comp->prevAxis = lastAxis;
-    comp->active = active;
-    return comp;
-}
-
-/**
- * =====================================================================================================================
- */
-
-HealthComponent* createHealthComponent(Int32 maxHealth, Int32 currentHealth, Uint8 active) {
-    HealthComponent *comp = calloc(1, sizeof(HealthComponent));
-    if (!comp) {
-        printf("Failed to allocate memory for health component\n");
-        exit(EXIT_FAILURE);
-    }
-    comp->maxHealth = maxHealth;
-    comp->currentHealth = currentHealth;
-    comp->active = active;
-    return comp;
-}
-
-/**
- * =====================================================================================================================
- */
-
-CollisionComponent* createCollisionComponent(int x, int y, int w, int h, Uint8 isSolid, CollisionRole role) {
-    CollisionComponent *comp = calloc(1, sizeof(CollisionComponent));
-    if (!comp) {
-        printf("Failed to allocate memory for collision component\n");
-        exit(EXIT_FAILURE);
-    }
-    comp->hitbox = calloc(1, sizeof(SDL_Rect));
-    if (!comp->hitbox) {
-        printf("Failed to allocate memory for collision hitbox\n");
-        exit(EXIT_FAILURE);
-    }
-    comp->hitbox->x = x;
-    comp->hitbox->y = y;
-    comp->hitbox->w = w;
-    comp->hitbox->h = h;
-    comp->isSolid = isSolid;
-    comp->role = role;
-    return comp;
-}
-
-/**
- * =====================================================================================================================
- */
-
-RenderComponent* createRenderComponent(SDL_Texture *texture, int x, int y, int w, int h, Uint8 active) {
-    RenderComponent *comp = calloc(1, sizeof(RenderComponent));
-    if (!comp) {
-        printf("Failed to allocate memory for render component\n");
-        exit(EXIT_FAILURE);
-    }
-    comp->texture = texture;
-    comp->active = active;
-
-    comp->destRect = calloc(1, sizeof(SDL_Rect));
-    if (!comp->destRect) {
-        printf("Failed to allocate memory for render destination rectangle\n");
-        exit(EXIT_FAILURE);
-    }
-
-    *comp->destRect = (SDL_Rect) {
-        .x = x,
-        .y = y,
-        .w = w,
-        .h = h
-    };
-
-    return comp;
-}
-
-/**
- * =====================================================================================================================
- */
-
-LoadoutComponent *createLoadoutComponent(Entity primaryGun, CDLLNode *currSecondaryGun, Entity hull, Entity module) {
-    LoadoutComponent *comp = calloc(1, sizeof(LoadoutComponent));
-    if (!comp) {
-        printf("Failed to allocate memory for loadout component\n");
-        exit(EXIT_FAILURE);
-    }
-    comp->primaryGun = primaryGun;
-    comp->currSecondaryGun = currSecondaryGun;
-    comp->hull = hull;
-    comp->module = module;
-    return comp;
-}
-
-/**
- * =====================================================================================================================
- */
-
-ProjectileComponent *createProjectileComponent(Int32 dmg, Uint8 piercing, Uint8 exploding, Uint8 friendly) {
-    ProjectileComponent *comp = calloc(1, sizeof(ProjectileComponent));
-    if (!comp) {
-        printf("Failed to allocate memory for projectile component\n");
-        exit(EXIT_FAILURE);
-    }
-    comp->dmg = dmg;
-    comp->piercing = piercing;
-    comp->exploding = exploding;
-    comp->friendly = friendly;
-    return comp;
 }
 
 /**
@@ -496,6 +289,10 @@ void unmarkComponentDirty(ECS ecs, ComponentType compType) {
     ComponentTypeSet *comp = &ecs->components[compType];
     comp->dirtyEntities[0] = comp->dirtyEntities[--comp->dirtyCount];
 }
+
+/**
+ * =====================================================================================================================
+ */
 
 SystemNode* createSystemNode(SystemType type, void (*update)(ZENg, double_t), Uint8 isFineGrained) {
     SystemNode *node = calloc(1, sizeof(SystemNode));

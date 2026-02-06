@@ -1,3 +1,4 @@
+#include "engine/core/componentFactory.h"
 #include "states/stateManager.h"
 
 void onEnterPlayState(ZENg zEngine) {
